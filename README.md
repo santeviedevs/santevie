@@ -9,16 +9,16 @@ npm run dev
 
 ## Scripts
 
-| Script                 | Purpose                     |
-| ---------------------- | --------------------------- |
-| `npm run dev`          | Start the dev server        |
-| `npm run build`        | Production build            |
-| `npm run lint`         | ESLint                      |
-| `npm run lint:fix`     | ESLint with autofix         |
-| `npm run format`       | Prettier write              |
-| `npm run format:check` | Prettier check (used in CI) |
-| `npm run typecheck`    | `tsc --noEmit`              |
-| `npm run test`         | Vitest                      |
+| Script                 | Purpose                        |
+| ---------------------- | ------------------------------ |
+| `npm run dev`          | Start the dev server           |
+| `npm run build`        | Production build               |
+| `npm run lint`         | ESLint                         |
+| `npm run lint:fix`     | ESLint with autofix            |
+| `npm run format`       | Prettier write                 |
+| `npm run format:check` | Prettier check (used in CI)    |
+| `npm run typecheck`    | `next typegen && tsc --noEmit` |
+| `npm run test`         | Vitest                         |
 
 ## CI
 
