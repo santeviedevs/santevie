@@ -47,10 +47,14 @@ jobs:
       - run: npm ci
       - run: npm run test
 
+  # continue-on-error: Vercel account token issue (API returns "User not
+  # found" even for freshly created tokens) is pending with Vercel support.
+  # Remove once resolved so this job blocks merges again.
   preview-deploy:
     if: github.event_name == 'pull_request'
     needs: [lint, typecheck, test]
     runs-on: ubuntu-latest
+    continue-on-error: true
     permissions:
       pull-requests: write
     steps:
