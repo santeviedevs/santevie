@@ -4,6 +4,8 @@
 
 ```bash
 npm install
+docker compose up -d
+cp .env.example .env.local
 npm run dev
 ```
 
@@ -19,6 +21,33 @@ npm run dev
 | `npm run format:check` | Prettier check (used in CI)    |
 | `npm run typecheck`    | `next typegen && tsc --noEmit` |
 | `npm run test`         | Vitest                         |
+
+## Local infrastructure
+
+`docker-compose.yml` runs the services the app depends on locally:
+
+- **postgres** — Postgres 16, exposed on `localhost:5432` (user/password/db: `santevie`).
+- **minio** — an S3-compatible object store standing in for Cloudflare R2 in local dev, exposed on
+  `localhost:9000` (S3 API) and `localhost:9001` (web console, login `santevie` /
+  `santevie123`).
+- **minio-init** — a one-shot job that creates the `santevie-local` bucket on first startup, then
+  exits.
+
+Setup steps:
+
+1. Install Docker Desktop (or another Docker Engine + Compose v2) if you don't have it.
+2. From the repo root, start the services: `docker compose up -d`
+3. Check they're healthy: `docker compose ps` (postgres and minio should show `healthy`).
+4. Copy the env template: `cp .env.example .env.local` — the defaults already match the
+   docker-compose credentials, so no edits are needed for local dev.
+5. Optional: open the MinIO console at http://localhost:9001 to browse the `santevie-local`
+   bucket.
+6. Stop the services when done: `docker compose down` (add `-v` to also wipe the Postgres/MinIO
+   volumes and start clean next time).
+
+In staging/production, point `S3_ENDPOINT` and the S3 credentials at a real Cloudflare R2 bucket
+(see the commented block in `.env.example`) — R2 speaks the same S3 API as MinIO, so no app code
+changes are needed.
 
 ## CI
 

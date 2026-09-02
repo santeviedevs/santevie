@@ -1,0 +1,55 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: santevie
+      POSTGRES_PASSWORD: santevie
+      POSTGRES_DB: santevie
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U santevie -d santevie"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # S3-compatible local stand-in for Cloudflare R2. The app talks to storage
+  # over the S3 API, so pointing S3_ENDPOINT at R2 in staging/prod is a
+  # config change only, not a code change.
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: santevie
+      MINIO_ROOT_PASSWORD: santevie123
+    ports:
+      - "9000:9000" # S3 API
+      - "9001:9001" # Web console
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-shot job: creates the app's default bucket on startup so you don't
+  # have to click through the MinIO console before you can upload anything.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 santevie santevie123 &&
+      mc mb --ignore-existing local/santevie-local
+      "
+
+volumes:
+  postgres_data:
+  minio_data:
