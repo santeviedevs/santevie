@@ -6,8 +6,28 @@
 npm install
 docker compose up -d
 cp .env.example .env.local
+npx prisma migrate dev
+npx prisma db seed
 npm run dev
 ```
+
+Sign in with any seeded account (`admin@santevie.test`, `manager@santevie.test`,
+`supervisor@santevie.test`, `delegate@santevie.test`), password `ChangeMe123!`.
+
+## Database
+
+Schema lives in `prisma/schema.prisma`. Connection settings live in `prisma.config.ts` (Prisma 7
+moved them out of the schema file) rather than `package.json`.
+
+| Command                  | Purpose                                                                                      |
+| ------------------------ | -------------------------------------------------------------------------------------------- |
+| `npx prisma migrate dev` | Create/apply a migration from schema changes locally                                         |
+| `npx prisma db seed`     | Re-run `prisma/seed.ts` (roles, test users, sample master data)                              |
+| `npx prisma studio`      | Browse the database directly                                                                 |
+| `npx prisma generate`    | Regenerate the client into `generated/prisma` (also runs on `npm install` via `postinstall`) |
+
+`DATABASE_URL` (pooled, used by the app at runtime) and `DIRECT_URL` (direct, used by `prisma
+migrate`) both need to be set — see `.env.example`.
 
 ## Scripts
 

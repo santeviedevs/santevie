@@ -1,0 +1,283 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+}
+
+enum OrderStatus {
+  DRAFT
+  SUBMITTED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  INCOMPLETE
+  ABSENT
+  NON_WORKING
+  NEEDS_REVIEW
+}
+
+// --- Identity ---
+
+model Role {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  description String?
+  users       User[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("roles")
+}
+
+model User {
+  id           String @id @default(cuid())
+  employeeCode String @unique
+  name         String
+  email        String @unique
+  passwordHash String
+  status       Status @default(ACTIVE)
+
+  roleId String
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  managerId     String?
+  manager       User?   @relation("UserManager", fields: [managerId], references: [id])
+  directReports User[]  @relation("UserManager")
+
+  homeTerritoryId String?
+  homeTerritory   Territory? @relation(fields: [homeTerritoryId], references: [id])
+
+  visits      Visit[]
+  orders      Order[]
+  attendances Attendance[]
+  targets     Target[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+// --- Territory ---
+
+model Territory {
+  id     String @id @default(cuid())
+  code   String @unique
+  name   String
+  status Status @default(ACTIVE)
+
+  users   User[]
+  clients Client[]
+  targets Target[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("territories")
+}
+
+// --- Master data ---
+
+model ClientType {
+  id   String @id @default(cuid())
+  code String @unique
+  name String
+
+  clients Client[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("client_types")
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  contact   String?
+  address   String?
+  latitude  Decimal? @db.Decimal(9, 6)
+  longitude Decimal? @db.Decimal(9, 6)
+  status    Status   @default(ACTIVE)
+
+  typeId String
+  type   ClientType @relation(fields: [typeId], references: [id])
+
+  territoryId String
+  territory   Territory @relation(fields: [territoryId], references: [id])
+
+  visits Visit[]
+  orders Order[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("clients")
+}
+
+model Product {
+  id       String  @id @default(cuid())
+  code     String  @unique
+  name     String
+  category String?
+  price    Decimal @db.Decimal(12, 2)
+  currency String  @default("AED")
+  status   Status  @default(ACTIVE)
+
+  orderItems OrderItem[]
+  targets    Target[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("products")
+}
+
+// --- Visits ---
+
+model Visit {
+  id String @id @default(cuid())
+
+  delegateId String
+  delegate   User   @relation(fields: [delegateId], references: [id])
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  startAt  DateTime
+  endAt    DateTime?
+  startLat Decimal   @db.Decimal(9, 6)
+  startLng Decimal   @db.Decimal(9, 6)
+  endLat   Decimal?  @db.Decimal(9, 6)
+  endLng   Decimal?  @db.Decimal(9, 6)
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("visits")
+}
+
+// --- Orders ---
+
+model Order {
+  id          String      @id @default(cuid())
+  orderNumber String      @unique
+  status      OrderStatus @default(DRAFT)
+
+  delegateId String
+  delegate   User   @relation(fields: [delegateId], references: [id])
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  items OrderItem[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id String @id @default(cuid())
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id])
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  quantity  Decimal @db.Decimal(12, 2)
+  unitPrice Decimal @db.Decimal(12, 2)
+  lineTotal Decimal @db.Decimal(12, 2)
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("order_items")
+}
+
+// --- Attendance ---
+
+model Attendance {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  date   DateTime
+  status AttendanceStatus @default(NEEDS_REVIEW)
+
+  checkInAt  DateTime?
+  checkInLat Decimal?  @db.Decimal(9, 6)
+  checkInLng Decimal?  @db.Decimal(9, 6)
+
+  checkOutAt  DateTime?
+  checkOutLat Decimal?  @db.Decimal(9, 6)
+  checkOutLng Decimal?  @db.Decimal(9, 6)
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@map("attendances")
+}
+
+// --- Targets ---
+
+model Target {
+  id String @id @default(cuid())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  territoryId String?
+  territory   Territory? @relation(fields: [territoryId], references: [id])
+
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+
+  periodStart DateTime
+  periodEnd   DateTime
+  quantity    Decimal  @db.Decimal(12, 2)
+  value       Decimal  @db.Decimal(14, 2)
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("targets")
+}
