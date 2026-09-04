@@ -2,6 +2,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { config as loadEnv } from "dotenv";
 
 import { PrismaClient } from "../generated/prisma/client";
+import { hashPassword } from "../src/server/auth/password";
 
 loadEnv({ path: ".env.local" });
 
@@ -10,9 +11,8 @@ const prisma = new PrismaClient({ adapter });
 
 const ROLES = ["ADMIN", "MANAGER", "SUPERVISOR", "DELEGATE"] as const;
 
-const passwordHash = "seed-placeholder";
-
 async function main() {
+  const passwordHash = await hashPassword("ChangeMe123!");
   const roles = new Map<string, string>();
   for (const name of ROLES) {
     const role = await prisma.role.upsert({

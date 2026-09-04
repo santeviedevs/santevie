@@ -6,6 +6,8 @@
 npm install
 docker compose up -d
 cp .env.example .env.local
+# generate AUTH_SECRET and append it to .env.local:
+node -e "console.log('AUTH_SECRET=' + require('crypto').randomBytes(32).toString('base64'))" >> .env.local
 npx prisma migrate dev
 npx prisma db seed
 npm run dev
