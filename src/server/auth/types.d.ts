@@ -4,11 +4,14 @@
 // that never merge with the ones actually used by the callback signatures.
 import type { DefaultSession } from "@auth/core/types";
 
+import type { Permission } from "./permissions";
+
 declare module "@auth/core/types" {
   interface User {
     id: string;
     roleId: string;
     roleName: string;
+    permissions: Permission[];
   }
 
   interface Session {
@@ -16,6 +19,7 @@ declare module "@auth/core/types" {
       id: string;
       roleId: string;
       roleName: string;
+      permissions: Permission[];
     } & DefaultSession["user"];
   }
 }
@@ -25,5 +29,6 @@ declare module "@auth/core/jwt" {
     id: string;
     roleId: string;
     roleName: string;
+    permissions: Permission[];
   }
 }

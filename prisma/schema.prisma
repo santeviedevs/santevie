@@ -33,6 +33,7 @@ model Role {
   name        String  @unique
   description String?
   users       User[]
+  permissions RolePermission[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -40,6 +41,41 @@ model Role {
   updatedAt DateTime @updatedAt
 
   @@map("roles")
+}
+
+model Permission {
+  id          String  @id @default(cuid())
+  key         String  @unique
+  description String?
+  roles       RolePermission[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("permissions")
+}
+
+// Explicit join model (rather than an implicit many-to-many) so the grant
+// itself carries an audit trail of who assigned which permission to which
+// role and when.
+model RolePermission {
+  id String @id @default(cuid())
+
+  roleId String
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id])
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
 }
 
 model User {

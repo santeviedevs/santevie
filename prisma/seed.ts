@@ -3,16 +3,26 @@ import { config as loadEnv } from "dotenv";
 
 import { PrismaClient } from "../generated/prisma/client";
 import { hashPassword } from "../src/server/auth/password";
+import { PERMISSIONS, ROLE_PERMISSIONS, ROLES } from "../src/server/auth/permissions";
 
 loadEnv({ path: ".env.local" });
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
-const ROLES = ["ADMIN", "MANAGER", "SUPERVISOR", "DELEGATE"] as const;
-
 async function main() {
   const passwordHash = await hashPassword("ChangeMe123!");
+
+  const permissions = new Map<string, string>();
+  for (const key of PERMISSIONS) {
+    const permission = await prisma.permission.upsert({
+      where: { key },
+      update: {},
+      create: { key },
+    });
+    permissions.set(key, permission.id);
+  }
+
   const roles = new Map<string, string>();
   for (const name of ROLES) {
     const role = await prisma.role.upsert({
@@ -21,6 +31,14 @@ async function main() {
       create: { name },
     });
     roles.set(name, role.id);
+
+    for (const key of ROLE_PERMISSIONS[name]) {
+      await prisma.rolePermission.upsert({
+        where: { roleId_permissionId: { roleId: role.id, permissionId: permissions.get(key)! } },
+        update: {},
+        create: { roleId: role.id, permissionId: permissions.get(key)! },
+      });
+    }
   }
 
   const territory = await prisma.territory.upsert({
