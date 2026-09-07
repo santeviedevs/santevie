@@ -7,6 +7,17 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
+  // A Server Action call is a fetch(), not a page navigation — Next.js
+  // marks it with this header. It expects a specific response shape back,
+  // and a redirect breaks that contract client-side (visible as a crash,
+  // not a graceful "please sign in"). Let it through unauthenticated and
+  // leave the session check to the action itself (requirePermission),
+  // which already returns a clean "session expired" signal instead of
+  // crashing.
+  if (req.headers.get("next-action")) {
+    return NextResponse.next();
+  }
+
   const loginUrl = new URL("/login", req.nextUrl.origin);
   loginUrl.searchParams.set("callbackUrl", req.nextUrl.pathname + req.nextUrl.search);
   return NextResponse.redirect(loginUrl);
