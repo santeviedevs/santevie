@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { requirePermission } from "@/server/auth/require-permission";
+import { getUserScope } from "@/server/scope";
 import { getUser, getUserFormOptions } from "@/server/services/user-service";
 
 import { UserForm } from "../../user-form";
@@ -12,10 +13,11 @@ type EditUserPageProps = {
 };
 
 export default async function EditUserPage({ params }: EditUserPageProps) {
-  await requirePermission("users:manage");
+  const session = await requirePermission("users:manage");
 
   const { id } = await params;
-  const [user, options] = await Promise.all([getUser(id), getUserFormOptions(id)]);
+  const scope = await getUserScope(session);
+  const [user, options] = await Promise.all([getUser(id, scope), getUserFormOptions(id)]);
 
   if (!user) {
     notFound();

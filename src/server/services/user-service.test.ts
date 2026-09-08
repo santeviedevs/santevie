@@ -3,12 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 const findManagerLinks = vi.fn();
 const createUser = vi.fn();
 const updateUser = vi.fn();
+const findUserById = vi.fn();
 
 vi.mock("@/server/repositories/user-repository", () => ({
   findManagerLinks,
   createUser,
   updateUser,
-  findUserById: vi.fn(),
+  findUserById,
   findUsers: vi.fn(),
   listRoleOptions: vi.fn(),
   listTerritoryOptions: vi.fn(),
@@ -22,6 +23,7 @@ vi.mock("@/server/auth/password", () => ({
 const {
   createUser: createUserService,
   updateUser: updateUserService,
+  getUser: getUserService,
   DuplicateEmployeeCodeError,
   DuplicateEmailError,
   ManagerCycleError,
@@ -144,5 +146,45 @@ describe("updateUser", () => {
       updateUserService({ ...baseInput, id: "user-1", managerId: "mgr-1" }, "actor-1"),
     ).resolves.toBeDefined();
     expect(updateUser).toHaveBeenCalled();
+  });
+});
+
+// The IDOR check required by S1-07: a supervisor swapping the id in the URL
+// for a record outside their downstream team must be denied, not served the
+// record. getUser() must return null in that case — indistinguishable from
+// the id simply not existing.
+describe("getUser with a restricted scope", () => {
+  it("returns the record when the id is inside the caller's scope", async () => {
+    findUserById.mockResolvedValueOnce(baseUserRow({ id: "report-1" }));
+
+    const result = await getUserService("report-1", {
+      kind: "ids",
+      userIds: ["supervisor-1", "report-1"],
+    });
+
+    expect(result?.id).toBe("report-1");
+    expect(findUserById).toHaveBeenCalledWith("report-1", ["supervisor-1", "report-1"]);
+  });
+
+  it("returns null for a record belonging to another team, even though it exists", async () => {
+    // The repository itself refuses to run the query for an out-of-scope
+    // id (see findUserById in user-repository.ts) — here that's simulated
+    // by the mock resolving to null, exactly as the real repository would.
+    findUserById.mockResolvedValueOnce(null);
+
+    const result = await getUserService("other-team-user", {
+      kind: "ids",
+      userIds: ["supervisor-1", "report-1"],
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it("allows any id through for an unrestricted (ADMIN/MANAGER) scope", async () => {
+    findUserById.mockResolvedValueOnce(baseUserRow({ id: "anyone" }));
+
+    await getUserService("anyone", { kind: "all" });
+
+    expect(findUserById).toHaveBeenCalledWith("anyone", undefined);
   });
 });
