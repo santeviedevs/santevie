@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 
@@ -30,6 +31,7 @@ export function DeactivateButton({ userId, userName }: { userId: string; userNam
         setError(result.error);
         return;
       }
+      toast.success(`${userName} deactivated`);
       router.refresh();
     });
   };
