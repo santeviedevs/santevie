@@ -11,7 +11,7 @@ import { type LoginInput, loginSchema } from "@/lib/schemas/auth";
 
 import { loginAction } from "./actions";
 
-export function LoginForm() {
+export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
   const [isPending, startTransition] = useTransition();
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -29,6 +29,7 @@ export function LoginForm() {
       const formData = new FormData();
       formData.set("email", values.email);
       formData.set("password", values.password);
+      if (callbackUrl) formData.set("callbackUrl", callbackUrl);
 
       const result = await loginAction({ error: null }, formData);
       if (result.error) {

@@ -10,6 +10,16 @@ import { isRateLimited } from "@/server/auth/rate-limit";
 const GENERIC_ERROR = "Invalid email or password.";
 const RATE_LIMIT_ERROR = "Too many sign-in attempts. Try again in a few minutes.";
 
+// callbackUrl comes from the query string, so it's attacker-controllable —
+// only ever redirect to a same-origin relative path, never to a value like
+// "https://evil.example" or "//evil.example" (protocol-relative).
+function safeRedirectTarget(value: FormDataEntryValue | null): string {
+  if (typeof value === "string" && value.startsWith("/") && !value.startsWith("//")) {
+    return value;
+  }
+  return "/";
+}
+
 export async function loginAction(
   _prevState: { error: string | null },
   formData: FormData,
@@ -34,7 +44,7 @@ export async function loginAction(
     await signIn("credentials", {
       email,
       password,
-      redirectTo: "/",
+      redirectTo: safeRedirectTarget(formData.get("callbackUrl")),
     });
     return { error: null };
   } catch (error) {

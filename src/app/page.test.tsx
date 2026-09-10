@@ -1,11 +1,13 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import Home from "./page";
+const redirect = vi.fn();
+vi.mock("next/navigation", () => ({ redirect }));
+
+const { default: Home } = await import("./page");
 
 describe("Home", () => {
-  it("renders", () => {
-    render(<Home />);
-    expect(screen.getByRole("main")).toBeInTheDocument();
+  it("redirects to the admin users page", () => {
+    Home();
+    expect(redirect).toHaveBeenCalledWith("/admin/users");
   });
 });
