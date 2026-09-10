@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "ALISONS Sales & Marketing Management",
-    short_name: "ALISONS",
+    name: "Santevie Sales & Marketing Management",
+    short_name: "Santevie",
     description: "Field sales attendance, visits, orders and reporting.",
     start_url: "/",
     display: "standalone",

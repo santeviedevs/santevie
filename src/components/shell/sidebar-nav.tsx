@@ -17,7 +17,7 @@ export function SidebarNav({
   return (
     <aside className="hidden w-56 shrink-0 flex-col border-r border-border bg-sidebar text-sidebar-foreground md:flex">
       <div className="flex h-14 items-center border-b border-sidebar-border px-4 font-heading text-sm font-semibold">
-        ALISONS
+        Santevie
       </div>
       <nav className="flex flex-1 flex-col gap-1 p-3">
         {items.map((item) => {

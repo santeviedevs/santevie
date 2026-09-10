@@ -16,12 +16,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ALISONS",
+  title: "Santevie",
   description: "Field sales attendance, visits, orders and reporting.",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "ALISONS",
+    title: "Santevie",
   },
 };
 

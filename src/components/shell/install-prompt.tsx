@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
-const DISMISSED_KEY = "alisons:install-prompt-dismissed";
+const DISMISSED_KEY = "santevie:install-prompt-dismissed";
 
 // Chrome/Android fires `beforeinstallprompt` and lets a site show its own
 // install button instead of relying on the browser's default UI. iOS
@@ -47,7 +47,7 @@ export function InstallPrompt() {
 
   return (
     <div className="fixed inset-x-0 bottom-16 z-30 mx-auto flex w-full max-w-sm items-center justify-between gap-3 rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-lg md:bottom-4">
-      <p className="text-sm">Install ALISONS for one-tap access.</p>
+      <p className="text-sm">Install Santevie for one-tap access.</p>
       <div className="flex shrink-0 items-center gap-1">
         <Button size="sm" onClick={install}>
           <Download className="size-4" />

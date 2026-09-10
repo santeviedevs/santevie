@@ -9,7 +9,7 @@ export default function InstallGuidePage() {
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6 p-6">
       <div>
-        <h1 className="text-xl font-semibold">Install ALISONS on your phone</h1>
+        <h1 className="text-xl font-semibold">Install Santevie on your phone</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Add the app to your home screen so it opens in one tap, like an installed app.
         </p>
@@ -29,7 +29,7 @@ export default function InstallGuidePage() {
             <li>
               Confirm the name and tap <strong>Add</strong>.
             </li>
-            <li>Open ALISONS from the icon on your home screen from now on.</li>
+            <li>Open Santevie from the icon on your home screen from now on.</li>
           </ol>
         </CardContent>
       </Card>
@@ -48,7 +48,7 @@ export default function InstallGuidePage() {
             <li>
               Tap <strong>Add</strong> in the top right.
             </li>
-            <li>Open ALISONS from the icon on your home screen from now on.</li>
+            <li>Open Santevie from the icon on your home screen from now on.</li>
           </ol>
         </CardContent>
       </Card>

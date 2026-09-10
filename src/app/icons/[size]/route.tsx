@@ -24,7 +24,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ siz
         fontFamily: "sans-serif",
       }}
     >
-      A
+      S
     </div>,
     { width: size, height: size },
   );

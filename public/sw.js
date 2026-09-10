@@ -7,7 +7,7 @@
 // answers from cache for requests it precached itself. Every other request
 // — every page navigation, every /api call, every Server Action — is left
 // alone and always goes to the network.
-const CACHE_NAME = "alisons-shell-v1";
+const CACHE_NAME = "santevie-shell-v1";
 const SHELL_ASSETS = ["/manifest.webmanifest", "/icon", "/apple-icon", "/icons/192", "/icons/512"];
 
 self.addEventListener("install", (event) => {

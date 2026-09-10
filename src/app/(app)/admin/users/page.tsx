@@ -152,56 +152,58 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
         </Button>
       </form>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Employee code</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead>Manager</TableHead>
-            <TableHead>Home territory</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {users.map((user) => (
-            <TableRow key={user.id}>
-              <TableCell>{user.employeeCode}</TableCell>
-              <TableCell>{user.name}</TableCell>
-              <TableCell>{user.email}</TableCell>
-              <TableCell>{user.role.name}</TableCell>
-              <TableCell>{user.manager?.name ?? "—"}</TableCell>
-              <TableCell>{user.homeTerritory?.name ?? "—"}</TableCell>
-              <TableCell>
-                <Badge variant={user.status === "ACTIVE" ? "default" : "secondary"}>
-                  {user.status}
-                </Badge>
-              </TableCell>
-              <TableCell className="flex justify-end gap-2">
-                <Button
-                  render={<Link href={`/admin/users/${user.id}/edit`} />}
-                  variant="outline"
-                  size="sm"
-                >
-                  Edit
-                </Button>
-                {user.status === "ACTIVE" ? (
-                  <DeactivateButton userId={user.id} userName={user.name} />
-                ) : null}
-              </TableCell>
-            </TableRow>
-          ))}
-          {users.length === 0 ? (
+      <div className="min-w-0 rounded-md border border-border p-2">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={8} className="text-center text-muted-foreground">
-                No users match these filters.
-              </TableCell>
+              <TableHead>Employee code</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Manager</TableHead>
+              <TableHead>Home territory</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead />
             </TableRow>
-          ) : null}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {users.map((user) => (
+              <TableRow key={user.id}>
+                <TableCell>{user.employeeCode}</TableCell>
+                <TableCell>{user.name}</TableCell>
+                <TableCell>{user.email}</TableCell>
+                <TableCell>{user.role.name}</TableCell>
+                <TableCell>{user.manager?.name ?? "—"}</TableCell>
+                <TableCell>{user.homeTerritory?.name ?? "—"}</TableCell>
+                <TableCell>
+                  <Badge variant={user.status === "ACTIVE" ? "default" : "secondary"}>
+                    {user.status}
+                  </Badge>
+                </TableCell>
+                <TableCell className="flex justify-end gap-2">
+                  <Button
+                    render={<Link href={`/admin/users/${user.id}/edit`} />}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Edit
+                  </Button>
+                  {user.status === "ACTIVE" ? (
+                    <DeactivateButton userId={user.id} userName={user.name} />
+                  ) : null}
+                </TableCell>
+              </TableRow>
+            ))}
+            {users.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center text-muted-foreground">
+                  No users match these filters.
+                </TableCell>
+              </TableRow>
+            ) : null}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
