@@ -6,9 +6,7 @@ vi.mock("@/server/repositories/user-repository", () => ({
   findManagerLinks,
 }));
 
-const { getDownstreamUserIds, getUserScope, isWithinScope, scopeUserIds } = await import(
-  "./scope"
-);
+const { getDownstreamUserIds, getUserScope, isWithinScope, scopeUserIds } = await import("./scope");
 
 describe("getDownstreamUserIds", () => {
   it("resolves the full downstream team, several levels deep", async () => {
@@ -40,16 +38,16 @@ describe("getDownstreamUserIds", () => {
 describe("getUserScope", () => {
   it("gives ADMIN unrestricted access", async () => {
     findManagerLinks.mockClear();
-    await expect(
-      getUserScope({ user: { id: "admin-1", roleName: "ADMIN" } }),
-    ).resolves.toEqual({ kind: "all" });
+    await expect(getUserScope({ user: { id: "admin-1", roleName: "ADMIN" } })).resolves.toEqual({
+      kind: "all",
+    });
     expect(findManagerLinks).not.toHaveBeenCalled();
   });
 
   it("gives MANAGER unrestricted access", async () => {
-    await expect(
-      getUserScope({ user: { id: "mgr-1", roleName: "MANAGER" } }),
-    ).resolves.toEqual({ kind: "all" });
+    await expect(getUserScope({ user: { id: "mgr-1", roleName: "MANAGER" } })).resolves.toEqual({
+      kind: "all",
+    });
   });
 
   it("scopes SUPERVISOR to themselves plus their downstream team", async () => {
@@ -58,16 +56,18 @@ describe("getUserScope", () => {
       { id: "report-1", managerId: "sup-1" },
     ]);
 
-    await expect(
-      getUserScope({ user: { id: "sup-1", roleName: "SUPERVISOR" } }),
-    ).resolves.toEqual({ kind: "ids", userIds: ["sup-1", "report-1"] });
+    await expect(getUserScope({ user: { id: "sup-1", roleName: "SUPERVISOR" } })).resolves.toEqual({
+      kind: "ids",
+      userIds: ["sup-1", "report-1"],
+    });
   });
 
   it("scopes DELEGATE to only themselves", async () => {
     findManagerLinks.mockClear();
-    await expect(
-      getUserScope({ user: { id: "del-1", roleName: "DELEGATE" } }),
-    ).resolves.toEqual({ kind: "ids", userIds: ["del-1"] });
+    await expect(getUserScope({ user: { id: "del-1", roleName: "DELEGATE" } })).resolves.toEqual({
+      kind: "ids",
+      userIds: ["del-1"],
+    });
     expect(findManagerLinks).not.toHaveBeenCalled();
   });
 });

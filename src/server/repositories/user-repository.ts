@@ -42,10 +42,7 @@ export function findUsers(
   });
 }
 
-export function findUserById(
-  id: string,
-  scopedIds?: string[],
-): Promise<UserWithRelations | null> {
+export function findUserById(id: string, scopedIds?: string[]): Promise<UserWithRelations | null> {
   if (scopedIds && !scopedIds.includes(id)) {
     return Promise.resolve(null);
   }

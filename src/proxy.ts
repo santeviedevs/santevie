@@ -24,8 +24,14 @@ export default auth((req) => {
 });
 
 export const config = {
-  // Everything except the login page, the Auth.js routes and static assets
-  // requires a session. Business pages built in later stories fall under
-  // this by default rather than needing to opt in individually.
-  matcher: ["/((?!login|api/auth|_next/static|_next/image|favicon.ico).*)"],
+  // Everything except the login page, the Auth.js routes, static assets
+  // and the PWA shell files requires a session. Business pages built in
+  // later stories fall under this by default rather than needing to opt
+  // in individually. The manifest/icons/service worker must stay public —
+  // a browser requests them (e.g. for the favicon and install prompt)
+  // straight from the unauthenticated login page, before any session
+  // cookie exists.
+  matcher: [
+    "/((?!login|api/auth|_next/static|_next/image|favicon.ico|manifest.webmanifest|icon|apple-icon|icons|sw.js).*)",
+  ],
 };

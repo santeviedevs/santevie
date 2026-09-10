@@ -154,7 +154,11 @@ function mapUniqueConstraintError(error: unknown): never {
     // The rendered message always names the constraint too (e.g. "Unique
     // constraint failed on the constraint: `users_employeeCode_key`"), so
     // it's included as a last-resort fallback independent of meta's shape.
-    const haystack = [Array.isArray(target) ? target.join(" ") : target, constraintIndex, error.message]
+    const haystack = [
+      Array.isArray(target) ? target.join(" ") : target,
+      constraintIndex,
+      error.message,
+    ]
       .filter(Boolean)
       .join(" ");
 

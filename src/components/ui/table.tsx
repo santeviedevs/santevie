@@ -4,14 +4,113 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+// A wide table's native horizontal scrollbar is unreliable as a "this is
+// scrollable" cue: it sits at the bottom of the box (not above the
+// content), most OSes hide it until an active scroll gesture, and macOS
+// hides it entirely unless "always show scrollbars" is set — none of which
+// tells a first-time viewer they can swipe sideways. This measures actual
+// overflow via ResizeObserver/scroll events and renders its own thin,
+// always-visible track above the table whenever content overflows.
 function Table({ className, ...props }: React.ComponentProps<"table">) {
+  const scrollContainerId = React.useId();
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const [indicator, setIndicator] = React.useState({
+    canScroll: false,
+    thumbWidthPct: 100,
+    thumbLeftPct: 0,
+    scrollRatioPct: 0,
+  });
+
+  const updateIndicator = React.useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const { scrollWidth, clientWidth, scrollLeft } = el;
+    const canScroll = scrollWidth > clientWidth + 1;
+    if (!canScroll) {
+      setIndicator({ canScroll: false, thumbWidthPct: 100, thumbLeftPct: 0, scrollRatioPct: 0 });
+      return;
+    }
+
+    const thumbWidthPct = Math.max((clientWidth / scrollWidth) * 100, 8);
+    const maxScrollLeft = scrollWidth - clientWidth;
+    const scrollRatio = maxScrollLeft > 0 ? scrollLeft / maxScrollLeft : 0;
+    const thumbLeftPct = scrollRatio * (100 - thumbWidthPct);
+
+    setIndicator({ canScroll, thumbWidthPct, thumbLeftPct, scrollRatioPct: scrollRatio * 100 });
+  }, []);
+
+  React.useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    updateIndicator();
+
+    const resizeObserver = new ResizeObserver(updateIndicator);
+    resizeObserver.observe(el);
+
+    el.addEventListener("scroll", updateIndicator, { passive: true });
+    return () => {
+      resizeObserver.disconnect();
+      el.removeEventListener("scroll", updateIndicator);
+    };
+  }, [updateIndicator]);
+
+  const scrollToRatio = (clientX: number, track: HTMLDivElement) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const rect = track.getBoundingClientRect();
+    const ratio = Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1);
+    el.scrollLeft = ratio * (el.scrollWidth - el.clientWidth);
+  };
+
   return (
-    <div data-slot="table-container" className="relative w-full overflow-x-auto">
-      <table
-        data-slot="table"
-        className={cn("w-full caption-bottom text-sm", className)}
-        {...props}
-      />
+    <div data-slot="table-root" className="flex flex-col gap-1.5">
+      {indicator.canScroll ? (
+        <div
+          role="scrollbar"
+          aria-orientation="horizontal"
+          aria-controls={scrollContainerId}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(indicator.scrollRatioPct)}
+          data-slot="table-scroll-track"
+          className="h-1.5 w-full shrink-0 cursor-pointer rounded-full bg-muted"
+          onPointerDown={(event) => {
+            const track = event.currentTarget;
+            scrollToRatio(event.clientX, track);
+
+            const onMove = (moveEvent: PointerEvent) => scrollToRatio(moveEvent.clientX, track);
+            const onUp = () => {
+              window.removeEventListener("pointermove", onMove);
+              window.removeEventListener("pointerup", onUp);
+            };
+            window.addEventListener("pointermove", onMove);
+            window.addEventListener("pointerup", onUp);
+          }}
+        >
+          <div
+            data-slot="table-scroll-thumb"
+            className="h-full rounded-full bg-muted-foreground/50"
+            style={{
+              width: `${indicator.thumbWidthPct}%`,
+              marginLeft: `${indicator.thumbLeftPct}%`,
+            }}
+          />
+        </div>
+      ) : null}
+      <div
+        id={scrollContainerId}
+        ref={scrollRef}
+        data-slot="table-container"
+        className="relative w-full overflow-x-auto"
+      >
+        <table
+          data-slot="table"
+          className={cn("w-full caption-bottom text-sm", className)}
+          {...props}
+        />
+      </div>
     </div>
   );
 }
