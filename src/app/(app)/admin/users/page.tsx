@@ -21,6 +21,7 @@ import {
 import { userFiltersSchema } from "@/lib/schemas/user";
 import { requirePermission } from "@/server/auth/require-permission";
 import { listRoleOptions, listTerritoryOptions } from "@/server/repositories/user-repository";
+import { getUserScope } from "@/server/scope";
 import { listUsers } from "@/server/services/user-service";
 
 import { DeactivateButton } from "./deactivate-button";
@@ -38,7 +39,7 @@ function firstValue(value: string | string[] | undefined): string | undefined {
 }
 
 export default async function UsersPage({ searchParams }: UsersPageProps) {
-  await requirePermission("users:manage");
+  const session = await requirePermission("users:manage");
 
   const params = await searchParams;
   const filters = userFiltersSchema.parse({
@@ -48,8 +49,9 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
     status: firstValue(params.status),
   });
 
+  const scope = await getUserScope(session);
   const [users, roles, territories] = await Promise.all([
-    listUsers(filters),
+    listUsers(filters, scope),
     listRoleOptions(),
     listTerritoryOptions(),
   ]);

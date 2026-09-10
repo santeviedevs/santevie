@@ -13,6 +13,7 @@ import {
   updateUser as updateUserRow,
   type UserWithRelations,
 } from "@/server/repositories/user-repository";
+import { type Scope, scopeUserIds } from "@/server/scope";
 
 export class DuplicateEmployeeCodeError extends Error {
   constructor() {
@@ -71,13 +72,17 @@ function toSummary(user: UserWithRelations): UserSummary {
   };
 }
 
-export async function listUsers(filters: UserFilters): Promise<UserSummary[]> {
-  const users = await findUsers(filters);
+export async function listUsers(filters: UserFilters, scope: Scope): Promise<UserSummary[]> {
+  const users = await findUsers(filters, scopeUserIds(scope));
   return users.map(toSummary);
 }
 
-export async function getUser(id: string): Promise<UserSummary | null> {
-  const user = await findUserById(id);
+// Returns null both when the id doesn't exist and when it exists but falls
+// outside the caller's scope — the two must be indistinguishable to the
+// caller, or the response itself would leak which ids exist outside a
+// supervisor's team.
+export async function getUser(id: string, scope: Scope): Promise<UserSummary | null> {
+  const user = await findUserById(id, scopeUserIds(scope));
   return user ? toSummary(user) : null;
 }
 

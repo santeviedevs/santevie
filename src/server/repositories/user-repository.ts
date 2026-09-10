@@ -28,15 +28,27 @@ function buildWhere(filters: UserFilters): Prisma.UserWhereInput {
   };
 }
 
-export function findUsers(filters: UserFilters): Promise<UserWithRelations[]> {
+// `scopedIds`, when present, restricts results to that id set — this is
+// how src/server/scope.ts's hierarchy filter reaches the query. Absent
+// means unrestricted, matching an ADMIN/MANAGER scope.
+export function findUsers(
+  filters: UserFilters,
+  scopedIds?: string[],
+): Promise<UserWithRelations[]> {
   return prisma.user.findMany({
-    where: buildWhere(filters),
+    where: { ...buildWhere(filters), ...(scopedIds ? { id: { in: scopedIds } } : {}) },
     include: listInclude,
     orderBy: { name: "asc" },
   });
 }
 
-export function findUserById(id: string): Promise<UserWithRelations | null> {
+export function findUserById(
+  id: string,
+  scopedIds?: string[],
+): Promise<UserWithRelations | null> {
+  if (scopedIds && !scopedIds.includes(id)) {
+    return Promise.resolve(null);
+  }
   return prisma.user.findUnique({ where: { id }, include: listInclude });
 }
 
