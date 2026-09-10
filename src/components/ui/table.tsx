@@ -92,7 +92,10 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
           <div
             data-slot="table-scroll-thumb"
             className="h-full rounded-full bg-muted-foreground/50"
-            style={{ width: `${indicator.thumbWidthPct}%`, marginLeft: `${indicator.thumbLeftPct}%` }}
+            style={{
+              width: `${indicator.thumbWidthPct}%`,
+              marginLeft: `${indicator.thumbLeftPct}%`,
+            }}
           />
         </div>
       ) : null}
