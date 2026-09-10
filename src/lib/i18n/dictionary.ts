@@ -12,6 +12,7 @@ export type Dictionary = {
   nav: {
     home: string;
     users: string;
+    territories: string;
     installGuide: string;
   };
   header: {
@@ -73,6 +74,7 @@ const en: Dictionary = {
   nav: {
     home: "Home",
     users: "Users",
+    territories: "Territories",
     installGuide: "Install guide",
   },
   header: {
@@ -134,6 +136,7 @@ const fr: Dictionary = {
   nav: {
     home: "Accueil",
     users: "Utilisateurs",
+    territories: "Territoires",
     installGuide: "Guide d'installation",
   },
   header: {
