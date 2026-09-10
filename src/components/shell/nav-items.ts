@@ -1,4 +1,4 @@
-import { HelpCircle, Home, Users } from "lucide-react";
+import { HelpCircle, Home, Map, Users } from "lucide-react";
 
 import type { Permission } from "@/server/auth/permissions";
 
@@ -16,6 +16,12 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Home", icon: Home },
   { href: "/admin/users", label: "Users", icon: Users, permission: "users:manage" },
+  {
+    href: "/admin/territories",
+    label: "Territories",
+    icon: Map,
+    permission: "territories:manage",
+  },
 ];
 
 export const SECONDARY_NAV_ITEMS: NavItem[] = [
