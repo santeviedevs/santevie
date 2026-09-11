@@ -34,8 +34,17 @@ type UsersPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+// The filter form submits every field on every request, including ones
+// left on their "Any ..." placeholder — those arrive as "" (the empty
+// value that placeholder's SelectItem carries), not as an absent key.
+// Normalize that to undefined here so it means "no filter" everywhere,
+// matching what an omitted param already means. Without this, status=""
+// fails userFiltersSchema's z.enum(...).optional() (which accepts
+// undefined but not ""), throwing on every submission that leaves Status
+// on "Any status".
 function firstValue(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
+  const single = Array.isArray(value) ? value[0] : value;
+  return single === "" ? undefined : single;
 }
 
 export default async function UsersPage({ searchParams }: UsersPageProps) {
@@ -48,6 +57,10 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
     territoryId: firstValue(params.territoryId),
     status: firstValue(params.status),
   });
+
+  const hasActiveFilters = Boolean(
+    filters.q || filters.roleId || filters.territoryId || filters.status,
+  );
 
   const scope = await getUserScope(session);
   const [users, roles, territories] = await Promise.all([
@@ -63,7 +76,17 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
         <Button render={<Link href="/admin/users/new" />}>New user</Button>
       </div>
 
-      <form className="flex flex-wrap items-end gap-3" method="get">
+      {/*
+        Keyed by the current filter state: the fields below are uncontrolled
+        (defaultValue-based). Client-side navigation from "Apply filters" or
+        "Clear filters" re-renders this Server Component with new
+        searchParams but doesn't remount the form, so an uncontrolled Select
+        would otherwise keep showing the previous selection — Base UI warns
+        about exactly this ("changing the default value state of an
+        uncontrolled Select after being initialized"). The key forces a
+        fresh mount whenever the URL's filters actually change.
+      */}
+      <form key={JSON.stringify(filters)} className="flex flex-wrap items-end gap-3" method="get">
         <div className="flex flex-col gap-1">
           <label htmlFor="q" className="text-xs text-muted-foreground">
             Search
@@ -150,6 +173,11 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
         <Button type="submit" variant="secondary">
           Apply filters
         </Button>
+        {hasActiveFilters ? (
+          <Button type="button" variant="ghost" render={<Link href="/admin/users" />}>
+            Clear filters
+          </Button>
+        ) : null}
       </form>
 
       <div className="min-w-0 rounded-md border border-border p-2">
