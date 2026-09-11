@@ -86,11 +86,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
         uncontrolled Select after being initialized"). The key forces a
         fresh mount whenever the URL's filters actually change.
       */}
-      <form
-        key={JSON.stringify(filters)}
-        className="flex flex-wrap items-end gap-3"
-        method="get"
-      >
+      <form key={JSON.stringify(filters)} className="flex flex-wrap items-end gap-3" method="get">
         <div className="flex flex-col gap-1">
           <label htmlFor="q" className="text-xs text-muted-foreground">
             Search
