@@ -64,14 +64,6 @@ export function updateUser(id: string, data: Prisma.UserUpdateInput): Promise<Us
   return prisma.user.update({ where: { id }, data, include: listInclude });
 }
 
-export function deactivateUser(id: string): Promise<UserWithRelations> {
-  return prisma.user.update({
-    where: { id },
-    data: { status: "INACTIVE" },
-    include: listInclude,
-  });
-}
-
 export function listRoleOptions() {
   return prisma.role.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } });
 }

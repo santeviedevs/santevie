@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import { getServerDictionary } from "@/lib/i18n/server";
 import { requirePermission } from "@/server/auth/require-permission";
 import { getUserScope } from "@/server/scope";
 import { getUser, getUserFormOptions } from "@/server/services/user-service";
@@ -17,7 +18,11 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
 
   const { id } = await params;
   const scope = await getUserScope(session);
-  const [user, options] = await Promise.all([getUser(id, scope), getUserFormOptions(id)]);
+  const [user, options, dict] = await Promise.all([
+    getUser(id, scope),
+    getUserFormOptions(id),
+    getServerDictionary(),
+  ]);
 
   if (!user) {
     notFound();
@@ -25,10 +30,11 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <h1 className="text-xl font-semibold">Edit {user.name}</h1>
+      <h1 className="text-xl font-semibold">{dict.editUserTitle(user.name)}</h1>
       <UserForm
         mode="edit"
         options={options}
+        dict={dict.userForm}
         defaultValues={{
           id: user.id,
           employeeCode: user.employeeCode,
@@ -37,6 +43,7 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
           roleId: user.role.id,
           managerId: user.manager?.id ?? null,
           homeTerritoryId: user.homeTerritory?.id ?? null,
+          status: user.status,
         }}
       />
     </div>

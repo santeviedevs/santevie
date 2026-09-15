@@ -211,15 +211,11 @@ export async function updateUser(input: UpdateUserInput, actorId: string): Promi
       homeTerritory: input.homeTerritoryId
         ? { connect: { id: input.homeTerritoryId } }
         : { disconnect: true },
+      ...(input.status ? { status: input.status } : {}),
       updatedBy: actorId,
     });
     return toSummary(user);
   } catch (error) {
     mapUniqueConstraintError(error);
   }
-}
-
-export async function deactivateUser(id: string, actorId: string): Promise<UserSummary> {
-  const user = await updateUserRow(id, { status: "INACTIVE", updatedBy: actorId });
-  return toSummary(user);
 }

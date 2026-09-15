@@ -26,6 +26,10 @@ export type CreateUserInput = z.infer<typeof createUserSchema>;
 
 export const updateUserSchema = createUserSchema.extend({
   id,
+  // Absent means "leave as-is" (e.g. the create form never sends it);
+  // present is an explicit set, which is how the edit form's active/
+  // inactive toggle applies alongside the rest of a save.
+  status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
 });
 
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
