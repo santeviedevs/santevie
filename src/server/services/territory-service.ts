@@ -97,10 +97,20 @@ export async function updateTerritory(
   input: UpdateTerritoryInput,
   actorId: string,
 ): Promise<TerritorySummary> {
+  // The edit form's status toggle applies alongside the rest of the save,
+  // so the same deactivation guard as deactivateTerritory applies here too.
+  if (input.status === "INACTIVE") {
+    const { activeUsers, activeClients } = await countActiveAssignments(input.id);
+    if (activeUsers > 0 || activeClients > 0) {
+      throw new TerritoryInUseError(activeUsers, activeClients);
+    }
+  }
+
   try {
     const territory = await updateTerritoryRow(input.id, {
       code: input.code,
       name: input.name,
+      ...(input.status ? { status: input.status } : {}),
       updatedBy: actorId,
     });
     return toSummary(territory);

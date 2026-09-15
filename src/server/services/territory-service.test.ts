@@ -69,6 +69,35 @@ describe("updateTerritory", () => {
       updateTerritoryService({ ...baseInput, id: "territory-1" }, "actor-1"),
     ).rejects.toThrow(DuplicateTerritoryCodeError);
   });
+
+  // The edit form's status toggle applies alongside the rest of a save, so
+  // the same deactivation guard as deactivateTerritory must apply here too.
+  it("rejects a save that sets status to INACTIVE while active assignments remain", async () => {
+    countActiveAssignments.mockResolvedValueOnce({ activeUsers: 1, activeClients: 0 });
+
+    await expect(
+      updateTerritoryService({ ...baseInput, id: "territory-1", status: "INACTIVE" }, "actor-1"),
+    ).rejects.toThrow(TerritoryInUseError);
+    expect(updateTerritory).not.toHaveBeenCalled();
+  });
+
+  it("saves a status change to INACTIVE when there are no active assignments", async () => {
+    countActiveAssignments.mockResolvedValueOnce({ activeUsers: 0, activeClients: 0 });
+    updateTerritory.mockResolvedValueOnce(baseTerritoryRow({ status: "INACTIVE" }));
+
+    await expect(
+      updateTerritoryService({ ...baseInput, id: "territory-1", status: "INACTIVE" }, "actor-1"),
+    ).resolves.toMatchObject({ status: "INACTIVE" });
+  });
+
+  it("does not check assignments when status is left unchanged", async () => {
+    updateTerritory.mockResolvedValueOnce(baseTerritoryRow());
+
+    await expect(
+      updateTerritoryService({ ...baseInput, id: "territory-1" }, "actor-1"),
+    ).resolves.toMatchObject({ code: "NORTH" });
+    expect(countActiveAssignments).not.toHaveBeenCalled();
+  });
 });
 
 describe("activateTerritory", () => {

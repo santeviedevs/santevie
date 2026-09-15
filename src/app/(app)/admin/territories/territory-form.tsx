@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import type { Dictionary } from "@/lib/i18n/dictionary";
 import {
   type CreateTerritoryInput,
   createTerritorySchema,
@@ -20,10 +22,11 @@ import { createTerritoryAction, type TerritoryFormState, updateTerritoryAction }
 
 type TerritoryFormProps = {
   mode: "create" | "edit";
-  defaultValues?: Partial<CreateTerritoryInput> & { id?: string };
+  defaultValues?: Partial<UpdateTerritoryInput>;
+  dict: Dictionary["territoryForm"];
 };
 
-export function TerritoryForm({ mode, defaultValues }: TerritoryFormProps) {
+export function TerritoryForm({ mode, defaultValues, dict }: TerritoryFormProps) {
   const router = useRouter();
   const pathname = usePathname();
   const draftKey = `territory-form-draft:${pathname}`;
@@ -34,11 +37,13 @@ export function TerritoryForm({ mode, defaultValues }: TerritoryFormProps) {
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     reset,
     formState: { errors },
   } = useForm<CreateTerritoryInput | UpdateTerritoryInput>({
     resolver: zodResolver(schema),
-    defaultValues,
+    defaultValues: { status: "ACTIVE", ...defaultValues },
   });
 
   // If a session-expiry redirect left a draft behind for this exact page,
@@ -52,6 +57,8 @@ export function TerritoryForm({ mode, defaultValues }: TerritoryFormProps) {
     }
   }, [draftKey, reset]);
 
+  const status = watch("status");
+
   const onSubmit = (values: CreateTerritoryInput | UpdateTerritoryInput) => {
     setFormError(null);
     startTransition(async () => {
@@ -59,6 +66,11 @@ export function TerritoryForm({ mode, defaultValues }: TerritoryFormProps) {
       if ("id" in values && values.id) formData.set("id", values.id);
       formData.set("code", values.code);
       formData.set("name", values.name);
+      // Only meaningful for edit — the create schema has no status field,
+      // and a brand-new territory is always created ACTIVE server-side anyway.
+      if (mode === "edit" && "status" in values && values.status) {
+        formData.set("status", values.status);
+      }
 
       const action = mode === "create" ? createTerritoryAction : updateTerritoryAction;
       const result: TerritoryFormState = await action({ error: null }, formData);
@@ -74,7 +86,7 @@ export function TerritoryForm({ mode, defaultValues }: TerritoryFormProps) {
         return;
       }
 
-      toast.success(mode === "create" ? "Territory created" : "Territory updated");
+      toast.success(mode === "create" ? dict.territoryCreated : dict.territoryUpdated);
       router.push("/admin/territories");
       router.refresh();
     });
@@ -83,21 +95,40 @@ export function TerritoryForm({ mode, defaultValues }: TerritoryFormProps) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex max-w-md flex-col gap-4" noValidate>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="code">Code</Label>
+        <Label htmlFor="code">{dict.code}</Label>
         <Input id="code" disabled={isPending} {...register("code")} />
         {errors.code ? <p className="text-sm text-destructive">{errors.code.message}</p> : null}
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="name">Name</Label>
+        <Label htmlFor="name">{dict.name}</Label>
         <Input id="name" disabled={isPending} {...register("name")} />
         {errors.name ? <p className="text-sm text-destructive">{errors.name.message}</p> : null}
       </div>
 
+      {mode === "edit" ? (
+        <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+          <div className="flex flex-col">
+            <Label htmlFor="status">{dict.activate}</Label>
+            <span className="text-xs text-muted-foreground">
+              {status === "INACTIVE" ? dict.inactiveDescription : dict.activeDescription}
+            </span>
+          </div>
+          <Switch
+            id="status"
+            disabled={isPending}
+            checked={status !== "INACTIVE"}
+            onCheckedChange={(checked) =>
+              setValue("status", checked ? "ACTIVE" : "INACTIVE", { shouldDirty: true })
+            }
+          />
+        </div>
+      ) : null}
+
       {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
 
       <Button type="submit" disabled={isPending}>
-        {isPending ? "Saving..." : mode === "create" ? "Create territory" : "Save changes"}
+        {isPending ? dict.saving : mode === "create" ? dict.createTerritory : dict.saveChanges}
       </Button>
     </form>
   );

@@ -20,6 +20,10 @@ export type CreateTerritoryInput = z.infer<typeof createTerritorySchema>;
 
 export const updateTerritorySchema = createTerritorySchema.extend({
   id,
+  // Absent means "leave as-is" (the create form never sends it); present is
+  // an explicit set, which is how the edit form's active/inactive toggle
+  // applies alongside the rest of a save.
+  status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
 });
 
 export type UpdateTerritoryInput = z.infer<typeof updateTerritorySchema>;

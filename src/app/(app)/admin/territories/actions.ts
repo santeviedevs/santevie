@@ -5,9 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createTerritorySchema, updateTerritorySchema } from "@/lib/schemas/territory";
 import { requirePermission, SessionExpiredError } from "@/server/auth/require-permission";
 import {
-  activateTerritory,
   createTerritory,
-  deactivateTerritory,
   DuplicateTerritoryCodeError,
   TerritoryInUseError,
   updateTerritory,
@@ -70,10 +68,13 @@ export async function updateTerritoryAction(
     return { error: null, sessionExpired: true };
   }
 
+  const status = formData.get("status");
+
   const parsed = updateTerritorySchema.safeParse({
     id: formData.get("id"),
     code: formData.get("code"),
     name: formData.get("name"),
+    status: status === "ACTIVE" || status === "INACTIVE" ? status : undefined,
   });
 
   if (!parsed.success) {
@@ -82,40 +83,6 @@ export async function updateTerritoryAction(
 
   try {
     await updateTerritory(parsed.data, session.user.id);
-  } catch (error) {
-    return { error: messageFor(error) };
-  }
-
-  revalidatePath("/admin/territories");
-  return { error: null };
-}
-
-export async function activateTerritoryAction(territoryId: string): Promise<TerritoryFormState> {
-  const session = await requireTerritoriesManage();
-  if (!session) {
-    return { error: null, sessionExpired: true };
-  }
-
-  try {
-    await activateTerritory(territoryId, session.user.id);
-  } catch (error) {
-    return { error: messageFor(error) };
-  }
-
-  revalidatePath("/admin/territories");
-  return { error: null };
-}
-
-export async function deactivateTerritoryAction(
-  territoryId: string,
-): Promise<TerritoryFormState> {
-  const session = await requireTerritoriesManage();
-  if (!session) {
-    return { error: null, sessionExpired: true };
-  }
-
-  try {
-    await deactivateTerritory(territoryId, session.user.id);
   } catch (error) {
     return { error: messageFor(error) };
   }

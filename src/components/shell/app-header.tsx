@@ -17,7 +17,7 @@ export function AppHeader({
 }) {
   return (
     <header className="flex h-14 items-center justify-between border-b border-border px-4 md:px-6">
-      <span className="font-heading text-lg font-semibold md:hidden">Santevie</span>
+      <span className="font-heading text-lg font-semibold md:hidden">SANTEVIE</span>
       <div className="hidden md:block" />
       <div className="flex items-center gap-3">
         <LanguageToggle language={language} label={dict.header.languageToggleLabel} />

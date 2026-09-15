@@ -2,14 +2,6 @@ import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -18,11 +10,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { getServerDictionary } from "@/lib/i18n/server";
 import { territoryFiltersSchema } from "@/lib/schemas/territory";
 import { requirePermission } from "@/server/auth/require-permission";
 import { listTerritories } from "@/server/services/territory-service";
 
-import { StatusButton } from "./status-button";
+import { TerritoryFilters } from "./territory-filters";
 
 // Territory administration is inherently user-scoped by permission; never
 // let this be statically cached, or one admin's list could be served to
@@ -33,8 +26,13 @@ type TerritoriesPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+// The status select's "Any status" option carries "" as its value, not an
+// absent key. Normalize that to undefined here so it means "no filter"
+// everywhere, matching what an omitted param already means — without this,
+// status="" fails territoryFiltersSchema's z.enum(...).optional().
 function firstValue(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
+  const single = Array.isArray(value) ? value[0] : value;
+  return single === "" ? undefined : single;
 }
 
 export default async function TerritoriesPage({ searchParams }: TerritoriesPageProps) {
@@ -46,96 +44,59 @@ export default async function TerritoriesPage({ searchParams }: TerritoriesPageP
     status: firstValue(params.status),
   });
 
-  const territories = await listTerritories(filters);
+  const [territories, dict] = await Promise.all([listTerritories(filters), getServerDictionary()]);
+  const t = dict.territoriesPage;
 
   return (
     <div className="flex flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Territories</h1>
-        <Button render={<Link href="/admin/territories/new" />}>New territory</Button>
+        <h1 className="text-xl font-semibold">{t.title}</h1>
+        <Button render={<Link href="/admin/territories/new" />}>{t.newTerritory}</Button>
       </div>
 
-      <form className="flex flex-wrap items-end gap-3" method="get">
-        <div className="flex flex-col gap-1">
-          <label htmlFor="q" className="text-xs text-muted-foreground">
-            Search
-          </label>
-          <Input id="q" name="q" defaultValue={filters.q} placeholder="Name or code" />
-        </div>
+      <TerritoryFilters filters={filters} dict={dict.territoryFilters} />
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor="status" className="text-xs text-muted-foreground">
-            Status
-          </label>
-          <Select
-            name="status"
-            items={[
-              { value: "", label: "Any status" },
-              { value: "ACTIVE", label: "Active" },
-              { value: "INACTIVE", label: "Inactive" },
-            ]}
-            defaultValue={filters.status}
-          >
-            <SelectTrigger id="status" className="w-36">
-              <SelectValue placeholder="Any status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">Any status</SelectItem>
-              <SelectItem value="ACTIVE">Active</SelectItem>
-              <SelectItem value="INACTIVE">Inactive</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <Button type="submit" variant="secondary">
-          Apply filters
-        </Button>
-      </form>
-
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Code</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {territories.map((territory) => (
-            <TableRow key={territory.id}>
-              <TableCell>{territory.code}</TableCell>
-              <TableCell>{territory.name}</TableCell>
-              <TableCell>
-                <Badge variant={territory.status === "ACTIVE" ? "default" : "secondary"}>
-                  {territory.status}
-                </Badge>
-              </TableCell>
-              <TableCell className="flex justify-end gap-2">
-                <Button
-                  render={<Link href={`/admin/territories/${territory.id}/edit`} />}
-                  variant="outline"
-                  size="sm"
-                >
-                  Edit
-                </Button>
-                <StatusButton
-                  territoryId={territory.id}
-                  territoryName={territory.name}
-                  status={territory.status}
-                />
-              </TableCell>
-            </TableRow>
-          ))}
-          {territories.length === 0 ? (
+      <div className="min-w-0 rounded-md border border-border p-2">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={4} className="text-center text-muted-foreground">
-                No territories match these filters.
-              </TableCell>
+              <TableHead>{t.columnCode}</TableHead>
+              <TableHead>{t.columnName}</TableHead>
+              <TableHead>{t.columnStatus}</TableHead>
+              <TableHead />
             </TableRow>
-          ) : null}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {territories.map((territory) => (
+              <TableRow key={territory.id}>
+                <TableCell>{territory.code}</TableCell>
+                <TableCell>{territory.name}</TableCell>
+                <TableCell>
+                  <Badge variant={territory.status === "ACTIVE" ? "default" : "secondary"}>
+                    {territory.status === "ACTIVE" ? t.statusActive : t.statusInactive}
+                  </Badge>
+                </TableCell>
+                <TableCell className="flex justify-end">
+                  <Button
+                    render={<Link href={`/admin/territories/${territory.id}/edit`} />}
+                    variant="outline"
+                    size="sm"
+                  >
+                    {t.edit}
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+            {territories.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center text-muted-foreground">
+                  {t.noResults}
+                </TableCell>
+              </TableRow>
+            ) : null}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

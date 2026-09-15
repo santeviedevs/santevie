@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import { getServerDictionary } from "@/lib/i18n/server";
 import { requirePermission } from "@/server/auth/require-permission";
 import { getTerritory } from "@/server/services/territory-service";
 
@@ -15,7 +16,7 @@ export default async function EditTerritoryPage({ params }: EditTerritoryPagePro
   await requirePermission("territories:manage");
 
   const { id } = await params;
-  const territory = await getTerritory(id);
+  const [territory, dict] = await Promise.all([getTerritory(id), getServerDictionary()]);
 
   if (!territory) {
     notFound();
@@ -23,10 +24,16 @@ export default async function EditTerritoryPage({ params }: EditTerritoryPagePro
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <h1 className="text-xl font-semibold">Edit {territory.name}</h1>
+      <h1 className="text-xl font-semibold">{dict.editTerritoryTitle(territory.name)}</h1>
       <TerritoryForm
         mode="edit"
-        defaultValues={{ id: territory.id, code: territory.code, name: territory.name }}
+        dict={dict.territoryForm}
+        defaultValues={{
+          id: territory.id,
+          code: territory.code,
+          name: territory.name,
+          status: territory.status,
+        }}
       />
     </div>
   );
