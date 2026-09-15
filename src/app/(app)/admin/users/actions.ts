@@ -6,7 +6,6 @@ import { createUserSchema, updateUserSchema } from "@/lib/schemas/user";
 import { requirePermission, SessionExpiredError } from "@/server/auth/require-permission";
 import {
   createUser,
-  deactivateUser,
   DuplicateEmailError,
   DuplicateEmployeeCodeError,
   ManagerCycleError,
@@ -89,12 +88,15 @@ export async function updateUserAction(
     return { error: null, sessionExpired: true };
   }
 
+  const status = formData.get("status");
+
   const parsed = updateUserSchema.safeParse({
     id: formData.get("id"),
     employeeCode: formData.get("employeeCode"),
     name: formData.get("name"),
     email: formData.get("email"),
     roleId: formData.get("roleId"),
+    status: status === "ACTIVE" || status === "INACTIVE" ? status : undefined,
     ...readManagerAndTerritory(formData),
   });
 
@@ -104,22 +106,6 @@ export async function updateUserAction(
 
   try {
     await updateUser(parsed.data, session.user.id);
-  } catch (error) {
-    return { error: messageFor(error) };
-  }
-
-  revalidatePath("/admin/users");
-  return { error: null };
-}
-
-export async function deactivateUserAction(userId: string): Promise<UserFormState> {
-  const session = await requireUsersManage();
-  if (!session) {
-    return { error: null, sessionExpired: true };
-  }
-
-  try {
-    await deactivateUser(userId, session.user.id);
   } catch (error) {
     return { error: messageFor(error) };
   }

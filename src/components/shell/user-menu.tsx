@@ -25,7 +25,15 @@ function initials(name: string) {
   );
 }
 
-export function UserMenu({ name, roleName }: { name: string; roleName: string }) {
+export function UserMenu({
+  name,
+  roleName,
+  signOutLabel,
+}: {
+  name: string;
+  roleName: string;
+  signOutLabel: string;
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="flex items-center gap-2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -43,7 +51,7 @@ export function UserMenu({ name, roleName }: { name: string; roleName: string })
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onClick={() => void signOutAction()}>
           <LogOut className="size-4" />
-          Sign out
+          {signOutLabel}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

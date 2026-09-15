@@ -2,7 +2,12 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { AppShell } from "@/components/shell/app-shell";
-import { NAV_ITEMS, SECONDARY_NAV_ITEMS } from "@/components/shell/nav-items";
+import {
+  NAV_ITEM_DEFS,
+  resolveNavItems,
+  SECONDARY_NAV_ITEM_DEFS,
+} from "@/components/shell/nav-items";
+import { getLanguage, getServerDictionary } from "@/lib/i18n/server";
 import { auth } from "@/server/auth";
 import { hasPermission } from "@/server/auth/permissions";
 
@@ -18,16 +23,21 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     redirect("/login");
   }
 
-  const visibleNavItems = NAV_ITEMS.filter(
+  const [language, dict] = await Promise.all([getLanguage(), getServerDictionary()]);
+
+  const visibleNavItems = resolveNavItems(NAV_ITEM_DEFS, dict.nav).filter(
     (item) => !item.permission || hasPermission(session.user.permissions, item.permission),
   );
+  const secondaryNavItems = resolveNavItems(SECONDARY_NAV_ITEM_DEFS, dict.nav);
 
   return (
     <AppShell
       navItems={visibleNavItems}
-      secondaryNavItems={SECONDARY_NAV_ITEMS}
+      secondaryNavItems={secondaryNavItems}
       userName={session.user.name ?? session.user.email ?? "Account"}
       roleName={session.user.roleName}
+      language={language}
+      dict={dict}
     >
       {children}
     </AppShell>
