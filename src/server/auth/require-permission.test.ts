@@ -3,13 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 const auth = vi.fn();
 vi.mock("@/server/auth", () => ({ auth }));
 
-const { ForbiddenError, requirePermission } = await import("./require-permission");
+const { ForbiddenError, SessionExpiredError, requirePermission } =
+  await import("./require-permission");
 
 describe("requirePermission", () => {
-  it("throws ForbiddenError when there is no session", async () => {
+  it("throws SessionExpiredError when there is no session", async () => {
     auth.mockResolvedValueOnce(null);
 
-    await expect(requirePermission("orders:approve")).rejects.toThrow(ForbiddenError);
+    await expect(requirePermission("orders:approve")).rejects.toThrow(SessionExpiredError);
   });
 
   it("throws ForbiddenError when the session lacks the permission", async () => {
