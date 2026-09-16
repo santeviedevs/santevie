@@ -184,7 +184,8 @@ const en: Dictionary = {
     name: "Name",
     activate: "Activate",
     activeDescription: "Selectable for new work.",
-    inactiveDescription: "Deactivated — no longer selectable for new work. Save changes to reactivate.",
+    inactiveDescription:
+      "Deactivated — no longer selectable for new work. Save changes to reactivate.",
     createTerritory: "Create territory",
     saveChanges: "Save changes",
     saving: "Saving...",

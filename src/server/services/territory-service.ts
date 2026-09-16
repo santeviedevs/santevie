@@ -1,4 +1,8 @@
-import type { CreateTerritoryInput, TerritoryFilters, UpdateTerritoryInput } from "@/lib/schemas/territory";
+import type {
+  CreateTerritoryInput,
+  TerritoryFilters,
+  UpdateTerritoryInput,
+} from "@/lib/schemas/territory";
 import {
   countActiveAssignments,
   createTerritory as createTerritoryRow,
@@ -124,10 +128,7 @@ export async function activateTerritory(id: string, actorId: string): Promise<Te
   return toSummary(territory);
 }
 
-export async function deactivateTerritory(
-  id: string,
-  actorId: string,
-): Promise<TerritorySummary> {
+export async function deactivateTerritory(id: string, actorId: string): Promise<TerritorySummary> {
   const { activeUsers, activeClients } = await countActiveAssignments(id);
   if (activeUsers > 0 || activeClients > 0) {
     throw new TerritoryInUseError(activeUsers, activeClients);
