@@ -20,6 +20,13 @@ export type Dictionary = {
     signOut: string;
     languageToggleLabel: string;
   };
+  loginPage: {
+    title: string;
+    email: string;
+    password: string;
+    signIn: string;
+    signingIn: string;
+  };
   usersPage: {
     title: string;
     newUser: string;
@@ -116,6 +123,13 @@ const en: Dictionary = {
     signOut: "Sign out",
     languageToggleLabel: "Language",
   },
+  loginPage: {
+    title: "Sign in",
+    email: "Email",
+    password: "Password",
+    signIn: "Sign in",
+    signingIn: "Signing in...",
+  },
   usersPage: {
     title: "Users",
     newUser: "New user",
@@ -211,6 +225,13 @@ const fr: Dictionary = {
   header: {
     signOut: "Se déconnecter",
     languageToggleLabel: "Langue",
+  },
+  loginPage: {
+    title: "Se connecter",
+    email: "E-mail",
+    password: "Mot de passe",
+    signIn: "Se connecter",
+    signingIn: "Connexion...",
   },
   usersPage: {
     title: "Utilisateurs",
