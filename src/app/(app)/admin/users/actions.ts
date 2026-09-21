@@ -38,13 +38,18 @@ function messageFor(error: unknown): string {
   throw error;
 }
 
+function readId(formData: FormData, key: string): string | null {
+  const value = formData.get(key);
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
 function readManagerAndTerritory(formData: FormData) {
-  const managerId = formData.get("managerId");
-  const homeTerritoryId = formData.get("homeTerritoryId");
   return {
-    managerId: typeof managerId === "string" && managerId.length > 0 ? managerId : null,
-    homeTerritoryId:
-      typeof homeTerritoryId === "string" && homeTerritoryId.length > 0 ? homeTerritoryId : null,
+    managerId: readId(formData, "managerId"),
+    provinceId: readId(formData, "provinceId"),
+    villeId: readId(formData, "villeId"),
+    communeId: readId(formData, "communeId"),
+    quartierId: readId(formData, "quartierId"),
   };
 }
 

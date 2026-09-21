@@ -25,20 +25,35 @@ import {
   updateUserSchema,
 } from "@/lib/schemas/user";
 
+import {
+  CascadingTerritoryFields,
+  type CommuneOption,
+  type QuartierOption,
+  type TerritoryOption,
+  type VilleOption,
+} from "../territories/cascading-territory-fields";
 import { createUserAction, updateUserAction, type UserFormState } from "./actions";
 
 type Option = { id: string; name: string };
 
 type UserFormProps = {
   mode: "create" | "edit";
-  options: { roles: Option[]; territories: Option[]; managers: Option[] };
+  options: {
+    roles: Option[];
+    provinces: TerritoryOption[];
+    villes: VilleOption[];
+    communes: CommuneOption[];
+    quartiers: QuartierOption[];
+    managers: Option[];
+  };
   defaultValues?: Partial<UpdateUserInput>;
   dict: Dictionary["userForm"];
+  territoryDict: Dictionary["territory"];
 };
 
 const NONE = "__none__";
 
-export function UserForm({ mode, options, defaultValues, dict }: UserFormProps) {
+export function UserForm({ mode, options, defaultValues, dict, territoryDict }: UserFormProps) {
   const router = useRouter();
   const pathname = usePathname();
   const draftKey = `user-form-draft:${pathname}`;
@@ -71,7 +86,10 @@ export function UserForm({ mode, options, defaultValues, dict }: UserFormProps) 
 
   const roleId = watch("roleId");
   const managerId = watch("managerId");
-  const homeTerritoryId = watch("homeTerritoryId");
+  const provinceId = watch("provinceId");
+  const villeId = watch("villeId");
+  const communeId = watch("communeId");
+  const quartierId = watch("quartierId");
   const status = watch("status");
 
   const onSubmit = (values: CreateUserInput | UpdateUserInput) => {
@@ -84,7 +102,10 @@ export function UserForm({ mode, options, defaultValues, dict }: UserFormProps) 
       formData.set("email", values.email);
       formData.set("roleId", values.roleId);
       if (values.managerId) formData.set("managerId", values.managerId);
-      if (values.homeTerritoryId) formData.set("homeTerritoryId", values.homeTerritoryId);
+      if (values.provinceId) formData.set("provinceId", values.provinceId);
+      if (values.villeId) formData.set("villeId", values.villeId);
+      if (values.communeId) formData.set("communeId", values.communeId);
+      if (values.quartierId) formData.set("quartierId", values.quartierId);
       // Only meaningful for edit — the create schema has no status field,
       // and a brand-new user is always created ACTIVE server-side anyway.
       if (mode === "edit" && "status" in values && values.status) {
@@ -185,33 +206,42 @@ export function UserForm({ mode, options, defaultValues, dict }: UserFormProps) 
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="homeTerritoryId">{dict.homeTerritory}</Label>
-        <Select
-          items={[
-            { value: NONE, label: dict.noHomeTerritory },
-            ...options.territories.map((territory) => ({
-              value: territory.id,
-              label: territory.name,
-            })),
-          ]}
-          value={homeTerritoryId ?? NONE}
-          onValueChange={(value) =>
-            setValue("homeTerritoryId", value === NONE ? null : value, { shouldValidate: true })
-          }
+        <Label>{dict.territorySectionLabel}</Label>
+        <CascadingTerritoryFields
+          levels={["province", "ville", "commune", "quartier"]}
+          value={{
+            provinceId: provinceId ?? null,
+            villeId: villeId ?? null,
+            communeId: communeId ?? null,
+            quartierId: quartierId ?? null,
+          }}
+          onChange={(patch) => {
+            if ("provinceId" in patch) setValue("provinceId", patch.provinceId ?? null);
+            if ("villeId" in patch) setValue("villeId", patch.villeId ?? null);
+            if ("communeId" in patch) setValue("communeId", patch.communeId ?? null);
+            if ("quartierId" in patch) setValue("quartierId", patch.quartierId ?? null);
+          }}
+          data={{
+            provinces: options.provinces,
+            villes: options.villes,
+            communes: options.communes,
+            quartiers: options.quartiers,
+          }}
+          required={false}
           disabled={isPending}
-        >
-          <SelectTrigger id="homeTerritoryId" className="w-full">
-            <SelectValue placeholder={dict.noHomeTerritory} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={NONE}>{dict.noHomeTerritory}</SelectItem>
-            {options.territories.map((territory) => (
-              <SelectItem key={territory.id} value={territory.id}>
-                {territory.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          labels={{
+            province: territoryDict.province,
+            ville: territoryDict.ville,
+            commune: territoryDict.commune,
+            quartier: territoryDict.quartier,
+          }}
+          placeholders={{
+            province: territoryDict.selectProvince,
+            ville: territoryDict.selectVille,
+            commune: territoryDict.selectCommune,
+            quartier: territoryDict.selectQuartier,
+          }}
+        />
       </div>
 
       {mode === "edit" ? (

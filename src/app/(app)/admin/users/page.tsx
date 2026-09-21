@@ -13,8 +13,15 @@ import {
 import { getServerDictionary } from "@/lib/i18n/server";
 import { userFiltersSchema } from "@/lib/schemas/user";
 import { requirePermission } from "@/server/auth/require-permission";
-import { listRoleOptions, listTerritoryOptions } from "@/server/repositories/user-repository";
+import {
+  listActiveCommunes,
+  listActiveProvinces,
+  listActiveQuartiers,
+  listActiveVilles,
+} from "@/server/repositories/territory-repository";
+import { listRoleOptions } from "@/server/repositories/user-repository";
 import { getUserScope } from "@/server/scope";
+import type { UserSummary } from "@/server/services/user-service";
 import { listUsers } from "@/server/services/user-service";
 
 import { UserFilters } from "./user-filters";
@@ -40,6 +47,15 @@ function firstValue(value: string | string[] | undefined): string | undefined {
   return single === "" ? undefined : single;
 }
 
+// A user's assignment can stop at any level, so the list shows whichever
+// is deepest — matching what the cascading select on the form actually let
+// the admin pick.
+function territoryLabel(user: UserSummary): string {
+  return (
+    user.quartier?.name ?? user.commune?.name ?? user.ville?.name ?? user.province?.name ?? "—"
+  );
+}
+
 export default async function UsersPage({ searchParams }: UsersPageProps) {
   const session = await requirePermission("users:manage");
 
@@ -47,15 +63,21 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
   const filters = userFiltersSchema.parse({
     q: firstValue(params.q),
     roleId: firstValue(params.roleId),
-    territoryId: firstValue(params.territoryId),
+    provinceId: firstValue(params.provinceId),
+    villeId: firstValue(params.villeId),
+    communeId: firstValue(params.communeId),
+    quartierId: firstValue(params.quartierId),
     status: firstValue(params.status),
   });
 
   const scope = await getUserScope(session);
-  const [users, roles, territories, dict] = await Promise.all([
+  const [users, roles, provinces, villes, communes, quartiers, dict] = await Promise.all([
     listUsers(filters, scope),
     listRoleOptions(),
-    listTerritoryOptions(),
+    listActiveProvinces(),
+    listActiveVilles(),
+    listActiveCommunes(),
+    listActiveQuartiers(),
     getServerDictionary(),
   ]);
   const t = dict.usersPage;
@@ -67,7 +89,16 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
         <Button render={<Link href="/admin/users/new" />}>{t.newUser}</Button>
       </div>
 
-      <UserFilters roles={roles} territories={territories} filters={filters} dict={dict.filters} />
+      <UserFilters
+        roles={roles}
+        provinces={provinces}
+        villes={villes}
+        communes={communes}
+        quartiers={quartiers}
+        filters={filters}
+        dict={dict.filters}
+        territoryDict={dict.territory}
+      />
 
       <div className="min-w-0 rounded-md border border-border p-2">
         <Table>
@@ -78,7 +109,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
               <TableHead>{t.columnEmail}</TableHead>
               <TableHead>{t.columnRole}</TableHead>
               <TableHead>{t.columnManager}</TableHead>
-              <TableHead>{t.columnHomeTerritory}</TableHead>
+              <TableHead>{t.columnTerritory}</TableHead>
               <TableHead>{t.columnStatus}</TableHead>
               <TableHead />
             </TableRow>
@@ -91,7 +122,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
                 <TableCell>{user.email}</TableCell>
                 <TableCell>{user.role.name}</TableCell>
                 <TableCell>{user.manager?.name ?? "—"}</TableCell>
-                <TableCell>{user.homeTerritory?.name ?? "—"}</TableCell>
+                <TableCell>{territoryLabel(user)}</TableCell>
                 <TableCell>
                   <Badge variant={user.status === "ACTIVE" ? "default" : "secondary"}>
                     {user.status === "ACTIVE" ? t.statusActive : t.statusInactive}

@@ -3,13 +3,18 @@ import { randomUUID } from "node:crypto";
 import type { CreateUserInput, UpdateUserInput, UserFilters } from "@/lib/schemas/user";
 import { hashPassword } from "@/server/auth/password";
 import {
+  listActiveCommunes,
+  listActiveProvinces,
+  listActiveQuartiers,
+  listActiveVilles,
+} from "@/server/repositories/territory-repository";
+import {
   createUser as createUserRow,
   findManagerLinks,
   findUserById,
   findUsers,
   listManagerOptions,
   listRoleOptions,
-  listTerritoryOptions,
   updateUser as updateUserRow,
   type UserWithRelations,
 } from "@/server/repositories/user-repository";
@@ -54,7 +59,10 @@ export type UserSummary = {
   status: "ACTIVE" | "INACTIVE";
   role: { id: string; name: string };
   manager: { id: string; name: string } | null;
-  homeTerritory: { id: string; name: string } | null;
+  province: { id: string; name: string } | null;
+  ville: { id: string; name: string } | null;
+  commune: { id: string; name: string } | null;
+  quartier: { id: string; name: string } | null;
 };
 
 function toSummary(user: UserWithRelations): UserSummary {
@@ -66,9 +74,10 @@ function toSummary(user: UserWithRelations): UserSummary {
     status: user.status,
     role: { id: user.role.id, name: user.role.name },
     manager: user.manager ? { id: user.manager.id, name: user.manager.name } : null,
-    homeTerritory: user.homeTerritory
-      ? { id: user.homeTerritory.id, name: user.homeTerritory.name }
-      : null,
+    province: user.province,
+    ville: user.ville,
+    commune: user.commune,
+    quartier: user.quartier,
   };
 }
 
@@ -87,12 +96,15 @@ export async function getUser(id: string, scope: Scope): Promise<UserSummary | n
 }
 
 export async function getUserFormOptions(excludeUserId?: string) {
-  const [roles, territories, managers] = await Promise.all([
+  const [roles, provinces, villes, communes, quartiers, managers] = await Promise.all([
     listRoleOptions(),
-    listTerritoryOptions(),
+    listActiveProvinces(),
+    listActiveVilles(),
+    listActiveCommunes(),
+    listActiveQuartiers(),
     listManagerOptions(excludeUserId),
   ]);
-  return { roles, territories, managers };
+  return { roles, provinces, villes, communes, quartiers, managers };
 }
 
 // Walks the manager chain in memory (one query for the whole table, see the
@@ -186,7 +198,10 @@ export async function createUser(input: CreateUserInput, actorId: string): Promi
       status: "ACTIVE",
       role: { connect: { id: input.roleId } },
       manager: input.managerId ? { connect: { id: input.managerId } } : undefined,
-      homeTerritory: input.homeTerritoryId ? { connect: { id: input.homeTerritoryId } } : undefined,
+      province: input.provinceId ? { connect: { id: input.provinceId } } : undefined,
+      ville: input.villeId ? { connect: { id: input.villeId } } : undefined,
+      commune: input.communeId ? { connect: { id: input.communeId } } : undefined,
+      quartier: input.quartierId ? { connect: { id: input.quartierId } } : undefined,
       createdBy: actorId,
       updatedBy: actorId,
     });
@@ -208,9 +223,10 @@ export async function updateUser(input: UpdateUserInput, actorId: string): Promi
       email: input.email.toLowerCase(),
       role: { connect: { id: input.roleId } },
       manager: input.managerId ? { connect: { id: input.managerId } } : { disconnect: true },
-      homeTerritory: input.homeTerritoryId
-        ? { connect: { id: input.homeTerritoryId } }
-        : { disconnect: true },
+      province: input.provinceId ? { connect: { id: input.provinceId } } : { disconnect: true },
+      ville: input.villeId ? { connect: { id: input.villeId } } : { disconnect: true },
+      commune: input.communeId ? { connect: { id: input.communeId } } : { disconnect: true },
+      quartier: input.quartierId ? { connect: { id: input.quartierId } } : { disconnect: true },
       ...(input.status ? { status: input.status } : {}),
       updatedBy: actorId,
     });

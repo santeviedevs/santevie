@@ -6,7 +6,10 @@ import type { Prisma } from "../../../generated/prisma/client";
 const listInclude = {
   role: true,
   manager: { select: { id: true, name: true } },
-  homeTerritory: { select: { id: true, name: true } },
+  province: { select: { id: true, name: true } },
+  ville: { select: { id: true, name: true } },
+  commune: { select: { id: true, name: true } },
+  quartier: { select: { id: true, name: true } },
 } satisfies Prisma.UserInclude;
 
 export type UserWithRelations = Prisma.UserGetPayload<{ include: typeof listInclude }>;
@@ -14,7 +17,10 @@ export type UserWithRelations = Prisma.UserGetPayload<{ include: typeof listIncl
 function buildWhere(filters: UserFilters): Prisma.UserWhereInput {
   return {
     ...(filters.roleId ? { roleId: filters.roleId } : {}),
-    ...(filters.territoryId ? { homeTerritoryId: filters.territoryId } : {}),
+    ...(filters.quartierId ? { quartierId: filters.quartierId } : {}),
+    ...(filters.communeId ? { communeId: filters.communeId } : {}),
+    ...(filters.villeId ? { villeId: filters.villeId } : {}),
+    ...(filters.provinceId ? { provinceId: filters.provinceId } : {}),
     ...(filters.status ? { status: filters.status } : {}),
     ...(filters.q
       ? {
@@ -66,14 +72,6 @@ export function updateUser(id: string, data: Prisma.UserUpdateInput): Promise<Us
 
 export function listRoleOptions() {
   return prisma.role.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } });
-}
-
-export function listTerritoryOptions() {
-  return prisma.territory.findMany({
-    where: { status: "ACTIVE" },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
 }
 
 // Candidate managers: active users other than the one being edited.

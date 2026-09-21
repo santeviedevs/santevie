@@ -29,8 +29,8 @@ enum AttendanceStatus {
 // --- Identity ---
 
 model Role {
-  id          String  @id @default(cuid())
-  name        String  @unique
+  id          String           @id @default(cuid())
+  name        String           @unique
   description String?
   users       User[]
   permissions RolePermission[]
@@ -44,8 +44,8 @@ model Role {
 }
 
 model Permission {
-  id          String  @id @default(cuid())
-  key         String  @unique
+  id          String           @id @default(cuid())
+  key         String           @unique
   description String?
   roles       RolePermission[]
 
@@ -93,8 +93,22 @@ model User {
   manager       User?   @relation("UserManager", fields: [managerId], references: [id])
   directReports User[]  @relation("UserManager")
 
-  homeTerritoryId String?
-  homeTerritory   Territory? @relation(fields: [homeTerritoryId], references: [id])
+  // Location assignment is independent per level — a Manager might be
+  // scoped to a whole Province with nothing below it set, while a
+  // Delegate is scoped down to one Quartier. Each is its own optional FK
+  // rather than one leaf id, since the cascading select on the Users page
+  // lets an admin stop at any level.
+  provinceId String?
+  province   Province? @relation(fields: [provinceId], references: [id])
+
+  villeId String?
+  ville   Ville?  @relation(fields: [villeId], references: [id])
+
+  communeId String?
+  commune   Commune? @relation(fields: [communeId], references: [id])
+
+  quartierId String?
+  quartier   Quartier? @relation(fields: [quartierId], references: [id])
 
   visits      Visit[]
   orders      Order[]
@@ -109,13 +123,77 @@ model User {
   @@map("users")
 }
 
-// --- Territory ---
+// --- Territory: a fixed 4-level administrative hierarchy
+// (Province > Ville > Commune > Quartier), matching how the client's own
+// location data is structured — not a flat code+name table, and no `code`
+// field, since the real data identifies each level by name only. ---
 
-model Territory {
+model Province {
   id     String @id @default(cuid())
-  code   String @unique
+  name   String @unique
+  status Status @default(ACTIVE)
+
+  villes  Ville[]
+  users   User[]
+  clients Client[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("provinces")
+}
+
+model Ville {
+  id     String @id @default(cuid())
   name   String
   status Status @default(ACTIVE)
+
+  provinceId String
+  province   Province @relation(fields: [provinceId], references: [id])
+
+  communes Commune[]
+  users    User[]
+  clients  Client[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([provinceId, name])
+  @@map("villes")
+}
+
+model Commune {
+  id     String @id @default(cuid())
+  name   String
+  status Status @default(ACTIVE)
+
+  villeId String
+  ville   Ville  @relation(fields: [villeId], references: [id])
+
+  quartiers Quartier[]
+  users     User[]
+  clients   Client[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([villeId, name])
+  @@map("communes")
+}
+
+model Quartier {
+  id     String @id @default(cuid())
+  name   String
+  status Status @default(ACTIVE)
+
+  communeId String
+  commune   Commune @relation(fields: [communeId], references: [id])
 
   users   User[]
   clients Client[]
@@ -126,7 +204,8 @@ model Territory {
   updatedBy String?
   updatedAt DateTime @updatedAt
 
-  @@map("territories")
+  @@unique([communeId, name])
+  @@map("quartiers")
 }
 
 // --- Master data ---
@@ -159,8 +238,20 @@ model Client {
   typeId String
   type   ClientType @relation(fields: [typeId], references: [id])
 
-  territoryId String
-  territory   Territory @relation(fields: [territoryId], references: [id])
+  // Location assignment is independent per level, same as User — a client
+  // known only down to its Commune (say) can be recorded there without a
+  // specific Quartier, rather than being forced to the most granular level.
+  provinceId String?
+  province   Province? @relation(fields: [provinceId], references: [id])
+
+  villeId String?
+  ville   Ville?  @relation(fields: [villeId], references: [id])
+
+  communeId String?
+  commune   Commune? @relation(fields: [communeId], references: [id])
+
+  quartierId String?
+  quartier   Quartier? @relation(fields: [quartierId], references: [id])
 
   visits Visit[]
   orders Order[]
@@ -299,8 +390,8 @@ model Target {
   userId String?
   user   User?   @relation(fields: [userId], references: [id])
 
-  territoryId String?
-  territory   Territory? @relation(fields: [territoryId], references: [id])
+  quartierId String?
+  quartier   Quartier? @relation(fields: [quartierId], references: [id])
 
   productId String?
   product   Product? @relation(fields: [productId], references: [id])

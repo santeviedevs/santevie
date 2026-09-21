@@ -13,7 +13,12 @@ import {
 import { getServerDictionary } from "@/lib/i18n/server";
 import { territoryFiltersSchema } from "@/lib/schemas/territory";
 import { requirePermission } from "@/server/auth/require-permission";
-import { listTerritories } from "@/server/services/territory-service";
+import {
+  listActiveCommunes,
+  listActiveProvinces,
+  listActiveVilles,
+} from "@/server/repositories/territory-repository";
+import { listTerritoryEntries } from "@/server/services/territory-service";
 
 import { TerritoryFilters } from "./territory-filters";
 
@@ -26,10 +31,12 @@ type TerritoriesPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-// The status select's "Any status" option carries "" as its value, not an
-// absent key. Normalize that to undefined here so it means "no filter"
-// everywhere, matching what an omitted param already means — without this,
-// status="" fails territoryFiltersSchema's z.enum(...).optional().
+// The filter form submits every field on every request, including ones
+// left on their "Any ..." placeholder — those arrive as "" (the empty
+// value that placeholder's SelectItem carries), not as an absent key.
+// Normalize that to undefined here so it means "no filter" everywhere,
+// matching what an omitted param already means. Without this, status=""
+// fails territoryFiltersSchema's z.enum(...).optional().
 function firstValue(value: string | string[] | undefined): string | undefined {
   const single = Array.isArray(value) ? value[0] : value;
   return single === "" ? undefined : single;
@@ -41,10 +48,19 @@ export default async function TerritoriesPage({ searchParams }: TerritoriesPageP
   const params = await searchParams;
   const filters = territoryFiltersSchema.parse({
     q: firstValue(params.q),
+    provinceId: firstValue(params.provinceId),
+    villeId: firstValue(params.villeId),
+    communeId: firstValue(params.communeId),
     status: firstValue(params.status),
   });
 
-  const [territories, dict] = await Promise.all([listTerritories(filters), getServerDictionary()]);
+  const [territories, provinces, villes, communes, dict] = await Promise.all([
+    listTerritoryEntries(filters),
+    listActiveProvinces(),
+    listActiveVilles(),
+    listActiveCommunes(),
+    getServerDictionary(),
+  ]);
   const t = dict.territoriesPage;
 
   return (
@@ -54,14 +70,23 @@ export default async function TerritoriesPage({ searchParams }: TerritoriesPageP
         <Button render={<Link href="/admin/territories/new" />}>{t.newTerritory}</Button>
       </div>
 
-      <TerritoryFilters filters={filters} dict={dict.territoryFilters} />
+      <TerritoryFilters
+        provinces={provinces}
+        villes={villes}
+        communes={communes}
+        filters={filters}
+        dict={t}
+        hierarchyDict={dict.territory}
+      />
 
       <div className="min-w-0 rounded-md border border-border p-2">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t.columnCode}</TableHead>
-              <TableHead>{t.columnName}</TableHead>
+              <TableHead>{t.provinceLabel}</TableHead>
+              <TableHead>{t.villeLabel}</TableHead>
+              <TableHead>{t.communeLabel}</TableHead>
+              <TableHead>{t.quartierLabel}</TableHead>
               <TableHead>{t.columnStatus}</TableHead>
               <TableHead />
             </TableRow>
@@ -69,8 +94,20 @@ export default async function TerritoriesPage({ searchParams }: TerritoriesPageP
           <TableBody>
             {territories.map((territory) => (
               <TableRow key={territory.id}>
-                <TableCell>{territory.code}</TableCell>
-                <TableCell>{territory.name}</TableCell>
+                <TableCell>
+                  {territory.level === "province"
+                    ? territory.name
+                    : (territory.province?.name ?? "—")}
+                </TableCell>
+                <TableCell>
+                  {territory.level === "ville" ? territory.name : (territory.ville?.name ?? "—")}
+                </TableCell>
+                <TableCell>
+                  {territory.level === "commune"
+                    ? territory.name
+                    : (territory.commune?.name ?? "—")}
+                </TableCell>
+                <TableCell>{territory.level === "quartier" ? territory.name : "—"}</TableCell>
                 <TableCell>
                   <Badge variant={territory.status === "ACTIVE" ? "default" : "secondary"}>
                     {territory.status === "ACTIVE" ? t.statusActive : t.statusInactive}
@@ -89,7 +126,7 @@ export default async function TerritoriesPage({ searchParams }: TerritoriesPageP
             ))}
             {territories.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground">
+                <TableCell colSpan={6} className="text-center text-muted-foreground">
                   {t.noResults}
                 </TableCell>
               </TableRow>

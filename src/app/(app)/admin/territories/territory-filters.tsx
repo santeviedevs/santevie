@@ -15,23 +15,33 @@ import {
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import type { TerritoryFilters as TerritoryFiltersValue } from "@/lib/schemas/territory";
 
-type FilterKey = "q" | "status";
+import {
+  CascadingTerritoryFields,
+  type CommuneOption,
+  type TerritoryOption,
+  type VilleOption,
+} from "./cascading-territory-fields";
+
+type FilterKey = "q" | "provinceId" | "villeId" | "communeId" | "status";
 
 export function TerritoryFilters({
+  provinces,
+  villes,
+  communes,
   filters,
   dict,
+  hierarchyDict,
 }: {
+  provinces: TerritoryOption[];
+  villes: VilleOption[];
+  communes: CommuneOption[];
   filters: TerritoryFiltersValue;
-  dict: Dictionary["territoryFilters"];
+  dict: Dictionary["territoriesPage"];
+  hierarchyDict: Dictionary["territory"];
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // The search input is uncontrolled (see the key on it below); reading its
-  // value straight from the DOM when a Select applies alongside a
-  // still-pending search edit avoids keeping a parallel value in sync —
-  // the input's remount (on an external URL change) already keeps this
-  // accurate for free.
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -40,17 +50,30 @@ export function TerritoryFilters({
     };
   }, []);
 
-  function applyFilters(next: Partial<Record<FilterKey, string>>) {
+  function applyFilters(next: Partial<Record<FilterKey, string | null>>) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     const merged: Record<FilterKey, string> = {
       q: inputRef.current?.value ?? "",
+      provinceId: filters.provinceId ?? "",
+      villeId: filters.villeId ?? "",
+      communeId: filters.communeId ?? "",
       status: filters.status ?? "",
-      ...next,
+      // `undefined` means "this key wasn't touched" (see the callers below)
+      // — must be dropped before merging, not turned into "", or every
+      // partial patch would wipe every *other* filter back to unset.
+      ...Object.fromEntries(
+        Object.entries(next)
+          .filter(([, value]) => value !== undefined)
+          .map(([key, value]) => [key, value ?? ""]),
+      ),
     };
 
     const params = new URLSearchParams();
     if (merged.q) params.set("q", merged.q);
+    if (merged.provinceId) params.set("provinceId", merged.provinceId);
+    if (merged.villeId) params.set("villeId", merged.villeId);
+    if (merged.communeId) params.set("communeId", merged.communeId);
     if (merged.status) params.set("status", merged.status);
 
     const query = params.toString();
@@ -59,9 +82,6 @@ export function TerritoryFilters({
 
   function handleSearchChange(value: string) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    // Debounced so typing doesn't fire a navigation per keystroke — the
-    // status select applies immediately since selecting one is a single,
-    // deliberate action rather than a stream of them.
     debounceRef.current = setTimeout(() => applyFilters({ q: value }), 400);
   }
 
@@ -71,7 +91,9 @@ export function TerritoryFilters({
     router.push(pathname);
   }
 
-  const hasActiveFilters = Boolean(filters.q || filters.status);
+  const hasActiveFilters = Boolean(
+    filters.q || filters.provinceId || filters.villeId || filters.communeId || filters.status,
+  );
 
   return (
     <div className="flex flex-wrap items-end gap-3">
@@ -82,15 +104,44 @@ export function TerritoryFilters({
         <Input
           id="q"
           ref={inputRef}
-          // Remounts (resetting the field to match the URL) whenever the
-          // URL's own q changes for a reason other than this input's own
-          // debounce — a browser back/forward, or Clear filters.
           key={filters.q ?? ""}
           defaultValue={filters.q}
           onChange={(event) => handleSearchChange(event.target.value)}
           placeholder={dict.searchPlaceholder}
         />
       </div>
+
+      <CascadingTerritoryFields
+        levels={["province", "ville", "commune"]}
+        value={{
+          provinceId: filters.provinceId ?? null,
+          villeId: filters.villeId ?? null,
+          communeId: filters.communeId ?? null,
+          quartierId: null,
+        }}
+        onChange={(patch) =>
+          applyFilters({
+            provinceId: "provinceId" in patch ? (patch.provinceId ?? "") : undefined,
+            villeId: "villeId" in patch ? (patch.villeId ?? "") : undefined,
+            communeId: "communeId" in patch ? (patch.communeId ?? "") : undefined,
+          })
+        }
+        data={{ provinces, villes, communes, quartiers: [] }}
+        required={false}
+        layout="row"
+        labels={{
+          province: hierarchyDict.province,
+          ville: hierarchyDict.ville,
+          commune: hierarchyDict.commune,
+          quartier: hierarchyDict.quartier,
+        }}
+        placeholders={{
+          province: hierarchyDict.anyProvince,
+          ville: hierarchyDict.anyVille,
+          commune: hierarchyDict.anyCommune,
+          quartier: hierarchyDict.anyQuartier,
+        }}
+      />
 
       <div className="flex flex-col gap-1">
         <label htmlFor="status" className="text-xs text-muted-foreground">
