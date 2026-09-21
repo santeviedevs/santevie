@@ -12,8 +12,14 @@ vi.mock("@/server/repositories/user-repository", () => ({
   findUserById,
   findUsers: vi.fn(),
   listRoleOptions: vi.fn(),
-  listTerritoryOptions: vi.fn(),
   listManagerOptions: vi.fn(),
+}));
+
+vi.mock("@/server/repositories/territory-repository", () => ({
+  listActiveProvinces: vi.fn(),
+  listActiveVilles: vi.fn(),
+  listActiveCommunes: vi.fn(),
+  listActiveQuartiers: vi.fn(),
 }));
 
 vi.mock("@/server/auth/password", () => ({
@@ -38,7 +44,10 @@ const baseUserRow = (overrides: Record<string, unknown> = {}) => ({
   status: "ACTIVE",
   role: { id: "role-1", name: "DELEGATE" },
   manager: null,
-  homeTerritory: null,
+  province: null,
+  ville: null,
+  commune: null,
+  quartier: null,
   ...overrides,
 });
 
@@ -48,7 +57,10 @@ const baseInput = {
   email: "new@example.com",
   roleId: "role-1",
   managerId: null as string | null,
-  homeTerritoryId: null as string | null,
+  provinceId: null as string | null,
+  villeId: null as string | null,
+  communeId: null as string | null,
+  quartierId: null as string | null,
 };
 
 describe("createUser", () => {

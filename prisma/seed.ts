@@ -41,10 +41,31 @@ async function main() {
     }
   }
 
-  const territory = await prisma.territory.upsert({
-    where: { code: "DXB-01" },
+  // Real sample values from the client's own location data (Équateur >
+  // Mbandaka > Wangata > Bongondo), not a placeholder — see the DRC
+  // Province/Ville/Commune/Quartier sheet the client shared.
+  const province = await prisma.province.upsert({
+    where: { name: "Équateur" },
     update: {},
-    create: { code: "DXB-01", name: "Dubai Central" },
+    create: { name: "Équateur" },
+  });
+
+  const ville = await prisma.ville.upsert({
+    where: { provinceId_name: { provinceId: province.id, name: "Mbandaka" } },
+    update: {},
+    create: { name: "Mbandaka", provinceId: province.id },
+  });
+
+  const commune = await prisma.commune.upsert({
+    where: { villeId_name: { villeId: ville.id, name: "Wangata" } },
+    update: {},
+    create: { name: "Wangata", villeId: ville.id },
+  });
+
+  const quartier = await prisma.quartier.upsert({
+    where: { communeId_name: { communeId: commune.id, name: "Bongondo" } },
+    update: {},
+    create: { name: "Bongondo", communeId: commune.id },
   });
 
   const admin = await prisma.user.upsert({
@@ -56,7 +77,10 @@ async function main() {
       email: "admin@santevie.test",
       passwordHash,
       roleId: roles.get("ADMIN")!,
-      homeTerritoryId: territory.id,
+      provinceId: province.id,
+      villeId: ville.id,
+      communeId: commune.id,
+      quartierId: quartier.id,
     },
   });
 
@@ -69,7 +93,10 @@ async function main() {
       email: "manager@santevie.test",
       passwordHash,
       roleId: roles.get("MANAGER")!,
-      homeTerritoryId: territory.id,
+      provinceId: province.id,
+      villeId: ville.id,
+      communeId: commune.id,
+      quartierId: quartier.id,
       managerId: admin.id,
     },
   });
@@ -83,7 +110,10 @@ async function main() {
       email: "supervisor@santevie.test",
       passwordHash,
       roleId: roles.get("SUPERVISOR")!,
-      homeTerritoryId: territory.id,
+      provinceId: province.id,
+      villeId: ville.id,
+      communeId: commune.id,
+      quartierId: quartier.id,
       managerId: manager.id,
     },
   });
@@ -97,7 +127,10 @@ async function main() {
       email: "delegate@santevie.test",
       passwordHash,
       roleId: roles.get("DELEGATE")!,
-      homeTerritoryId: territory.id,
+      provinceId: province.id,
+      villeId: ville.id,
+      communeId: commune.id,
+      quartierId: quartier.id,
       managerId: supervisor.id,
     },
   });
@@ -115,9 +148,9 @@ async function main() {
       code: "CL-0001",
       name: "Sample Clinic",
       typeId: clientType.id,
-      territoryId: territory.id,
-      latitude: 25.2048,
-      longitude: 55.2708,
+      quartierId: quartier.id,
+      latitude: 0.0487,
+      longitude: 18.2603,
     },
   });
 

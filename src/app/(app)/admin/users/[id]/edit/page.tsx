@@ -35,6 +35,7 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
         mode="edit"
         options={options}
         dict={dict.userForm}
+        territoryDict={dict.territory}
         defaultValues={{
           id: user.id,
           employeeCode: user.employeeCode,
@@ -42,7 +43,10 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
           email: user.email,
           roleId: user.role.id,
           managerId: user.manager?.id ?? null,
-          homeTerritoryId: user.homeTerritory?.id ?? null,
+          provinceId: user.province?.id ?? null,
+          villeId: user.ville?.id ?? null,
+          communeId: user.commune?.id ?? null,
+          quartierId: user.quartier?.id ?? null,
           status: user.status,
         }}
       />

@@ -4,10 +4,11 @@ import { DEFAULT_LANGUAGE, type Language } from "./language";
 // database-sourced values here (role/territory names, user data): those
 // stay exactly as stored regardless of the selected language.
 export type Dictionary = {
-  // Kept out of `userForm` deliberately: `userForm` as a whole gets passed
-  // as a prop into the (client) UserForm component, and a function value
-  // can't cross that Server → Client boundary — only the edit page itself
-  // (a Server Component) ever calls this, to build the page heading.
+  // Kept out of `userForm`/`territoriesPage` deliberately: those objects
+  // get passed as props into client components (UserForm, TerritoryForm),
+  // and a function value can't cross that Server → Client boundary — only
+  // the edit page itself (a Server Component) ever calls these, to build
+  // the page heading.
   editUserTitle: (name: string) => string;
   editTerritoryTitle: (name: string) => string;
   nav: {
@@ -27,6 +28,34 @@ export type Dictionary = {
     signIn: string;
     signingIn: string;
   };
+  // Shared by the Territories admin form (create/edit) and the Users
+  // form's territory assignment — the four hierarchy levels (Province >
+  // Ville > Commune > Quartier), plus placeholders reused by every
+  // cascading select.
+  territory: {
+    province: string;
+    ville: string;
+    commune: string;
+    quartier: string;
+    selectProvince: string;
+    selectVille: string;
+    selectCommune: string;
+    selectQuartier: string;
+    anyProvince: string;
+    anyVille: string;
+    anyCommune: string;
+    anyQuartier: string;
+    // A plain string template rather than a `(name) => string` function —
+    // this dict is passed into TerritoryForm, a Client Component, and
+    // functions can't cross that Server → Client boundary (see the note on
+    // editUserTitle/editTerritoryTitle above). The combobox does the
+    // `"{name}"` substitution itself.
+    createOption: string;
+    noMatches: string;
+    // "{label}" is substituted with province/ville/commune's own label above.
+    typeOrSelectPlaceholder: string;
+    typeOrCreatePlaceholder: string;
+  };
   usersPage: {
     title: string;
     newUser: string;
@@ -35,7 +64,7 @@ export type Dictionary = {
     columnEmail: string;
     columnRole: string;
     columnManager: string;
-    columnHomeTerritory: string;
+    columnTerritory: string;
     columnStatus: string;
     edit: string;
     noResults: string;
@@ -47,46 +76,46 @@ export type Dictionary = {
     searchPlaceholder: string;
     roleLabel: string;
     anyRole: string;
-    territoryLabel: string;
-    anyTerritory: string;
     statusLabel: string;
     anyStatus: string;
     active: string;
     inactive: string;
     clearFilters: string;
   };
+  // The Territories admin screen: one list (one row per territory, i.e.
+  // one Quartier with its full Province/Ville/Commune path) with cascading
+  // filters, plus a single create/edit form — mirrors usersPage/userForm.
   territoriesPage: {
     title: string;
     newTerritory: string;
-    columnCode: string;
-    columnName: string;
-    columnStatus: string;
-    edit: string;
-    noResults: string;
-    statusActive: string;
-    statusInactive: string;
-  };
-  territoryFilters: {
     searchLabel: string;
     searchPlaceholder: string;
     statusLabel: string;
     anyStatus: string;
     active: string;
     inactive: string;
+    provinceLabel: string;
+    villeLabel: string;
+    communeLabel: string;
+    // A Territory can now be a Province, Ville, Commune, or Quartier row on
+    // its own — the list shows all four as columns, each entry's own name
+    // in whichever column matches its level, the rest blank.
+    quartierLabel: string;
+    columnStatus: string;
+    edit: string;
+    noResults: string;
+    statusActive: string;
+    statusInactive: string;
     clearFilters: string;
-  };
-  territoryForm: {
-    newTerritoryTitle: string;
-    code: string;
-    name: string;
-    activate: string;
-    activeDescription: string;
-    inactiveDescription: string;
     createTerritory: string;
-    saveChanges: string;
+    save: string;
     saving: string;
-    territoryCreated: string;
-    territoryUpdated: string;
+    created: string;
+    updated: string;
+    activate: string;
+    // Heading over the edit form's optional "also add a new one below this"
+    // fields — e.g. editing a Province can grow a new Ville under it.
+    addChildHeading: string;
   };
   userForm: {
     newUserTitle: string;
@@ -97,8 +126,7 @@ export type Dictionary = {
     selectRole: string;
     manager: string;
     noManager: string;
-    homeTerritory: string;
-    noHomeTerritory: string;
+    territorySectionLabel: string;
     activate: string;
     activeDescription: string;
     inactiveDescription: string;
@@ -130,6 +158,24 @@ const en: Dictionary = {
     signIn: "Sign in",
     signingIn: "Signing in...",
   },
+  territory: {
+    province: "Province",
+    ville: "Ville",
+    commune: "Commune",
+    quartier: "Quartier",
+    selectProvince: "Select a province",
+    selectVille: "Select a ville",
+    selectCommune: "Select a commune",
+    selectQuartier: "Select a quartier",
+    anyProvince: "Any province",
+    anyVille: "Any ville",
+    anyCommune: "Any commune",
+    anyQuartier: "Any quartier",
+    createOption: 'Create "{name}"',
+    noMatches: "No matches",
+    typeOrSelectPlaceholder: "Type or select {label}...",
+    typeOrCreatePlaceholder: "Type or create {label}...",
+  },
   usersPage: {
     title: "Users",
     newUser: "New user",
@@ -138,7 +184,7 @@ const en: Dictionary = {
     columnEmail: "Email",
     columnRole: "Role",
     columnManager: "Manager",
-    columnHomeTerritory: "Home territory",
+    columnTerritory: "Territory",
     columnStatus: "Status",
     edit: "Edit",
     noResults: "No users match these filters.",
@@ -150,8 +196,6 @@ const en: Dictionary = {
     searchPlaceholder: "Name, email or code",
     roleLabel: "Role",
     anyRole: "Any role",
-    territoryLabel: "Territory",
-    anyTerritory: "Any territory",
     statusLabel: "Status",
     anyStatus: "Any status",
     active: "Active",
@@ -161,36 +205,29 @@ const en: Dictionary = {
   territoriesPage: {
     title: "Territories",
     newTerritory: "New territory",
-    columnCode: "Code",
-    columnName: "Name",
+    searchLabel: "Search",
+    searchPlaceholder: "Name",
+    statusLabel: "Status",
+    anyStatus: "Any status",
+    active: "Active",
+    inactive: "Inactive",
+    provinceLabel: "Province",
+    villeLabel: "Ville",
+    communeLabel: "Commune",
+    quartierLabel: "Quartier",
     columnStatus: "Status",
     edit: "Edit",
     noResults: "No territories match these filters.",
     statusActive: "ACTIVE",
     statusInactive: "INACTIVE",
-  },
-  territoryFilters: {
-    searchLabel: "Search",
-    searchPlaceholder: "Name or code",
-    statusLabel: "Status",
-    anyStatus: "Any status",
-    active: "Active",
-    inactive: "Inactive",
     clearFilters: "Clear filters",
-  },
-  territoryForm: {
-    newTerritoryTitle: "New territory",
-    code: "Code",
-    name: "Name",
-    activate: "Activate",
-    activeDescription: "Selectable for new work.",
-    inactiveDescription:
-      "Deactivated — no longer selectable for new work. Save changes to reactivate.",
     createTerritory: "Create territory",
-    saveChanges: "Save changes",
+    save: "Save changes",
     saving: "Saving...",
-    territoryCreated: "Territory created",
-    territoryUpdated: "Territory updated",
+    created: "Territory created",
+    updated: "Territory updated",
+    activate: "Activate",
+    addChildHeading: "Also add a new one below",
   },
   userForm: {
     newUserTitle: "New user",
@@ -201,8 +238,7 @@ const en: Dictionary = {
     selectRole: "Select a role",
     manager: "Manager",
     noManager: "No manager",
-    homeTerritory: "Home territory",
-    noHomeTerritory: "No home territory",
+    territorySectionLabel: "Territory",
     activate: "Activate",
     activeDescription: "Can sign in and appears in active lists.",
     inactiveDescription: "Deactivated — can't sign in. Save changes to reactivate.",
@@ -234,6 +270,24 @@ const fr: Dictionary = {
     signIn: "Se connecter",
     signingIn: "Connexion...",
   },
+  territory: {
+    province: "Province",
+    ville: "Ville",
+    commune: "Commune",
+    quartier: "Quartier",
+    selectProvince: "Sélectionner une province",
+    selectVille: "Sélectionner une ville",
+    selectCommune: "Sélectionner une commune",
+    selectQuartier: "Sélectionner un quartier",
+    anyProvince: "Toutes les provinces",
+    anyVille: "Toutes les villes",
+    anyCommune: "Toutes les communes",
+    anyQuartier: "Tous les quartiers",
+    createOption: 'Créer "{name}"',
+    noMatches: "Aucun résultat",
+    typeOrSelectPlaceholder: "Saisir ou sélectionner {label}...",
+    typeOrCreatePlaceholder: "Saisir ou créer {label}...",
+  },
   usersPage: {
     title: "Utilisateurs",
     newUser: "Nouvel utilisateur",
@@ -242,7 +296,7 @@ const fr: Dictionary = {
     columnEmail: "E-mail",
     columnRole: "Rôle",
     columnManager: "Responsable",
-    columnHomeTerritory: "Territoire",
+    columnTerritory: "Territoire",
     columnStatus: "Statut",
     edit: "Modifier",
     noResults: "Aucun utilisateur ne correspond à ces filtres.",
@@ -254,8 +308,6 @@ const fr: Dictionary = {
     searchPlaceholder: "Nom, e-mail ou code",
     roleLabel: "Rôle",
     anyRole: "Tous les rôles",
-    territoryLabel: "Territoire",
-    anyTerritory: "Tous les territoires",
     statusLabel: "Statut",
     anyStatus: "Tous les statuts",
     active: "Actif",
@@ -265,36 +317,29 @@ const fr: Dictionary = {
   territoriesPage: {
     title: "Territoires",
     newTerritory: "Nouveau territoire",
-    columnCode: "Code",
-    columnName: "Nom",
+    searchLabel: "Recherche",
+    searchPlaceholder: "Nom",
+    statusLabel: "Statut",
+    anyStatus: "Tous les statuts",
+    active: "Actif",
+    inactive: "Inactif",
+    provinceLabel: "Province",
+    villeLabel: "Ville",
+    communeLabel: "Commune",
+    quartierLabel: "Quartier",
     columnStatus: "Statut",
     edit: "Modifier",
     noResults: "Aucun territoire ne correspond à ces filtres.",
     statusActive: "ACTIF",
     statusInactive: "INACTIF",
-  },
-  territoryFilters: {
-    searchLabel: "Recherche",
-    searchPlaceholder: "Nom ou code",
-    statusLabel: "Statut",
-    anyStatus: "Tous les statuts",
-    active: "Actif",
-    inactive: "Inactif",
     clearFilters: "Effacer les filtres",
-  },
-  territoryForm: {
-    newTerritoryTitle: "Nouveau territoire",
-    code: "Code",
-    name: "Nom",
-    activate: "Activer",
-    activeDescription: "Sélectionnable pour de nouveaux travaux.",
-    inactiveDescription:
-      "Désactivé — n'est plus sélectionnable pour de nouveaux travaux. Enregistrez pour réactiver.",
     createTerritory: "Créer le territoire",
-    saveChanges: "Enregistrer",
+    save: "Enregistrer",
     saving: "Enregistrement...",
-    territoryCreated: "Territoire créé",
-    territoryUpdated: "Territoire mis à jour",
+    created: "Territoire créé",
+    updated: "Territoire mis à jour",
+    activate: "Activer",
+    addChildHeading: "Ajouter également un nouveau en dessous",
   },
   userForm: {
     newUserTitle: "Nouvel utilisateur",
@@ -305,8 +350,7 @@ const fr: Dictionary = {
     selectRole: "Sélectionner un rôle",
     manager: "Responsable",
     noManager: "Aucun responsable",
-    homeTerritory: "Territoire",
-    noHomeTerritory: "Aucun territoire",
+    territorySectionLabel: "Territoire",
     activate: "Activer",
     activeDescription: "Peut se connecter et apparaît dans les listes actives.",
     inactiveDescription: "Désactivé — ne peut pas se connecter. Enregistrez pour réactiver.",

@@ -2,7 +2,12 @@ import { notFound } from "next/navigation";
 
 import { getServerDictionary } from "@/lib/i18n/server";
 import { requirePermission } from "@/server/auth/require-permission";
-import { getTerritory } from "@/server/services/territory-service";
+import {
+  listCommunes,
+  listProvinces,
+  listVilles,
+} from "@/server/repositories/territory-repository";
+import { getTerritoryEntry } from "@/server/services/territory-service";
 
 import { TerritoryForm } from "../../territory-form";
 
@@ -16,7 +21,13 @@ export default async function EditTerritoryPage({ params }: EditTerritoryPagePro
   await requirePermission("territories:manage");
 
   const { id } = await params;
-  const [territory, dict] = await Promise.all([getTerritory(id), getServerDictionary()]);
+  const [territory, provinces, villes, communes, dict] = await Promise.all([
+    getTerritoryEntry(id),
+    listProvinces(),
+    listVilles(),
+    listCommunes(),
+    getServerDictionary(),
+  ]);
 
   if (!territory) {
     notFound();
@@ -27,10 +38,15 @@ export default async function EditTerritoryPage({ params }: EditTerritoryPagePro
       <h1 className="text-xl font-semibold">{dict.editTerritoryTitle(territory.name)}</h1>
       <TerritoryForm
         mode="edit"
-        dict={dict.territoryForm}
+        options={{ provinces, villes, communes }}
+        dict={dict.territoriesPage}
+        hierarchyDict={dict.territory}
         defaultValues={{
           id: territory.id,
-          code: territory.code,
+          level: territory.level,
+          provinceId: territory.province?.id,
+          villeId: territory.ville?.id,
+          communeId: territory.commune?.id,
           name: territory.name,
           status: territory.status,
         }}

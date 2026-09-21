@@ -14,7 +14,12 @@ export default async function NewUserPage() {
   return (
     <div className="flex flex-col gap-6 p-6">
       <h1 className="text-xl font-semibold">{dict.userForm.newUserTitle}</h1>
-      <UserForm mode="create" options={options} dict={dict.userForm} />
+      <UserForm
+        mode="create"
+        options={options}
+        dict={dict.userForm}
+        territoryDict={dict.territory}
+      />
     </div>
   );
 }

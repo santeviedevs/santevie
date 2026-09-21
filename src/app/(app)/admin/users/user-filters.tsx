@@ -15,20 +15,36 @@ import {
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import type { UserFilters as UserFiltersValue } from "@/lib/schemas/user";
 
+import {
+  CascadingTerritoryFields,
+  type CommuneOption,
+  type QuartierOption,
+  type TerritoryOption,
+  type VilleOption,
+} from "../territories/cascading-territory-fields";
+
 type Option = { id: string; name: string };
 
-type FilterKey = "q" | "roleId" | "territoryId" | "status";
+type FilterKey = "q" | "roleId" | "provinceId" | "villeId" | "communeId" | "quartierId" | "status";
 
 export function UserFilters({
   roles,
-  territories,
+  provinces,
+  villes,
+  communes,
+  quartiers,
   filters,
   dict,
+  territoryDict,
 }: {
   roles: Option[];
-  territories: Option[];
+  provinces: TerritoryOption[];
+  villes: VilleOption[];
+  communes: CommuneOption[];
+  quartiers: QuartierOption[];
   filters: UserFiltersValue;
   dict: Dictionary["filters"];
+  territoryDict: Dictionary["territory"];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -46,21 +62,34 @@ export function UserFilters({
     };
   }, []);
 
-  function applyFilters(next: Partial<Record<FilterKey, string>>) {
+  function applyFilters(next: Partial<Record<FilterKey, string | null>>) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     const merged: Record<FilterKey, string> = {
       q: inputRef.current?.value ?? "",
       roleId: filters.roleId ?? "",
-      territoryId: filters.territoryId ?? "",
+      provinceId: filters.provinceId ?? "",
+      villeId: filters.villeId ?? "",
+      communeId: filters.communeId ?? "",
+      quartierId: filters.quartierId ?? "",
       status: filters.status ?? "",
-      ...next,
+      // `undefined` means "this key wasn't touched" (see the callers below)
+      // — must be dropped before merging, not turned into "", or every
+      // partial patch would wipe every *other* filter back to unset.
+      ...Object.fromEntries(
+        Object.entries(next)
+          .filter(([, value]) => value !== undefined)
+          .map(([key, value]) => [key, value ?? ""]),
+      ),
     };
 
     const params = new URLSearchParams();
     if (merged.q) params.set("q", merged.q);
     if (merged.roleId) params.set("roleId", merged.roleId);
-    if (merged.territoryId) params.set("territoryId", merged.territoryId);
+    if (merged.provinceId) params.set("provinceId", merged.provinceId);
+    if (merged.villeId) params.set("villeId", merged.villeId);
+    if (merged.communeId) params.set("communeId", merged.communeId);
+    if (merged.quartierId) params.set("quartierId", merged.quartierId);
     if (merged.status) params.set("status", merged.status);
 
     const query = params.toString();
@@ -82,7 +111,13 @@ export function UserFilters({
   }
 
   const hasActiveFilters = Boolean(
-    filters.q || filters.roleId || filters.territoryId || filters.status,
+    filters.q ||
+    filters.roleId ||
+    filters.provinceId ||
+    filters.villeId ||
+    filters.communeId ||
+    filters.quartierId ||
+    filters.status,
   );
 
   return (
@@ -130,31 +165,38 @@ export function UserFilters({
         </Select>
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="territoryId" className="text-xs text-muted-foreground">
-          {dict.territoryLabel}
-        </label>
-        <Select
-          items={[
-            { value: "", label: dict.anyTerritory },
-            ...territories.map((territory) => ({ value: territory.id, label: territory.name })),
-          ]}
-          value={filters.territoryId ?? ""}
-          onValueChange={(value) => applyFilters({ territoryId: value ?? "" })}
-        >
-          <SelectTrigger id="territoryId" className="w-44">
-            <SelectValue placeholder={dict.anyTerritory} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">{dict.anyTerritory}</SelectItem>
-            {territories.map((territory) => (
-              <SelectItem key={territory.id} value={territory.id}>
-                {territory.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <CascadingTerritoryFields
+        levels={["province", "ville", "commune", "quartier"]}
+        value={{
+          provinceId: filters.provinceId ?? null,
+          villeId: filters.villeId ?? null,
+          communeId: filters.communeId ?? null,
+          quartierId: filters.quartierId ?? null,
+        }}
+        onChange={(patch) =>
+          applyFilters({
+            provinceId: "provinceId" in patch ? (patch.provinceId ?? "") : undefined,
+            villeId: "villeId" in patch ? (patch.villeId ?? "") : undefined,
+            communeId: "communeId" in patch ? (patch.communeId ?? "") : undefined,
+            quartierId: "quartierId" in patch ? (patch.quartierId ?? "") : undefined,
+          })
+        }
+        data={{ provinces, villes, communes, quartiers }}
+        required={false}
+        layout="row"
+        labels={{
+          province: territoryDict.province,
+          ville: territoryDict.ville,
+          commune: territoryDict.commune,
+          quartier: territoryDict.quartier,
+        }}
+        placeholders={{
+          province: territoryDict.anyProvince,
+          ville: territoryDict.anyVille,
+          commune: territoryDict.anyCommune,
+          quartier: territoryDict.anyQuartier,
+        }}
+      />
 
       <div className="flex flex-col gap-1">
         <label htmlFor="status" className="text-xs text-muted-foreground">
