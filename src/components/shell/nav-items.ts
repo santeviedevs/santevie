@@ -1,9 +1,9 @@
-import { HelpCircle, Home, Map, Users } from "lucide-react";
+import { HelpCircle, Home, Map, Stethoscope, Users } from "lucide-react";
 
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import type { Permission } from "@/server/auth/permissions";
 
-type NavKey = "home" | "users" | "territories" | "installGuide";
+type NavKey = "home" | "users" | "territories" | "clients" | "installGuide";
 
 export type NavItemDef = {
   href: string;
@@ -32,6 +32,7 @@ export const NAV_ITEM_DEFS: NavItemDef[] = [
     icon: Map,
     permission: "territories:manage",
   },
+  { href: "/admin/clients", key: "clients", icon: Stethoscope, permission: "clients:manage" },
 ];
 
 export const SECONDARY_NAV_ITEM_DEFS: NavItemDef[] = [

@@ -256,12 +256,90 @@ model Client {
   visits Visit[]
   orders Order[]
 
+  // At most one of these is ever set, matched to `type` — a Doctor client
+  // has a `doctor` row and no `hospital` row, and vice versa. Kept as two
+  // optional one-to-one extensions rather than fields on Client itself so a
+  // Chemist/Pharmacy client (neither Doctor nor Hospital) carries no unused
+  // columns, and so Doctor/Hospital can each grow their own fields later
+  // without widening every other client type's row.
+  doctor   Doctor?
+  hospital Hospital?
+
   createdBy String?
   createdAt DateTime @default(now())
   updatedBy String?
   updatedAt DateTime @updatedAt
 
   @@map("clients")
+}
+
+// One-to-one extension of Client for the DOCTOR type. A Doctor can be
+// associated with several Hospitals (see DoctorHospital) — that's a
+// separate relation, not a field here, because the source data shows the
+// same doctor visited at multiple hospitals; a single hospitalId would
+// wrongly limit them to one.
+model Doctor {
+  id String @id @default(cuid())
+
+  clientId String @unique
+  client   Client @relation(fields: [clientId], references: [id])
+
+  doctorType String?
+  gender     String?
+  department String?
+  mobileNo   String?
+
+  hospitals DoctorHospital[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("doctors")
+}
+
+// One-to-one extension of Client for the HOSPITAL type.
+model Hospital {
+  id String @id @default(cuid())
+
+  clientId String @unique
+  client   Client @relation(fields: [clientId], references: [id])
+
+  hospitalCategory String?
+
+  doctors DoctorHospital[]
+  visits  Visit[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("hospitals")
+}
+
+// Explicit join model (not an implicit many-to-many), same reasoning as
+// RolePermission: the link itself carries an audit trail of who associated
+// which doctor with which hospital and when. A Doctor visited at several
+// Hospitals gets one Doctor row and several of these, never several Doctor
+// rows for the same person.
+model DoctorHospital {
+  id String @id @default(cuid())
+
+  doctorId String
+  doctor   Doctor @relation(fields: [doctorId], references: [id])
+
+  hospitalId String
+  hospital   Hospital @relation(fields: [hospitalId], references: [id])
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([doctorId, hospitalId])
+  @@map("doctor_hospitals")
 }
 
 model Product {
@@ -294,6 +372,15 @@ model Visit {
 
   clientId String
   client   Client @relation(fields: [clientId], references: [id])
+
+  // Which Hospital the visit happened at, when relevant — e.g. "visited
+  // Doctor A at Hospital B" records clientId = Doctor A, hospitalId =
+  // Hospital B. Optional: a visit straight to a Hospital or to a Chemist/
+  // Pharmacy client has no separate hospital to record. When both are set
+  // and the client is a Doctor, the service layer must confirm the pair
+  // exists in DoctorHospital before saving.
+  hospitalId String?
+  hospital   Hospital? @relation(fields: [hospitalId], references: [id])
 
   startAt  DateTime
   endAt    DateTime?
