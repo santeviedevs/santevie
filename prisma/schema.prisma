@@ -342,17 +342,45 @@ model DoctorHospital {
   @@map("doctor_hospitals")
 }
 
-model Product {
-  id       String  @id @default(cuid())
-  code     String  @unique
-  name     String
-  category String?
-  price    Decimal @db.Decimal(12, 2)
-  currency String  @default("AED")
-  status   Status  @default(ACTIVE)
+// Lookup table, same pattern as ClientType — the price list has no
+// classification column at all, so this stays a short seeded list (or
+// left unset on a Product) rather than a fixed enum, until the client
+// confirms an actual taxonomy.
+model ProductCategory {
+  id   String @id @default(cuid())
+  code String @unique
+  name String
 
-  orderItems OrderItem[]
-  targets    Target[]
+  products Product[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("product_categories")
+}
+
+// Base currency is always USD (D3: confirmed with the client — see
+// ExchangeRate below for the CDF conversion, which is display-only and
+// never stored here). The source price list carries two prices per
+// product — grossPrice and a netPrice already discounted — and both are
+// stored as-is rather than netPrice being derived from a percentage,
+// since the discount isn't confirmed to be a fixed, permanent rule.
+model Product {
+  id         String  @id @default(cuid())
+  code       String  @unique
+  name       String
+  grossPrice Decimal @db.Decimal(12, 2)
+  netPrice   Decimal @db.Decimal(12, 2)
+  status     Status  @default(ACTIVE)
+
+  categoryId String?
+  category   ProductCategory? @relation(fields: [categoryId], references: [id])
+
+  orderItems   OrderItem[]
+  targets      Target[]
+  priceHistory ProductPriceHistory[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -360,6 +388,48 @@ model Product {
   updatedAt DateTime @updatedAt
 
   @@map("products")
+}
+
+// One row per price change (S2-03: "a later price change cannot alter a
+// submitted order") — appended on every create and on every update that
+// changes either price, never edited or deleted, so a past price can
+// always be reconstructed independently of what the Product row now says.
+model ProductPriceHistory {
+  id String @id @default(cuid())
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  grossPrice Decimal @db.Decimal(12, 2)
+  netPrice   Decimal @db.Decimal(12, 2)
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("product_price_history")
+}
+
+// USD → CDF conversion rate, set manually by an admin (the client's rate
+// always runs a bit above the central bank's, and is only ever updated by
+// hand — see the D3 discussion). Append-only: changing the rate inserts a
+// new row rather than overwriting the last one, so a value already
+// snapshotted elsewhere (e.g. onto an Order, in a later sprint) is never
+// affected by a later change, and "the rate on a given date" stays
+// reconstructable. "Current" is always the row with the latest
+// effectiveFrom.
+model ExchangeRate {
+  id            String   @id @default(cuid())
+  rate          Decimal  @db.Decimal(12, 4)
+  effectiveFrom DateTime @default(now())
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("exchange_rates")
 }
 
 // --- Visits ---
