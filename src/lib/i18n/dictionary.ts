@@ -187,6 +187,8 @@ export type Dictionary = {
     mobileNo: string;
     associatedHospitals: string;
     noHospitals: string;
+    searchHospitals: string;
+    noHospitalsMatch: string;
     hospitalSectionLabel: string;
     hospitalCategory: string;
     activate: string;
@@ -372,6 +374,8 @@ const en: Dictionary = {
     mobileNo: "Mobile number",
     associatedHospitals: "Associated hospitals",
     noHospitals: "No active hospitals to associate yet.",
+    searchHospitals: "Search hospitals by name or code...",
+    noHospitalsMatch: "No hospitals match your search.",
     hospitalSectionLabel: "Hospital details",
     hospitalCategory: "Hospital category",
     activate: "Activate",
@@ -553,6 +557,8 @@ const fr: Dictionary = {
     mobileNo: "Numéro de mobile",
     associatedHospitals: "Hôpitaux associés",
     noHospitals: "Aucun hôpital actif à associer pour le moment.",
+    searchHospitals: "Rechercher un hôpital par nom ou code...",
+    noHospitalsMatch: "Aucun hôpital ne correspond à votre recherche.",
     hospitalSectionLabel: "Détails de l'hôpital",
     hospitalCategory: "Catégorie d'hôpital",
     activate: "Activer",

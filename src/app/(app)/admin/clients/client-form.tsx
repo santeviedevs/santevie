@@ -206,6 +206,8 @@ export function ClientForm({ mode, options, defaultValues, dict, territoryDict }
               onChange={(next) => setValue("hospitalIds", next)}
               disabled={isPending}
               emptyLabel={dict.noHospitals}
+              searchPlaceholder={dict.searchHospitals}
+              noMatchesLabel={dict.noHospitalsMatch}
             />
           </div>
         </div>
