@@ -11,10 +11,13 @@ export type Dictionary = {
   // the page heading.
   editUserTitle: (name: string) => string;
   editTerritoryTitle: (name: string) => string;
+  editClientTitle: (name: string) => string;
+  viewClientTitle: (name: string) => string;
   nav: {
     home: string;
     users: string;
     territories: string;
+    clients: string;
     installGuide: string;
   };
   header: {
@@ -136,15 +139,92 @@ export type Dictionary = {
     userCreated: string;
     userUpdated: string;
   };
+  // The Client master admin screen (S2-02: Doctor/Hospital/Chemist/
+  // Pharmacy) — mirrors usersPage/userForm/filters in shape.
+  clientsPage: {
+    title: string;
+    newClient: string;
+    columnCode: string;
+    columnName: string;
+    columnType: string;
+    columnTerritory: string;
+    columnCoordinates: string;
+    columnStatus: string;
+    view: string;
+    edit: string;
+    noResults: string;
+    statusActive: string;
+    statusInactive: string;
+    missingCoordinates: string;
+  };
+  clientFilters: {
+    searchLabel: string;
+    searchPlaceholder: string;
+    typeLabel: string;
+    anyType: string;
+    statusLabel: string;
+    anyStatus: string;
+    active: string;
+    inactive: string;
+    missingCoordinates: string;
+    clearFilters: string;
+  };
+  clientForm: {
+    newClientTitle: string;
+    code: string;
+    name: string;
+    type: string;
+    selectType: string;
+    contact: string;
+    address: string;
+    territorySectionLabel: string;
+    coordinatesLabel: string;
+    noCoordinates: string;
+    doctorSectionLabel: string;
+    doctorType: string;
+    gender: string;
+    department: string;
+    mobileNo: string;
+    associatedHospitals: string;
+    noHospitals: string;
+    searchHospitals: string;
+    noHospitalsMatch: string;
+    hospitalSectionLabel: string;
+    hospitalCategory: string;
+    activate: string;
+    activeDescription: string;
+    inactiveDescription: string;
+    createClient: string;
+    saveChanges: string;
+    saving: string;
+    clientCreated: string;
+    clientUpdated: string;
+  };
+  // The read-only Client detail screen — reuses clientForm's field labels
+  // (code/name/type/doctorType/...) for consistency, and only adds what's
+  // specific to a view: section headings, the edit/back links, and a
+  // fallback for an empty field.
+  clientDetailPage: {
+    backToList: string;
+    editClient: string;
+    detailsSectionLabel: string;
+    contact: string;
+    address: string;
+    notProvided: string;
+    hospitalCode: string;
+  };
 };
 
 const en: Dictionary = {
   editUserTitle: (name) => `Edit ${name}`,
   editTerritoryTitle: (name) => `Edit ${name}`,
+  editClientTitle: (name) => `Edit ${name}`,
+  viewClientTitle: (name) => name,
   nav: {
     home: "Home",
     users: "Users",
     territories: "Territories",
+    clients: "Clients",
     installGuide: "Install guide",
   },
   header: {
@@ -248,15 +328,86 @@ const en: Dictionary = {
     userCreated: "User created",
     userUpdated: "User updated",
   },
+  clientsPage: {
+    title: "Clients",
+    newClient: "New client",
+    columnCode: "Code",
+    columnName: "Name",
+    columnType: "Type",
+    columnTerritory: "Territory",
+    columnCoordinates: "Coordinates",
+    columnStatus: "Status",
+    view: "View",
+    edit: "Edit",
+    noResults: "No clients match these filters.",
+    statusActive: "ACTIVE",
+    statusInactive: "INACTIVE",
+    missingCoordinates: "Missing coordinates",
+  },
+  clientFilters: {
+    searchLabel: "Search",
+    searchPlaceholder: "Name or code",
+    typeLabel: "Type",
+    anyType: "Any type",
+    statusLabel: "Status",
+    anyStatus: "Any status",
+    active: "Active",
+    inactive: "Inactive",
+    missingCoordinates: "Missing coordinates",
+    clearFilters: "Clear filters",
+  },
+  clientForm: {
+    newClientTitle: "New client",
+    code: "Code",
+    name: "Name",
+    type: "Type",
+    selectType: "Select a type",
+    contact: "Contact",
+    address: "Address",
+    territorySectionLabel: "Territory",
+    coordinatesLabel: "Coordinates",
+    noCoordinates: "No coordinates set — click the map to place a pin.",
+    doctorSectionLabel: "Doctor details",
+    doctorType: "Doctor type",
+    gender: "Gender",
+    department: "Department",
+    mobileNo: "Mobile number",
+    associatedHospitals: "Associated hospitals",
+    noHospitals: "No active hospitals to associate yet.",
+    searchHospitals: "Search hospitals by name or code...",
+    noHospitalsMatch: "No hospitals match your search.",
+    hospitalSectionLabel: "Hospital details",
+    hospitalCategory: "Hospital category",
+    activate: "Activate",
+    activeDescription: "Selectable for new visits and orders.",
+    inactiveDescription: "Deactivated — hidden from new visit/order selection, kept in history.",
+    createClient: "Create client",
+    saveChanges: "Save changes",
+    saving: "Saving...",
+    clientCreated: "Client created",
+    clientUpdated: "Client updated",
+  },
+  clientDetailPage: {
+    backToList: "Back to clients",
+    editClient: "Edit client",
+    detailsSectionLabel: "Details",
+    contact: "Contact",
+    address: "Address",
+    notProvided: "Not provided",
+    hospitalCode: "Code",
+  },
 };
 
 const fr: Dictionary = {
   editUserTitle: (name) => `Modifier ${name}`,
   editTerritoryTitle: (name) => `Modifier ${name}`,
+  editClientTitle: (name) => `Modifier ${name}`,
+  viewClientTitle: (name) => name,
   nav: {
     home: "Accueil",
     users: "Utilisateurs",
     territories: "Territoires",
+    clients: "Clients",
     installGuide: "Guide d'installation",
   },
   header: {
@@ -359,6 +510,75 @@ const fr: Dictionary = {
     saving: "Enregistrement...",
     userCreated: "Utilisateur créé",
     userUpdated: "Utilisateur mis à jour",
+  },
+  clientsPage: {
+    title: "Clients",
+    newClient: "Nouveau client",
+    columnCode: "Code",
+    columnName: "Nom",
+    columnType: "Type",
+    columnTerritory: "Territoire",
+    columnCoordinates: "Coordonnées",
+    columnStatus: "Statut",
+    view: "Voir",
+    edit: "Modifier",
+    noResults: "Aucun client ne correspond à ces filtres.",
+    statusActive: "ACTIF",
+    statusInactive: "INACTIF",
+    missingCoordinates: "Coordonnées manquantes",
+  },
+  clientFilters: {
+    searchLabel: "Recherche",
+    searchPlaceholder: "Nom ou code",
+    typeLabel: "Type",
+    anyType: "Tous les types",
+    statusLabel: "Statut",
+    anyStatus: "Tous les statuts",
+    active: "Actif",
+    inactive: "Inactif",
+    missingCoordinates: "Coordonnées manquantes",
+    clearFilters: "Effacer les filtres",
+  },
+  clientForm: {
+    newClientTitle: "Nouveau client",
+    code: "Code",
+    name: "Nom",
+    type: "Type",
+    selectType: "Sélectionner un type",
+    contact: "Contact",
+    address: "Adresse",
+    territorySectionLabel: "Territoire",
+    coordinatesLabel: "Coordonnées",
+    noCoordinates: "Aucune coordonnée définie — cliquez sur la carte pour placer un repère.",
+    doctorSectionLabel: "Détails du médecin",
+    doctorType: "Type de médecin",
+    gender: "Genre",
+    department: "Département",
+    mobileNo: "Numéro de mobile",
+    associatedHospitals: "Hôpitaux associés",
+    noHospitals: "Aucun hôpital actif à associer pour le moment.",
+    searchHospitals: "Rechercher un hôpital par nom ou code...",
+    noHospitalsMatch: "Aucun hôpital ne correspond à votre recherche.",
+    hospitalSectionLabel: "Détails de l'hôpital",
+    hospitalCategory: "Catégorie d'hôpital",
+    activate: "Activer",
+    activeDescription: "Sélectionnable pour de nouvelles visites et commandes.",
+    inactiveDescription:
+      "Désactivé — masqué des nouvelles visites/commandes, conservé dans l'historique.",
+    createClient: "Créer le client",
+    saveChanges: "Enregistrer",
+    saving: "Enregistrement...",
+    clientCreated: "Client créé",
+    clientUpdated: "Client mis à jour",
+  },
+  clientDetailPage: {
+    backToList: "Retour aux clients",
+    editClient: "Modifier le client",
+    detailsSectionLabel: "Détails",
+    contact: "Contact",
+    address: "Adresse",
+    notProvided: "Non renseigné",
+    hospitalCode: "Code",
   },
 };
 

@@ -135,23 +135,88 @@ async function main() {
     },
   });
 
-  const clientType = await prisma.clientType.upsert({
-    where: { code: "DOCTOR" },
-    update: {},
-    create: { code: "DOCTOR", name: "Doctor" },
-  });
+  const clientTypes = new Map<string, string>();
+  for (const [code, name] of [
+    ["DOCTOR", "Doctor"],
+    ["HOSPITAL", "Hospital"],
+    ["CHEMIST", "Chemist"],
+    ["PHARMACY", "Pharmacy"],
+  ]) {
+    const clientType = await prisma.clientType.upsert({
+      where: { code },
+      update: {},
+      create: { code, name },
+    });
+    clientTypes.set(code, clientType.id);
+  }
 
-  await prisma.client.upsert({
-    where: { code: "CL-0001" },
+  // Codes namespaced away from "CL-0001"/"CL-0002" deliberately — this seed
+  // runs against a shared dev database that already has client records at
+  // those codes from earlier stories, with types the original (pre-S2-02)
+  // seed assigned. Reusing them here would silently attach a Hospital/
+  // Doctor extension to whatever pre-existing client already holds that
+  // code, regardless of its actual type — exactly the bug this comment is
+  // here to prevent a repeat of.
+  const hospitalClient = await prisma.client.upsert({
+    where: { code: "CL-HOSP-0001" },
     update: {},
     create: {
-      code: "CL-0001",
+      code: "CL-HOSP-0001",
       name: "Sample Clinic",
-      typeId: clientType.id,
+      typeId: clientTypes.get("HOSPITAL")!,
       quartierId: quartier.id,
+      communeId: commune.id,
+      villeId: ville.id,
+      provinceId: province.id,
       latitude: 0.0487,
       longitude: 18.2603,
     },
+  });
+  if (hospitalClient.typeId !== clientTypes.get("HOSPITAL")) {
+    throw new Error(
+      `Seed conflict: client CL-HOSP-0001 already exists with a different typeId (${hospitalClient.typeId}); refusing to attach a Hospital extension to it.`,
+    );
+  }
+  const hospital = await prisma.hospital.upsert({
+    where: { clientId: hospitalClient.id },
+    update: {},
+    create: { clientId: hospitalClient.id, hospitalCategory: "Centre Médical" },
+  });
+
+  const doctorClient = await prisma.client.upsert({
+    where: { code: "CL-DOC-0001" },
+    update: {},
+    create: {
+      code: "CL-DOC-0001",
+      name: "Sample Doctor",
+      typeId: clientTypes.get("DOCTOR")!,
+      quartierId: quartier.id,
+      communeId: commune.id,
+      villeId: ville.id,
+      provinceId: province.id,
+    },
+  });
+  if (doctorClient.typeId !== clientTypes.get("DOCTOR")) {
+    throw new Error(
+      `Seed conflict: client CL-DOC-0001 already exists with a different typeId (${doctorClient.typeId}); refusing to attach a Doctor extension to it.`,
+    );
+  }
+  const doctor = await prisma.doctor.upsert({
+    where: { clientId: doctorClient.id },
+    update: {},
+    create: {
+      clientId: doctorClient.id,
+      doctorType: "MÉDECIN",
+      gender: "Homme",
+      department: "GÉNÉRALISTE (G.P)",
+      mobileNo: "810000000",
+    },
+  });
+
+  await prisma.doctorHospital.upsert({
+    where: { doctorId_hospitalId: { doctorId: doctor.id, hospitalId: hospital.id } },
+    update: {},
+    create: { doctorId: doctor.id, hospitalId: hospital.id },
   });
 
   await prisma.product.upsert({
