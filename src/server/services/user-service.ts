@@ -58,7 +58,7 @@ export type UserSummary = {
   email: string;
   status: "ACTIVE" | "INACTIVE";
   role: { id: string; name: string };
-  manager: { id: string; name: string } | null;
+  manager: { id: string; name: string; role: { id: string; name: string } } | null;
   province: { id: string; name: string } | null;
   ville: { id: string; name: string } | null;
   commune: { id: string; name: string } | null;
@@ -73,7 +73,13 @@ function toSummary(user: UserWithRelations): UserSummary {
     email: user.email,
     status: user.status,
     role: { id: user.role.id, name: user.role.name },
-    manager: user.manager ? { id: user.manager.id, name: user.manager.name } : null,
+    manager: user.manager
+      ? {
+          id: user.manager.id,
+          name: user.manager.name,
+          role: { id: user.manager.role.id, name: user.manager.role.name },
+        }
+      : null,
     province: user.province,
     ville: user.ville,
     commune: user.commune,

@@ -9,9 +9,8 @@ vi.mock("@/server/repositories/exchange-rate-repository", () => ({
   listExchangeRateHistory: vi.fn(),
 }));
 
-const { getCurrentExchangeRate, setExchangeRate, convertToCdf } = await import(
-  "./exchange-rate-service"
-);
+const { getCurrentExchangeRate, setExchangeRate, convertToCdf } =
+  await import("./exchange-rate-service");
 
 describe("getCurrentExchangeRate", () => {
   it("returns null when no rate has ever been set", async () => {

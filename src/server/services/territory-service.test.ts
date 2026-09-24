@@ -683,6 +683,19 @@ describe("deactivateQuartier", () => {
     );
     expect(setQuartierStatus).not.toHaveBeenCalled();
   });
+
+  it("rejects deactivation while a territory assignment still references it (S2-04)", async () => {
+    countQuartierDependents.mockResolvedValueOnce({
+      activeClients: 0,
+      activeUsers: 0,
+      activeAssignments: 1,
+    });
+
+    await expect(deactivateQuartierService("quartier-1", "actor-1")).rejects.toThrow(
+      TerritoryInUseError,
+    );
+    expect(setQuartierStatus).not.toHaveBeenCalled();
+  });
 });
 
 describe("deactivateProvince", () => {

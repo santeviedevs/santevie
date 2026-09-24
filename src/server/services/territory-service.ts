@@ -71,10 +71,13 @@ export class InactiveParentError extends Error {
 }
 
 export class TerritoryInUseError extends Error {
-  constructor(activeClients: number, activeUsers: number) {
+  constructor(activeClients: number, activeUsers: number, activeAssignments: number) {
     const parts = [
       activeClients > 0 ? `${activeClients} active client${activeClients === 1 ? "" : "s"}` : null,
       activeUsers > 0 ? `${activeUsers} active user${activeUsers === 1 ? "" : "s"}` : null,
+      activeAssignments > 0
+        ? `${activeAssignments} territory assignment${activeAssignments === 1 ? "" : "s"}`
+        : null,
     ].filter((part): part is string => part !== null);
     super(`Cannot deactivate: ${parts.join(" and ")} still assigned to this territory.`);
     this.name = "TerritoryInUseError";
@@ -212,12 +215,12 @@ async function assertProvinceCanDeactivate(
   id: string,
 ): Promise<{ villeIds: string[]; communeIds: string[]; quartierIds: string[] }> {
   const descendants = await getProvinceDescendantIds(id);
-  const { activeClients, activeUsers } = await countActiveDependents({
+  const { activeClients, activeUsers, activeAssignments } = await countActiveDependents({
     provinceIds: [id],
     ...descendants,
   });
-  if (activeClients > 0 || activeUsers > 0) {
-    throw new TerritoryInUseError(activeClients, activeUsers);
+  if (activeClients > 0 || activeUsers > 0 || activeAssignments > 0) {
+    throw new TerritoryInUseError(activeClients, activeUsers, activeAssignments);
   }
   return descendants;
 }
@@ -240,12 +243,12 @@ async function assertVilleCanDeactivate(
   id: string,
 ): Promise<{ communeIds: string[]; quartierIds: string[] }> {
   const descendants = await getVilleDescendantIds(id);
-  const { activeClients, activeUsers } = await countActiveDependents({
+  const { activeClients, activeUsers, activeAssignments } = await countActiveDependents({
     villeIds: [id],
     ...descendants,
   });
-  if (activeClients > 0 || activeUsers > 0) {
-    throw new TerritoryInUseError(activeClients, activeUsers);
+  if (activeClients > 0 || activeUsers > 0 || activeAssignments > 0) {
+    throw new TerritoryInUseError(activeClients, activeUsers, activeAssignments);
   }
   return descendants;
 }
@@ -266,12 +269,12 @@ export async function activateCommune(id: string, actorId: string): Promise<void
 
 async function assertCommuneCanDeactivate(id: string): Promise<{ quartierIds: string[] }> {
   const descendants = await getCommuneDescendantIds(id);
-  const { activeClients, activeUsers } = await countActiveDependents({
+  const { activeClients, activeUsers, activeAssignments } = await countActiveDependents({
     communeIds: [id],
     ...descendants,
   });
-  if (activeClients > 0 || activeUsers > 0) {
-    throw new TerritoryInUseError(activeClients, activeUsers);
+  if (activeClients > 0 || activeUsers > 0 || activeAssignments > 0) {
+    throw new TerritoryInUseError(activeClients, activeUsers, activeAssignments);
   }
   return descendants;
 }
@@ -290,9 +293,9 @@ export async function activateQuartier(id: string, actorId: string): Promise<voi
 }
 
 async function assertQuartierCanDeactivate(id: string): Promise<void> {
-  const { activeClients, activeUsers } = await countQuartierDependents(id);
-  if (activeClients > 0 || activeUsers > 0) {
-    throw new TerritoryInUseError(activeClients, activeUsers);
+  const { activeClients, activeUsers, activeAssignments } = await countQuartierDependents(id);
+  if (activeClients > 0 || activeUsers > 0 || activeAssignments > 0) {
+    throw new TerritoryInUseError(activeClients, activeUsers, activeAssignments);
   }
 }
 

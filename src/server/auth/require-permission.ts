@@ -36,3 +36,23 @@ export async function requirePermission(permission: Permission) {
 
   return session;
 }
+
+// For a screen a role can reach through more than one permission — e.g. the
+// Team screen: a Supervisor's own reports:view-team and a Manager's broader
+// reports:view-all both mean "this role can see a team roster," even though
+// they're different grants in the role matrix. The thrown ForbiddenError
+// names the first permission only, since there's no single "the" permission
+// to report when none matched.
+export async function requireAnyPermission(permissions: readonly Permission[]) {
+  const session = await auth();
+
+  if (!session?.user) {
+    throw new SessionExpiredError();
+  }
+
+  if (!permissions.some((permission) => hasPermission(session.user.permissions, permission))) {
+    throw new ForbiddenError(permissions[0]!);
+  }
+
+  return session;
+}

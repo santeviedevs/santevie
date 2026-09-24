@@ -140,12 +140,13 @@ export function setQuartierStatus(
 
 export async function countQuartierDependents(
   quartierId: string,
-): Promise<{ activeClients: number; activeUsers: number }> {
-  const [activeClients, activeUsers] = await Promise.all([
+): Promise<{ activeClients: number; activeUsers: number; activeAssignments: number }> {
+  const [activeClients, activeUsers, activeAssignments] = await Promise.all([
     prisma.client.count({ where: { quartierId, status: "ACTIVE" } }),
     prisma.user.count({ where: { quartierId, status: "ACTIVE" } }),
+    prisma.userTerritoryAssignment.count({ where: { quartierId, user: { status: "ACTIVE" } } }),
   ]);
-  return { activeClients, activeUsers };
+  return { activeClients, activeUsers, activeAssignments };
 }
 
 // --- Combined territory entries (any level) ---
@@ -295,31 +296,41 @@ export async function countActiveDependents(scope: {
   villeIds?: string[];
   communeIds?: string[];
   quartierIds?: string[];
-}): Promise<{ activeClients: number; activeUsers: number }> {
+}): Promise<{ activeClients: number; activeUsers: number; activeAssignments: number }> {
   const userOr: Prisma.UserWhereInput[] = [];
   const clientOr: Prisma.ClientWhereInput[] = [];
+  const assignmentOr: Prisma.UserTerritoryAssignmentWhereInput[] = [];
   if (scope.provinceIds?.length) {
     userOr.push({ provinceId: { in: scope.provinceIds } });
     clientOr.push({ provinceId: { in: scope.provinceIds } });
+    assignmentOr.push({ provinceId: { in: scope.provinceIds } });
   }
   if (scope.villeIds?.length) {
     userOr.push({ villeId: { in: scope.villeIds } });
     clientOr.push({ villeId: { in: scope.villeIds } });
+    assignmentOr.push({ villeId: { in: scope.villeIds } });
   }
   if (scope.communeIds?.length) {
     userOr.push({ communeId: { in: scope.communeIds } });
     clientOr.push({ communeId: { in: scope.communeIds } });
+    assignmentOr.push({ communeId: { in: scope.communeIds } });
   }
   if (scope.quartierIds?.length) {
     userOr.push({ quartierId: { in: scope.quartierIds } });
     clientOr.push({ quartierId: { in: scope.quartierIds } });
+    assignmentOr.push({ quartierId: { in: scope.quartierIds } });
   }
 
-  const [activeUsers, activeClients] = await Promise.all([
+  const [activeUsers, activeClients, activeAssignments] = await Promise.all([
     userOr.length ? prisma.user.count({ where: { status: "ACTIVE", OR: userOr } }) : 0,
     clientOr.length ? prisma.client.count({ where: { status: "ACTIVE", OR: clientOr } }) : 0,
+    assignmentOr.length
+      ? prisma.userTerritoryAssignment.count({
+          where: { OR: assignmentOr, user: { status: "ACTIVE" } },
+        })
+      : 0,
   ]);
-  return { activeClients, activeUsers };
+  return { activeClients, activeUsers, activeAssignments };
 }
 
 export function cascadeDeactivateProvince(

@@ -1,11 +1,14 @@
+import { NavAccordionItem } from "./nav-accordion";
 import type { NavItem } from "./nav-items";
 import { NavLink } from "./nav-link";
 
 const LINK_CLASS =
-  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors";
+  "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors";
 const ACTIVE_CLASS = "bg-sidebar-accent text-sidebar-accent-foreground";
 const INACTIVE_CLASS =
   "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
+const CHILD_LINK_CLASS =
+  "flex w-full items-center gap-3 rounded-md py-2 pr-3 pl-10 text-sm font-medium transition-colors";
 
 export function SidebarNav({
   items,
@@ -22,10 +25,26 @@ export function SidebarNav({
       <nav className="flex flex-1 flex-col gap-1 p-3">
         {items.map((item) => {
           const Icon = item.icon;
+          if (item.children) {
+            return (
+              <NavAccordionItem
+                key={item.label}
+                label={item.label}
+                icon={<Icon className="size-5 shrink-0" aria-hidden="true" />}
+                navChildren={item.children}
+                className={LINK_CLASS}
+                activeClassName={ACTIVE_CLASS}
+                inactiveClassName={INACTIVE_CLASS}
+                childClassName={CHILD_LINK_CLASS}
+                childActiveClassName={ACTIVE_CLASS}
+                childInactiveClassName={INACTIVE_CLASS}
+              />
+            );
+          }
           return (
             <NavLink
               key={item.href}
-              href={item.href}
+              href={item.href!}
               label={item.label}
               icon={<Icon className="size-5 shrink-0" aria-hidden="true" />}
               className={LINK_CLASS}
@@ -41,7 +60,7 @@ export function SidebarNav({
           return (
             <NavLink
               key={item.href}
-              href={item.href}
+              href={item.href!}
               label={item.label}
               icon={<Icon className="size-5 shrink-0" aria-hidden="true" />}
               className={LINK_CLASS}

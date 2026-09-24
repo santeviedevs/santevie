@@ -14,8 +14,6 @@ export function listExchangeRateHistory(): Promise<ExchangeRateRow[]> {
   return prisma.exchangeRate.findMany({ orderBy: { effectiveFrom: "desc" } });
 }
 
-export function insertExchangeRate(
-  data: Prisma.ExchangeRateCreateInput,
-): Promise<ExchangeRateRow> {
+export function insertExchangeRate(data: Prisma.ExchangeRateCreateInput): Promise<ExchangeRateRow> {
   return prisma.exchangeRate.create({ data });
 }

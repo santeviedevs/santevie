@@ -72,7 +72,14 @@ describe("updateProduct", () => {
     updateProduct.mockResolvedValueOnce(baseProductRow({ grossPrice: 12, netPrice: 11 }));
 
     await updateProductService(
-      { id: "product-1", code: "PRD-1", name: "Test Product", categoryId: null, grossPrice: 12, netPrice: 11 },
+      {
+        id: "product-1",
+        code: "PRD-1",
+        name: "Test Product",
+        categoryId: null,
+        grossPrice: 12,
+        netPrice: 11,
+      },
       "actor-1",
     );
 
@@ -86,7 +93,14 @@ describe("updateProduct", () => {
     updateProduct.mockResolvedValueOnce(baseProductRow({ name: "Renamed Product" }));
 
     await updateProductService(
-      { id: "product-1", code: "PRD-1", name: "Renamed Product", categoryId: null, grossPrice: 3.334, netPrice: 3.0 },
+      {
+        id: "product-1",
+        code: "PRD-1",
+        name: "Renamed Product",
+        categoryId: null,
+        grossPrice: 3.334,
+        netPrice: 3.0,
+      },
       "actor-1",
     );
 

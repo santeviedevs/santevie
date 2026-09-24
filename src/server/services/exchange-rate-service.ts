@@ -15,12 +15,18 @@ export type ExchangeRateEntry = { id: string; rate: number; effectiveFrom: Date 
 // display in that case, never a guessed rate.
 export async function getCurrentExchangeRate(): Promise<ExchangeRateEntry | null> {
   const latest = await findLatestExchangeRate();
-  return latest ? { id: latest.id, rate: Number(latest.rate), effectiveFrom: latest.effectiveFrom } : null;
+  return latest
+    ? { id: latest.id, rate: Number(latest.rate), effectiveFrom: latest.effectiveFrom }
+    : null;
 }
 
 export async function listExchangeRateEntries(): Promise<ExchangeRateEntry[]> {
   const rows = await listExchangeRateHistory();
-  return rows.map((row) => ({ id: row.id, rate: Number(row.rate), effectiveFrom: row.effectiveFrom }));
+  return rows.map((row) => ({
+    id: row.id,
+    rate: Number(row.rate),
+    effectiveFrom: row.effectiveFrom,
+  }));
 }
 
 // Always inserts a new row rather than overwriting the last one — see the

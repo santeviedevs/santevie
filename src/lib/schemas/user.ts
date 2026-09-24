@@ -45,6 +45,11 @@ export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export const userFiltersSchema = z.object({
   q: z.string().trim().optional(),
   roleId: z.string().optional(),
+  // "Reports to" — filters to users whose direct manager is this id.
+  // Currently only surfaced on the Team screen (S2-04), but kept on the
+  // shared schema alongside roleId rather than split out, since it's a
+  // generic user-list filter, not something Team-specific.
+  managerId: z.string().optional(),
   provinceId: z.string().optional(),
   villeId: z.string().optional(),
   communeId: z.string().optional(),
