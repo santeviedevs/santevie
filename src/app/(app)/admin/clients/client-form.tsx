@@ -25,13 +25,7 @@ import {
   updateClientSchema,
 } from "@/lib/schemas/client";
 
-import {
-  CascadingTerritoryFields,
-  type CommuneOption,
-  type QuartierOption,
-  type TerritoryOption,
-  type VilleOption,
-} from "../territories/cascading-territory-fields";
+import { TerritoryPicker, type TerritoryPickerOption } from "../territories/territory-picker";
 import { type ClientFormState, createClientAction, updateClientAction } from "./actions";
 import { CoordinateMapPicker } from "./coordinate-map-picker";
 import { DoctorHospitalPicker } from "./doctor-hospital-picker";
@@ -43,10 +37,7 @@ type ClientFormProps = {
   mode: "create" | "edit";
   options: {
     types: ClientType[];
-    provinces: TerritoryOption[];
-    villes: VilleOption[];
-    communes: CommuneOption[];
-    quartiers: QuartierOption[];
+    territories: TerritoryPickerOption[];
     hospitalOptions: HospitalOption[];
   };
   defaultValues?: Partial<UpdateClientInput>;
@@ -73,10 +64,7 @@ export function ClientForm({ mode, options, defaultValues, dict, territoryDict }
   });
 
   const typeId = watch("typeId");
-  const provinceId = watch("provinceId");
-  const villeId = watch("villeId");
-  const communeId = watch("communeId");
-  const quartierId = watch("quartierId");
+  const territoryId = watch("territoryId");
   const latitude = watch("latitude");
   const longitude = watch("longitude");
   const status = watch("status");
@@ -102,10 +90,7 @@ export function ClientForm({ mode, options, defaultValues, dict, territoryDict }
       if (values.longitude !== null && values.longitude !== undefined) {
         formData.set("longitude", String(values.longitude));
       }
-      if (values.provinceId) formData.set("provinceId", values.provinceId);
-      if (values.villeId) formData.set("villeId", values.villeId);
-      if (values.communeId) formData.set("communeId", values.communeId);
-      if (values.quartierId) formData.set("quartierId", values.quartierId);
+      if (values.territoryId) formData.set("territoryId", values.territoryId);
       if (typeCode === "DOCTOR" && values.doctor) {
         if (values.doctor.doctorType) formData.set("doctorType", values.doctor.doctorType);
         if (values.doctor.gender) formData.set("gender", values.doctor.gender);
@@ -237,40 +222,16 @@ export function ClientForm({ mode, options, defaultValues, dict, territoryDict }
 
       <div className="flex flex-col gap-2">
         <Label>{dict.territorySectionLabel}</Label>
-        <CascadingTerritoryFields
-          levels={["province", "ville", "commune", "quartier"]}
-          value={{
-            provinceId: provinceId ?? null,
-            villeId: villeId ?? null,
-            communeId: communeId ?? null,
-            quartierId: quartierId ?? null,
-          }}
-          onChange={(patch) => {
-            if ("provinceId" in patch) setValue("provinceId", patch.provinceId ?? null);
-            if ("villeId" in patch) setValue("villeId", patch.villeId ?? null);
-            if ("communeId" in patch) setValue("communeId", patch.communeId ?? null);
-            if ("quartierId" in patch) setValue("quartierId", patch.quartierId ?? null);
-          }}
-          data={{
-            provinces: options.provinces,
-            villes: options.villes,
-            communes: options.communes,
-            quartiers: options.quartiers,
-          }}
-          required={false}
+        <TerritoryPicker
+          id="territoryId"
+          label={territoryDict.province}
+          placeholder={territoryDict.selectProvince}
+          clearLabel={territoryDict.anyProvince}
+          noResultsLabel={territoryDict.noMatches}
+          options={options.territories}
+          value={territoryId ?? null}
+          onChange={(next) => setValue("territoryId", next)}
           disabled={isPending}
-          labels={{
-            province: territoryDict.province,
-            ville: territoryDict.ville,
-            commune: territoryDict.commune,
-            quartier: territoryDict.quartier,
-          }}
-          placeholders={{
-            province: territoryDict.selectProvince,
-            ville: territoryDict.selectVille,
-            commune: territoryDict.selectCommune,
-            quartier: territoryDict.selectQuartier,
-          }}
         />
       </div>
 

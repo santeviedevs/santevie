@@ -15,33 +15,21 @@ import {
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import type { UserFilters as UserFiltersValue } from "@/lib/schemas/user";
 
-import {
-  CascadingTerritoryFields,
-  type CommuneOption,
-  type QuartierOption,
-  type TerritoryOption,
-  type VilleOption,
-} from "../territories/cascading-territory-fields";
+import { TerritoryPicker, type TerritoryPickerOption } from "../territories/territory-picker";
 
 type Option = { id: string; name: string };
 
-type FilterKey = "q" | "roleId" | "provinceId" | "villeId" | "communeId" | "quartierId" | "status";
+type FilterKey = "q" | "roleId" | "territoryId" | "status";
 
 export function UserFilters({
   roles,
-  provinces,
-  villes,
-  communes,
-  quartiers,
+  territories,
   filters,
   dict,
   territoryDict,
 }: {
   roles: Option[];
-  provinces: TerritoryOption[];
-  villes: VilleOption[];
-  communes: CommuneOption[];
-  quartiers: QuartierOption[];
+  territories: TerritoryPickerOption[];
   filters: UserFiltersValue;
   dict: Dictionary["filters"];
   territoryDict: Dictionary["territory"];
@@ -68,10 +56,7 @@ export function UserFilters({
     const merged: Record<FilterKey, string> = {
       q: inputRef.current?.value ?? "",
       roleId: filters.roleId ?? "",
-      provinceId: filters.provinceId ?? "",
-      villeId: filters.villeId ?? "",
-      communeId: filters.communeId ?? "",
-      quartierId: filters.quartierId ?? "",
+      territoryId: filters.territoryId ?? "",
       status: filters.status ?? "",
       // `undefined` means "this key wasn't touched" (see the callers below)
       // — must be dropped before merging, not turned into "", or every
@@ -86,10 +71,7 @@ export function UserFilters({
     const params = new URLSearchParams();
     if (merged.q) params.set("q", merged.q);
     if (merged.roleId) params.set("roleId", merged.roleId);
-    if (merged.provinceId) params.set("provinceId", merged.provinceId);
-    if (merged.villeId) params.set("villeId", merged.villeId);
-    if (merged.communeId) params.set("communeId", merged.communeId);
-    if (merged.quartierId) params.set("quartierId", merged.quartierId);
+    if (merged.territoryId) params.set("territoryId", merged.territoryId);
     if (merged.status) params.set("status", merged.status);
 
     const query = params.toString();
@@ -111,13 +93,7 @@ export function UserFilters({
   }
 
   const hasActiveFilters = Boolean(
-    filters.q ||
-    filters.roleId ||
-    filters.provinceId ||
-    filters.villeId ||
-    filters.communeId ||
-    filters.quartierId ||
-    filters.status,
+    filters.q || filters.roleId || filters.territoryId || filters.status,
   );
 
   return (
@@ -165,37 +141,15 @@ export function UserFilters({
         </Select>
       </div>
 
-      <CascadingTerritoryFields
-        levels={["province", "ville", "commune", "quartier"]}
-        value={{
-          provinceId: filters.provinceId ?? null,
-          villeId: filters.villeId ?? null,
-          communeId: filters.communeId ?? null,
-          quartierId: filters.quartierId ?? null,
-        }}
-        onChange={(patch) =>
-          applyFilters({
-            provinceId: "provinceId" in patch ? (patch.provinceId ?? "") : undefined,
-            villeId: "villeId" in patch ? (patch.villeId ?? "") : undefined,
-            communeId: "communeId" in patch ? (patch.communeId ?? "") : undefined,
-            quartierId: "quartierId" in patch ? (patch.quartierId ?? "") : undefined,
-          })
-        }
-        data={{ provinces, villes, communes, quartiers }}
-        required={false}
-        layout="row"
-        labels={{
-          province: territoryDict.province,
-          ville: territoryDict.ville,
-          commune: territoryDict.commune,
-          quartier: territoryDict.quartier,
-        }}
-        placeholders={{
-          province: territoryDict.anyProvince,
-          ville: territoryDict.anyVille,
-          commune: territoryDict.anyCommune,
-          quartier: territoryDict.anyQuartier,
-        }}
+      <TerritoryPicker
+        id="territoryId"
+        label={territoryDict.province}
+        placeholder={territoryDict.anyProvince}
+        clearLabel={territoryDict.anyProvince}
+        noResultsLabel={territoryDict.noMatches}
+        options={territories}
+        value={filters.territoryId ?? null}
+        onChange={(next) => applyFilters({ territoryId: next ?? "" })}
       />
 
       <div className="flex flex-col gap-1">

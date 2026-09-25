@@ -2,42 +2,26 @@ import type {
   AncestorLevelInput,
   CreateTerritoryInput,
   TerritoryFilters,
-  TerritoryLevel,
   UpdateTerritoryInput,
 } from "@/lib/schemas/territory";
 import {
-  cascadeDeactivateCommune,
-  cascadeDeactivateProvince,
-  cascadeDeactivateVille,
-  type CommuneWithAncestryRow,
-  countActiveDependents,
-  countQuartierDependents,
+  countTerritories,
+  countTerritoryDependents,
   createCommune as createCommuneRow,
   createProvince as createProvinceRow,
   createQuartier as createQuartierRow,
+  createTerritoryRow,
   createVille as createVilleRow,
   findCommuneById,
-  findCommunes,
   findProvinceById,
-  findProvinces,
-  findQuartiers,
-  findTerritoryEntryById,
+  findQuartierById,
+  findTerritories,
+  findTerritoryById,
+  findTerritoryByPathKey,
   findVilleById,
-  findVilles,
-  getCommuneDescendantIds,
-  getProvinceDescendantIds,
-  getVilleDescendantIds,
-  type QuartierRow,
-  setCommuneStatus,
-  setProvinceStatus,
-  setQuartierStatus,
-  setVilleStatus,
-  type TerritoryEntryRow,
-  updateCommune as updateCommuneRow,
-  updateProvince as updateProvinceRow,
-  updateQuartier as updateQuartierRow,
-  updateVille as updateVilleRow,
-  type VilleWithProvinceRow,
+  listActiveTerritories,
+  type TerritoryRow,
+  updateTerritoryRow,
 } from "@/server/repositories/territory-repository";
 
 export class DuplicateTerritoryNameError extends Error {
@@ -53,20 +37,26 @@ export class DuplicateTerritoryNameError extends Error {
 // standing between "existing" mode and creating data under the wrong branch
 // of the hierarchy.
 export class InvalidTerritoryHierarchyError extends Error {
-  constructor(level: "ville" | "commune") {
+  constructor(level: "ville" | "commune" | "quartier") {
     super(`The selected ${level} does not belong to the selected parent.`);
     this.name = "InvalidTerritoryHierarchyError";
   }
 }
 
-// Activation never cascades (see activateProvince/activateVille/
-// activateCommune/activateQuartier below), so it's the only place an
-// inactive-parent/active-child state could otherwise be created —
-// reactivating a row whose direct parent is still inactive.
 export class InactiveParentError extends Error {
   constructor(level: "ville" | "commune" | "quartier") {
-    super(`Cannot activate: the parent of this ${level} is inactive.`);
+    super(`Cannot use this ${level}: its parent is inactive.`);
     this.name = "InactiveParentError";
+  }
+}
+
+// Thrown when re-pointing a Territory to a path that already belongs to a
+// different Territory — the pathKey unique constraint is what actually
+// enforces this, this just gives it a readable message.
+export class DuplicateTerritoryPathError extends Error {
+  constructor() {
+    super("A territory for this exact Province/Ville/Commune/Quartier combination already exists.");
+    this.name = "DuplicateTerritoryPathError";
   }
 }
 
@@ -85,10 +75,12 @@ export class TerritoryInUseError extends Error {
 }
 
 // Duck-typed rather than `instanceof Prisma.PrismaClientKnownRequestError` —
-// see the identical note in user-service.ts: a custom generator output
-// directory can put that class in more than one module instance across the
-// server/action boundary, and instanceof silently fails across instances.
-function isUniqueConstraintViolation(error: unknown): error is { code: string } {
+// a custom generator output directory can put that class in more than one
+// module instance across the server/action boundary, and instanceof
+// silently fails across instances.
+function isUniqueConstraintViolation(
+  error: unknown,
+): error is { code: string; meta?: { target?: unknown } } {
   return (
     typeof error === "object" &&
     error !== null &&
@@ -97,220 +89,81 @@ function isUniqueConstraintViolation(error: unknown): error is { code: string } 
   );
 }
 
-function mapUniqueConstraintError(level: string, error: unknown): never {
-  if (isUniqueConstraintViolation(error)) {
-    throw new DuplicateTerritoryNameError(level);
-  }
+function constraintTargets(error: { meta?: { target?: unknown } }, needle: string): boolean {
+  const target = error.meta?.target;
+  return typeof target === "string"
+    ? target.includes(needle)
+    : Array.isArray(target) && target.some((t) => String(t).includes(needle));
+}
+
+function mapGeographyUniqueError(level: string, error: unknown): never {
+  if (isUniqueConstraintViolation(error)) throw new DuplicateTerritoryNameError(level);
   throw error;
 }
 
-// A Territory is now whichever of Province/Ville/Commune/Quartier an admin
-// stopped at — `level` says which, and `province`/`ville`/`commune` carry
-// only the ancestry *above* that level (null at or below it).
-export type TerritoryEntry = {
+export type TerritorySummary = {
   id: string;
-  level: TerritoryLevel;
-  name: string;
+  code: string;
   status: "ACTIVE" | "INACTIVE";
-  province: { id: string; name: string } | null;
+  province: { id: string; name: string };
   ville: { id: string; name: string } | null;
   commune: { id: string; name: string } | null;
+  quartier: { id: string; name: string } | null;
 };
 
-function toTerritoryEntry(entry: TerritoryEntryRow): TerritoryEntry {
-  const { level, row } = entry;
-  if (level === "province") {
-    return {
-      id: row.id,
-      level,
-      name: row.name,
-      status: row.status,
-      province: null,
-      ville: null,
-      commune: null,
-    };
-  }
-  if (level === "ville") {
-    const v = row as VilleWithProvinceRow;
-    return {
-      id: v.id,
-      level,
-      name: v.name,
-      status: v.status,
-      province: { id: v.province.id, name: v.province.name },
-      ville: null,
-      commune: null,
-    };
-  }
-  if (level === "commune") {
-    const c = row as CommuneWithAncestryRow;
-    return {
-      id: c.id,
-      level,
-      name: c.name,
-      status: c.status,
-      province: { id: c.ville.province.id, name: c.ville.province.name },
-      ville: { id: c.ville.id, name: c.ville.name },
-      commune: null,
-    };
-  }
-  const q = row as QuartierRow;
+function toSummary(row: TerritoryRow): TerritorySummary {
   return {
-    id: q.id,
-    level: "quartier",
-    name: q.name,
-    status: q.status,
-    province: { id: q.commune.ville.province.id, name: q.commune.ville.province.name },
-    ville: { id: q.commune.ville.id, name: q.commune.ville.name },
-    commune: { id: q.commune.id, name: q.commune.name },
+    id: row.id,
+    code: row.code,
+    status: row.status,
+    province: row.province,
+    ville: row.ville,
+    commune: row.commune,
+    quartier: row.quartier,
   };
 }
 
-export async function listTerritoryEntries(filters: TerritoryFilters): Promise<TerritoryEntry[]> {
-  // A `villeId`/`communeId` filter narrows to that level or deeper —
-  // shallower levels can never match it, so skip querying them entirely.
-  const includeProvinces = !filters.villeId && !filters.communeId;
-  const includeVilles = !filters.communeId;
-
-  const [provinces, villes, communes, quartiers] = await Promise.all([
-    includeProvinces ? findProvinces(filters) : Promise.resolve([]),
-    includeVilles ? findVilles(filters) : Promise.resolve([]),
-    findCommunes(filters),
-    findQuartiers(filters),
-  ]);
-
-  const entries = [
-    ...provinces.map((row) => toTerritoryEntry({ level: "province" as const, row })),
-    ...villes.map((row) => toTerritoryEntry({ level: "ville" as const, row })),
-    ...communes.map((row) => toTerritoryEntry({ level: "commune" as const, row })),
-    ...quartiers.map((row) => toTerritoryEntry({ level: "quartier" as const, row })),
-  ];
-  entries.sort((a, b) => a.name.localeCompare(b.name));
-  return entries;
+export async function listTerritories(filters: TerritoryFilters): Promise<TerritorySummary[]> {
+  const rows = await findTerritories(filters);
+  return rows.map(toSummary);
 }
 
-export async function getTerritoryEntry(id: string): Promise<TerritoryEntry | null> {
-  const entry = await findTerritoryEntryById(id);
-  return entry ? toTerritoryEntry(entry) : null;
+export async function getTerritory(id: string): Promise<TerritorySummary | null> {
+  const row = await findTerritoryById(id);
+  return row ? toSummary(row) : null;
 }
 
-// --- Province/Ville/Commune/Quartier status ---
-//
-// Activation only ever touches the single row — descendants keep whatever
-// status they already had, since silently reactivating a subtree nobody
-// asked to reactivate would be surprising and unsafe. Deactivation is the
-// opposite: it must reach every descendant, since an inactive parent can
-// never be left with an active child.
+export type TerritoryOption = { id: string; code: string; label: string };
 
-export async function activateProvince(id: string, actorId: string): Promise<void> {
-  await setProvinceStatus(id, "ACTIVE", actorId);
+function toOption(row: TerritoryRow): TerritoryOption {
+  return {
+    id: row.id,
+    code: row.code,
+    label: [row.province.name, row.ville?.name, row.commune?.name, row.quartier?.name]
+      .filter(Boolean)
+      .join(" › "),
+  };
 }
 
-// Read-only half of deactivateProvince, split out so updateProvinceEntry can
-// fail fast — before renaming anything — when an edit tries to both rename
-// and deactivate a Province in the same request. Returns the descendant ids
-// so a subsequent deactivateProvince call doesn't have to look them up
-// again.
-async function assertProvinceCanDeactivate(
-  id: string,
-): Promise<{ villeIds: string[]; communeIds: string[]; quartierIds: string[] }> {
-  const descendants = await getProvinceDescendantIds(id);
-  const { activeClients, activeUsers, activeAssignments } = await countActiveDependents({
-    provinceIds: [id],
-    ...descendants,
-  });
-  if (activeClients > 0 || activeUsers > 0 || activeAssignments > 0) {
-    throw new TerritoryInUseError(activeClients, activeUsers, activeAssignments);
-  }
-  return descendants;
+// For the flat picker used by User/Client forms/filters and the
+// assignment screen — a Territory is now a single pre-resolved unit to
+// pick, not something to assemble level by level.
+export async function listActiveTerritoryOptions(): Promise<TerritoryOption[]> {
+  const rows = await listActiveTerritories();
+  return rows.map(toOption);
 }
 
-export async function deactivateProvince(id: string, actorId: string): Promise<void> {
-  const descendants = await assertProvinceCanDeactivate(id);
-  await cascadeDeactivateProvince(id, descendants, actorId);
-}
+// --- Resolving one geography level: pick an existing row, or create a new
+// one by name under the given parent. A name colliding with an existing
+// sibling surfaces as DuplicateTerritoryNameError. ---
 
-export async function activateVille(id: string, actorId: string): Promise<void> {
-  const ville = await findVilleById(id);
-  const province = ville ? await findProvinceById(ville.provinceId) : null;
-  if (province?.status === "INACTIVE") {
-    throw new InactiveParentError("ville");
-  }
-  await setVilleStatus(id, "ACTIVE", actorId);
-}
-
-async function assertVilleCanDeactivate(
-  id: string,
-): Promise<{ communeIds: string[]; quartierIds: string[] }> {
-  const descendants = await getVilleDescendantIds(id);
-  const { activeClients, activeUsers, activeAssignments } = await countActiveDependents({
-    villeIds: [id],
-    ...descendants,
-  });
-  if (activeClients > 0 || activeUsers > 0 || activeAssignments > 0) {
-    throw new TerritoryInUseError(activeClients, activeUsers, activeAssignments);
-  }
-  return descendants;
-}
-
-export async function deactivateVille(id: string, actorId: string): Promise<void> {
-  const descendants = await assertVilleCanDeactivate(id);
-  await cascadeDeactivateVille(id, descendants, actorId);
-}
-
-export async function activateCommune(id: string, actorId: string): Promise<void> {
-  const commune = await findCommuneById(id);
-  const ville = commune ? await findVilleById(commune.villeId) : null;
-  if (ville?.status === "INACTIVE") {
-    throw new InactiveParentError("commune");
-  }
-  await setCommuneStatus(id, "ACTIVE", actorId);
-}
-
-async function assertCommuneCanDeactivate(id: string): Promise<{ quartierIds: string[] }> {
-  const descendants = await getCommuneDescendantIds(id);
-  const { activeClients, activeUsers, activeAssignments } = await countActiveDependents({
-    communeIds: [id],
-    ...descendants,
-  });
-  if (activeClients > 0 || activeUsers > 0 || activeAssignments > 0) {
-    throw new TerritoryInUseError(activeClients, activeUsers, activeAssignments);
-  }
-  return descendants;
-}
-
-export async function deactivateCommune(id: string, actorId: string): Promise<void> {
-  const descendants = await assertCommuneCanDeactivate(id);
-  await cascadeDeactivateCommune(id, descendants, actorId);
-}
-
-export async function activateQuartier(id: string, actorId: string): Promise<void> {
-  const entry = await findTerritoryEntryById(id);
-  if (entry?.level === "quartier" && entry.row.commune.status === "INACTIVE") {
-    throw new InactiveParentError("quartier");
-  }
-  await setQuartierStatus(id, "ACTIVE", actorId);
-}
-
-async function assertQuartierCanDeactivate(id: string): Promise<void> {
-  const { activeClients, activeUsers, activeAssignments } = await countQuartierDependents(id);
-  if (activeClients > 0 || activeUsers > 0 || activeAssignments > 0) {
-    throw new TerritoryInUseError(activeClients, activeUsers, activeAssignments);
-  }
-}
-
-export async function deactivateQuartier(id: string, actorId: string): Promise<void> {
-  await assertQuartierCanDeactivate(id);
-  await setQuartierStatus(id, "INACTIVE", actorId);
-}
-
-// Resolves one ancestor level to an id — either the id the caller already
-// picked (an existing Province/Ville/Commune), or a freshly created row
-// under the given parent. A name colliding with an existing sibling
-// surfaces as DuplicateTerritoryNameError, telling the admin to pick the
-// existing one instead of guessing why the save failed.
 async function resolveProvince(input: AncestorLevelInput, actorId: string): Promise<string> {
-  if (input.mode === "existing") return input.id;
+  if (input.mode === "existing") {
+    const province = await findProvinceById(input.id);
+    if (!province) throw new InvalidTerritoryHierarchyError("ville");
+    if (province.status === "INACTIVE") throw new InactiveParentError("ville");
+    return input.id;
+  }
   try {
     const row = await createProvinceRow({
       name: input.name,
@@ -319,7 +172,7 @@ async function resolveProvince(input: AncestorLevelInput, actorId: string): Prom
     });
     return row.id;
   } catch (error) {
-    mapUniqueConstraintError("province", error);
+    mapGeographyUniqueError("province", error);
   }
 }
 
@@ -330,9 +183,9 @@ async function resolveVille(
 ): Promise<string> {
   if (input.mode === "existing") {
     const ville = await findVilleById(input.id);
-    if (!ville || ville.provinceId !== provinceId) {
+    if (!ville || ville.provinceId !== provinceId)
       throw new InvalidTerritoryHierarchyError("ville");
-    }
+    if (ville.status === "INACTIVE") throw new InactiveParentError("commune");
     return input.id;
   }
   try {
@@ -344,7 +197,7 @@ async function resolveVille(
     });
     return row.id;
   } catch (error) {
-    mapUniqueConstraintError("ville", error);
+    mapGeographyUniqueError("ville", error);
   }
 }
 
@@ -355,9 +208,9 @@ async function resolveCommune(
 ): Promise<string> {
   if (input.mode === "existing") {
     const commune = await findCommuneById(input.id);
-    if (!commune || commune.villeId !== villeId) {
+    if (!commune || commune.villeId !== villeId)
       throw new InvalidTerritoryHierarchyError("commune");
-    }
+    if (commune.status === "INACTIVE") throw new InactiveParentError("quartier");
     return input.id;
   }
   try {
@@ -369,224 +222,168 @@ async function resolveCommune(
     });
     return row.id;
   } catch (error) {
-    mapUniqueConstraintError("commune", error);
+    mapGeographyUniqueError("commune", error);
   }
 }
 
-// Creates whichever of Province/Ville/Commune/Quartier the input stops at
-// (schema-validated: the deepest filled-in level must be "new", so this
-// always creates *something*). Resolves ancestors exactly like before —
-// picking an existing one or creating a new one under the previous level.
-export async function createTerritory(
-  input: CreateTerritoryInput,
-  actorId: string,
-): Promise<TerritoryEntry> {
-  const provinceId = await resolveProvince(input.province, actorId);
-  let targetId = provinceId;
-
-  if (input.ville) {
-    const villeId = await resolveVille(input.ville, provinceId, actorId);
-    targetId = villeId;
-
-    if (input.commune) {
-      const communeId = await resolveCommune(input.commune, villeId, actorId);
-      targetId = communeId;
-
-      if (input.quartierName) {
-        try {
-          const quartier = await createQuartierRow({
-            name: input.quartierName,
-            commune: { connect: { id: communeId } },
-            createdBy: actorId,
-            updatedBy: actorId,
-          });
-          targetId = quartier.id;
-        } catch (error) {
-          mapUniqueConstraintError("territory", error);
-        }
-      }
-    }
-  }
-
-  const entry = await getTerritoryEntry(targetId);
-  return entry!;
-}
-
-// Growing the hierarchy below the row being edited — e.g. editing a
-// Province can also add a new Ville under it (and, cascading further, a
-// Commune and a Quartier) in the same save. Schema-validated: the deepest
-// filled-in level is always "new", and this can never run alongside
-// deactivating the row itself (also schema-enforced) — so a freshly
-// created, necessarily-active child is never left under a row this same
-// request just made inactive.
-async function addQuartierUnderCommune(
+async function resolveQuartier(
+  input: AncestorLevelInput,
   communeId: string,
-  name: string,
   actorId: string,
-): Promise<void> {
+): Promise<string> {
+  if (input.mode === "existing") {
+    const quartier = await findQuartierById(input.id);
+    if (!quartier || quartier.communeId !== communeId) {
+      throw new InvalidTerritoryHierarchyError("quartier");
+    }
+    return input.id;
+  }
   try {
-    await createQuartierRow({
-      name,
+    const row = await createQuartierRow({
+      name: input.name,
       commune: { connect: { id: communeId } },
       createdBy: actorId,
       updatedBy: actorId,
     });
+    return row.id;
   } catch (error) {
-    mapUniqueConstraintError("territory", error);
+    mapGeographyUniqueError("quartier", error);
   }
 }
 
-async function growBelowVille(
-  villeId: string,
-  input: UpdateTerritoryInput,
+export type ResolvedPath = {
+  provinceId: string;
+  villeId: string | null;
+  communeId: string | null;
+  quartierId: string | null;
+};
+
+async function resolvePath(
+  input: {
+    province: AncestorLevelInput;
+    ville?: AncestorLevelInput;
+    commune?: AncestorLevelInput;
+    quartier?: AncestorLevelInput;
+  },
   actorId: string,
-): Promise<void> {
-  if (!input.newCommune) return;
-  const communeId = await resolveCommune(input.newCommune, villeId, actorId);
-  if (input.newQuartierName)
-    await addQuartierUnderCommune(communeId, input.newQuartierName, actorId);
+): Promise<ResolvedPath> {
+  const provinceId = await resolveProvince(input.province, actorId);
+  let villeId: string | null = null;
+  let communeId: string | null = null;
+  let quartierId: string | null = null;
+
+  if (input.ville) {
+    villeId = await resolveVille(input.ville, provinceId, actorId);
+    if (input.commune) {
+      communeId = await resolveCommune(input.commune, villeId, actorId);
+      if (input.quartier) {
+        quartierId = await resolveQuartier(input.quartier, communeId, actorId);
+      }
+    }
+  }
+
+  return { provinceId, villeId, communeId, quartierId };
 }
 
-async function growBelowProvince(
-  provinceId: string,
-  input: UpdateTerritoryInput,
+function buildPathKey(path: ResolvedPath): string {
+  return [path.provinceId, path.villeId ?? "-", path.communeId ?? "-", path.quartierId ?? "-"].join(
+    ":",
+  );
+}
+
+function formatCode(n: number): string {
+  return `TER-${String(n).padStart(5, "0")}`;
+}
+
+// Matches an existing Territory for this exact path, or creates one with
+// the next sequential code — the "same combination = same Territory" rule
+// confirmed for S2-05's revised design. Retries the code on a rare
+// concurrent-write collision; falls back to the existing row if two
+// requests raced to create the same path.
+// Exported for the territory importer (S2-05), which resolves geography by
+// name (not the pick-or-create combobox shape) but shares this exact
+// find-or-create-by-path step once a path is resolved.
+export async function findOrCreateTerritory(
+  path: ResolvedPath,
   actorId: string,
-): Promise<void> {
-  if (!input.newVille) return;
-  const villeId = await resolveVille(input.newVille, provinceId, actorId);
-  await growBelowVille(villeId, input, actorId);
+): Promise<{ territory: TerritoryRow; created: boolean }> {
+  const pathKey = buildPathKey(path);
+  const existing = await findTerritoryByPathKey(pathKey);
+  if (existing) return { territory: existing, created: false };
+
+  let attempt = (await countTerritories()) + 1;
+  for (let tries = 0; tries < 5; tries++) {
+    try {
+      const created = await createTerritoryRow({
+        code: formatCode(attempt),
+        province: { connect: { id: path.provinceId } },
+        ville: path.villeId ? { connect: { id: path.villeId } } : undefined,
+        commune: path.communeId ? { connect: { id: path.communeId } } : undefined,
+        quartier: path.quartierId ? { connect: { id: path.quartierId } } : undefined,
+        pathKey,
+        createdBy: actorId,
+        updatedBy: actorId,
+      });
+      return { territory: created, created: true };
+    } catch (error) {
+      if (isUniqueConstraintViolation(error) && constraintTargets(error, "code")) {
+        attempt += 1;
+        continue;
+      }
+      if (isUniqueConstraintViolation(error) && constraintTargets(error, "pathKey")) {
+        const raced = await findTerritoryByPathKey(pathKey);
+        if (raced) return { territory: raced, created: false };
+      }
+      throw error;
+    }
+  }
+  throw new Error("Could not generate a unique territory code.");
 }
 
-async function updateProvinceEntry(input: UpdateTerritoryInput, actorId: string): Promise<void> {
-  // Checked before the rename, not after, so a blocked deactivation leaves
-  // nothing changed at all rather than a partially-applied rename.
-  if (input.status === "INACTIVE") await assertProvinceCanDeactivate(input.id);
-
-  try {
-    await updateProvinceRow(input.id, { name: input.name, updatedBy: actorId });
-  } catch (error) {
-    mapUniqueConstraintError("province", error);
-  }
-  if (input.status === "ACTIVE") await activateProvince(input.id, actorId);
-  else if (input.status === "INACTIVE") await deactivateProvince(input.id, actorId);
-
-  await growBelowProvince(input.id, input, actorId);
+export async function createTerritory(
+  input: CreateTerritoryInput,
+  actorId: string,
+): Promise<TerritorySummary> {
+  const path = await resolvePath(input, actorId);
+  const { territory } = await findOrCreateTerritory(path, actorId);
+  return toSummary(territory);
 }
 
-async function updateVilleEntry(input: UpdateTerritoryInput, actorId: string): Promise<void> {
-  const provinceId = await resolveProvince(input.province!, actorId);
-
-  if (input.status === "INACTIVE") await assertVilleCanDeactivate(input.id);
-
-  try {
-    await updateVilleRow(input.id, {
-      name: input.name,
-      province: { connect: { id: provinceId } },
-      updatedBy: actorId,
-    });
-  } catch (error) {
-    mapUniqueConstraintError("ville", error);
-  }
-
-  if (input.status === "ACTIVE") await activateVille(input.id, actorId);
-  else if (input.status === "INACTIVE") await deactivateVille(input.id, actorId);
-
-  // Grown *before* the ancestor status change below: if the Province is
-  // being deactivated in this same request, its cascade re-fetches
-  // descendant ids fresh — after this — so a Commune/Quartier just added
-  // here is still caught by it, rather than being created active and left
-  // that way under a Province the same save just deactivated.
-  await growBelowVille(input.id, input, actorId);
-
-  if (input.province!.mode === "existing" && input.provinceStatus) {
-    if (input.provinceStatus === "ACTIVE") await activateProvince(provinceId, actorId);
-    else await deactivateProvince(provinceId, actorId);
-  }
-}
-
-async function updateCommuneEntry(input: UpdateTerritoryInput, actorId: string): Promise<void> {
-  const provinceId = await resolveProvince(input.province!, actorId);
-  const villeId = await resolveVille(input.ville!, provinceId, actorId);
-
-  if (input.status === "INACTIVE") await assertCommuneCanDeactivate(input.id);
-
-  try {
-    await updateCommuneRow(input.id, {
-      name: input.name,
-      ville: { connect: { id: villeId } },
-      updatedBy: actorId,
-    });
-  } catch (error) {
-    mapUniqueConstraintError("commune", error);
-  }
-
-  if (input.status === "ACTIVE") await activateCommune(input.id, actorId);
-  else if (input.status === "INACTIVE") await deactivateCommune(input.id, actorId);
-
-  if (input.newQuartierName)
-    await addQuartierUnderCommune(input.id, input.newQuartierName, actorId);
-
-  if (input.ville!.mode === "existing" && input.villeStatus) {
-    if (input.villeStatus === "ACTIVE") await activateVille(villeId, actorId);
-    else await deactivateVille(villeId, actorId);
-  }
-  if (input.province!.mode === "existing" && input.provinceStatus) {
-    if (input.provinceStatus === "ACTIVE") await activateProvince(provinceId, actorId);
-    else await deactivateProvince(provinceId, actorId);
-  }
-}
-
-async function updateQuartierEntry(input: UpdateTerritoryInput, actorId: string): Promise<void> {
-  const provinceId = await resolveProvince(input.province!, actorId);
-  const villeId = await resolveVille(input.ville!, provinceId, actorId);
-  const communeId = await resolveCommune(input.commune!, villeId, actorId);
-
-  if (input.status === "INACTIVE") await assertQuartierCanDeactivate(input.id);
-
-  try {
-    await updateQuartierRow(input.id, {
-      name: input.name,
-      commune: { connect: { id: communeId } },
-      updatedBy: actorId,
-    });
-  } catch (error) {
-    mapUniqueConstraintError("territory", error);
-  }
-
-  if (input.status === "ACTIVE") await activateQuartier(input.id, actorId);
-  else if (input.status === "INACTIVE") await deactivateQuartier(input.id, actorId);
-
-  if (input.commune!.mode === "existing" && input.communeStatus) {
-    if (input.communeStatus === "ACTIVE") await activateCommune(communeId, actorId);
-    else await deactivateCommune(communeId, actorId);
-  }
-  if (input.ville!.mode === "existing" && input.villeStatus) {
-    if (input.villeStatus === "ACTIVE") await activateVille(villeId, actorId);
-    else await deactivateVille(villeId, actorId);
-  }
-  if (input.province!.mode === "existing" && input.provinceStatus) {
-    if (input.provinceStatus === "ACTIVE") await activateProvince(provinceId, actorId);
-    else await deactivateProvince(provinceId, actorId);
-  }
-}
-
-// Renames and/or retoggles the status of whichever level `input.level`
-// says — never extends a Territory deeper than the level it already is
-// (that's what createTerritory is for). Ancestor status toggles
-// (`provinceStatus`/`villeStatus`/`communeStatus`) are applied last, after
-// the edited row's own rename/status — so if one of them is a
-// deactivation, its cascade (which can reach this same row as a
-// descendant) always has the final say over whatever this row's own
-// toggle requested.
+// Re-points an existing Territory to a (possibly different) path, and/or
+// toggles its own status. Deactivating checks this Territory's own direct
+// dependents only — Territory has no descendants of its own to cascade
+// into, unlike the old geography-row model.
 export async function updateTerritoryEntry(
   input: UpdateTerritoryInput,
   actorId: string,
-): Promise<TerritoryEntry> {
-  if (input.level === "province") await updateProvinceEntry(input, actorId);
-  else if (input.level === "ville") await updateVilleEntry(input, actorId);
-  else if (input.level === "commune") await updateCommuneEntry(input, actorId);
-  else await updateQuartierEntry(input, actorId);
+): Promise<TerritorySummary> {
+  const path = await resolvePath(input, actorId);
+  const pathKey = buildPathKey(path);
 
-  const entry = await getTerritoryEntry(input.id);
-  return entry!;
+  if (input.status === "INACTIVE") {
+    const { activeClients, activeUsers, activeAssignments } = await countTerritoryDependents(
+      input.id,
+    );
+    if (activeClients > 0 || activeUsers > 0 || activeAssignments > 0) {
+      throw new TerritoryInUseError(activeClients, activeUsers, activeAssignments);
+    }
+  }
+
+  try {
+    const updated = await updateTerritoryRow(input.id, {
+      province: { connect: { id: path.provinceId } },
+      ville: path.villeId ? { connect: { id: path.villeId } } : { disconnect: true },
+      commune: path.communeId ? { connect: { id: path.communeId } } : { disconnect: true },
+      quartier: path.quartierId ? { connect: { id: path.quartierId } } : { disconnect: true },
+      pathKey,
+      ...(input.status ? { status: input.status } : {}),
+      updatedBy: actorId,
+    });
+    return toSummary(updated);
+  } catch (error) {
+    if (isUniqueConstraintViolation(error) && constraintTargets(error, "pathKey")) {
+      throw new DuplicateTerritoryPathError();
+    }
+    throw error;
+  }
 }

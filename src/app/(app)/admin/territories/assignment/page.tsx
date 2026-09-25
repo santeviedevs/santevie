@@ -1,13 +1,8 @@
 import { getServerDictionary } from "@/lib/i18n/server";
 import { requirePermission } from "@/server/auth/require-permission";
-import {
-  listActiveCommunes,
-  listActiveProvinces,
-  listActiveQuartiers,
-  listActiveVilles,
-} from "@/server/repositories/territory-repository";
 import { listActiveUserOptions } from "@/server/repositories/user-repository";
 import { listTerritoryAssignments } from "@/server/services/territory-assignment-service";
+import { listActiveTerritoryOptions } from "@/server/services/territory-service";
 
 import { AssignmentManager } from "./assignment-manager";
 import { UserPicker } from "./user-picker";
@@ -33,12 +28,9 @@ export default async function TerritoryAssignmentPage({ searchParams }: Assignme
   const params = await searchParams;
   const selectedUserId = firstValue(params.userId) ?? null;
 
-  const [users, provinces, villes, communes, quartiers, dict] = await Promise.all([
+  const [users, territoryOptions, dict] = await Promise.all([
     listActiveUserOptions(),
-    listActiveProvinces(),
-    listActiveVilles(),
-    listActiveCommunes(),
-    listActiveQuartiers(),
+    listActiveTerritoryOptions(),
     getServerDictionary(),
   ]);
   const t = dict.territoryAssignmentPage;
@@ -60,9 +52,9 @@ export default async function TerritoryAssignmentPage({ searchParams }: Assignme
         <AssignmentManager
           userId={selectedUserId}
           assignments={assignments}
-          territoryData={{ provinces, villes, communes, quartiers }}
+          territoryOptions={territoryOptions}
           dict={t}
-          territoryDict={dict.territory}
+          territoryPickerDict={dict.territory}
         />
       ) : (
         <p className="text-sm text-muted-foreground">{t.pickUserPrompt}</p>

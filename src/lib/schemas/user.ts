@@ -10,8 +10,7 @@ const name = z.string().trim().min(1, "Name is required").max(120);
 
 const email = z.email("Enter a valid email address");
 
-// cuid — matches the id format Prisma generates for Role/User/Province/
-// Ville/Commune/Quartier.
+// cuid — matches the id format Prisma generates for Role/User/Territory.
 const id = z.string().min(1);
 
 export const createUserSchema = z.object({
@@ -20,14 +19,10 @@ export const createUserSchema = z.object({
   email,
   roleId: id,
   managerId: id.nullish(),
-  // Independent per level — a Manager might be scoped to a whole Province
-  // with nothing below it set, while a Delegate is scoped down to one
-  // Quartier. The cascading select on the form lets an admin stop at any
-  // level, so each is its own optional field rather than one leaf id.
-  provinceId: id.nullish(),
-  villeId: id.nullish(),
-  communeId: id.nullish(),
-  quartierId: id.nullish(),
+  // The Territory this user is scoped to — a Territory already represents
+  // whatever depth (Province alone, down to a full Quartier path) it maps
+  // to, so one optional field is enough.
+  territoryId: id.nullish(),
 });
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;
@@ -50,10 +45,7 @@ export const userFiltersSchema = z.object({
   // shared schema alongside roleId rather than split out, since it's a
   // generic user-list filter, not something Team-specific.
   managerId: z.string().optional(),
-  provinceId: z.string().optional(),
-  villeId: z.string().optional(),
-  communeId: z.string().optional(),
-  quartierId: z.string().optional(),
+  territoryId: z.string().optional(),
   status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
 });
 

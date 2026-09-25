@@ -9,16 +9,8 @@ import {
   updateClientWithExtension,
 } from "@/server/repositories/client-repository";
 import { setDoctorHospitals } from "@/server/repositories/doctor-hospital-repository";
-import {
-  findCommuneById,
-  findProvinceById,
-  findQuartierById,
-  findVilleById,
-  listActiveCommunes,
-  listActiveProvinces,
-  listActiveQuartiers,
-  listActiveVilles,
-} from "@/server/repositories/territory-repository";
+import { findTerritoryById } from "@/server/repositories/territory-repository";
+import { listActiveTerritoryOptions } from "@/server/services/territory-service";
 
 export class DuplicateClientCodeError extends Error {
   constructor() {
@@ -27,8 +19,7 @@ export class DuplicateClientCodeError extends Error {
   }
 }
 
-// Mirrors territory-service.ts's InactiveParentError: a Client can never be
-// assigned to a Province/Ville/Commune/Quartier that is itself inactive
+// A Client can never be assigned to a Territory that is itself inactive
 // (S2-02: "validate ... that the territory is active").
 export class InactiveTerritoryError extends Error {
   constructor() {
@@ -63,28 +54,10 @@ function mapUniqueConstraintError(error: unknown): never {
   throw error;
 }
 
-async function assertTerritoryActive(input: {
-  provinceId?: string | null;
-  villeId?: string | null;
-  communeId?: string | null;
-  quartierId?: string | null;
-}): Promise<void> {
-  if (input.provinceId) {
-    const province = await findProvinceById(input.provinceId);
-    if (!province || province.status === "INACTIVE") throw new InactiveTerritoryError();
-  }
-  if (input.villeId) {
-    const ville = await findVilleById(input.villeId);
-    if (!ville || ville.status === "INACTIVE") throw new InactiveTerritoryError();
-  }
-  if (input.communeId) {
-    const commune = await findCommuneById(input.communeId);
-    if (!commune || commune.status === "INACTIVE") throw new InactiveTerritoryError();
-  }
-  if (input.quartierId) {
-    const quartier = await findQuartierById(input.quartierId);
-    if (!quartier || quartier.status === "INACTIVE") throw new InactiveTerritoryError();
-  }
+async function assertTerritoryActive(territoryId: string | null | undefined): Promise<void> {
+  if (!territoryId) return;
+  const territory = await findTerritoryById(territoryId);
+  if (!territory || territory.status === "INACTIVE") throw new InactiveTerritoryError();
 }
 
 export type ClientSummary = {
@@ -98,10 +71,14 @@ export type ClientSummary = {
   status: "ACTIVE" | "INACTIVE";
   hasCoordinates: boolean;
   type: { id: string; code: string; name: string };
-  province: { id: string; name: string } | null;
-  ville: { id: string; name: string } | null;
-  commune: { id: string; name: string } | null;
-  quartier: { id: string; name: string } | null;
+  territory: {
+    id: string;
+    code: string;
+    province: { id: string; name: string };
+    ville: { id: string; name: string } | null;
+    commune: { id: string; name: string } | null;
+    quartier: { id: string; name: string } | null;
+  } | null;
   doctor: {
     id: string;
     doctorType: string | null;
@@ -127,10 +104,7 @@ function toSummary(client: ClientWithRelations): ClientSummary {
     status: client.status,
     hasCoordinates: latitude !== null && longitude !== null,
     type: { id: client.type.id, code: client.type.code, name: client.type.name },
-    province: client.province,
-    ville: client.ville,
-    commune: client.commune,
-    quartier: client.quartier,
+    territory: client.territory,
     doctor: client.doctor
       ? {
           id: client.doctor.id,
@@ -166,14 +140,8 @@ export async function listActiveClientsForSelection() {
 }
 
 export async function getClientFormOptions() {
-  const [types, provinces, villes, communes, quartiers] = await Promise.all([
-    listClientTypes(),
-    listActiveProvinces(),
-    listActiveVilles(),
-    listActiveCommunes(),
-    listActiveQuartiers(),
-  ]);
-  return { types, provinces, villes, communes, quartiers };
+  const [types, territories] = await Promise.all([listClientTypes(), listActiveTerritoryOptions()]);
+  return { types, territories };
 }
 
 // Confirms the requested extension matches the selected ClientType's code —
@@ -200,7 +168,7 @@ export async function createClient(
   input: CreateClientInput,
   actorId: string,
 ): Promise<ClientSummary> {
-  await assertTerritoryActive(input);
+  await assertTerritoryActive(input.territoryId);
   const typeCode = await resolveTypeCode(input.typeId);
   assertExtensionMatchesType(typeCode, input);
 
@@ -216,10 +184,7 @@ export async function createClient(
         longitude: input.longitude ?? null,
         status: "ACTIVE",
         type: { connect: { id: input.typeId } },
-        province: input.provinceId ? { connect: { id: input.provinceId } } : undefined,
-        ville: input.villeId ? { connect: { id: input.villeId } } : undefined,
-        commune: input.communeId ? { connect: { id: input.communeId } } : undefined,
-        quartier: input.quartierId ? { connect: { id: input.quartierId } } : undefined,
+        territory: input.territoryId ? { connect: { id: input.territoryId } } : undefined,
         createdBy: actorId,
         updatedBy: actorId,
       },
@@ -257,7 +222,7 @@ export async function updateClient(
   input: UpdateClientInput,
   actorId: string,
 ): Promise<ClientSummary> {
-  await assertTerritoryActive(input);
+  await assertTerritoryActive(input.territoryId);
   const typeCode = await resolveTypeCode(input.typeId);
   assertExtensionMatchesType(typeCode, input);
 
@@ -272,10 +237,9 @@ export async function updateClient(
         latitude: input.latitude ?? null,
         longitude: input.longitude ?? null,
         type: { connect: { id: input.typeId } },
-        province: input.provinceId ? { connect: { id: input.provinceId } } : { disconnect: true },
-        ville: input.villeId ? { connect: { id: input.villeId } } : { disconnect: true },
-        commune: input.communeId ? { connect: { id: input.communeId } } : { disconnect: true },
-        quartier: input.quartierId ? { connect: { id: input.quartierId } } : { disconnect: true },
+        territory: input.territoryId
+          ? { connect: { id: input.territoryId } }
+          : { disconnect: true },
         ...(input.status ? { status: input.status } : {}),
         updatedBy: actorId,
       },

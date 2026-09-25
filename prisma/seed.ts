@@ -43,7 +43,9 @@ async function main() {
 
   // Real sample values from the client's own location data (Équateur >
   // Mbandaka > Wangata > Bongondo), not a placeholder — see the DRC
-  // Province/Ville/Commune/Quartier sheet the client shared.
+  // Province/Ville/Commune/Quartier sheet the client shared. Pure
+  // geography now, no code of their own — Territory (below) is what owns
+  // the code.
   const province = await prisma.province.upsert({
     where: { name: "Équateur" },
     update: {},
@@ -68,6 +70,26 @@ async function main() {
     create: { name: "Bongondo", communeId: commune.id },
   });
 
+  // The Territory mapping to this exact path — matched by pathKey against
+  // whatever already exists (this seed runs against a shared dev DB where
+  // this combination was already backfilled into a Territory row when the
+  // model was introduced), or created fresh on a brand-new database. The
+  // code here is namespaced away from the "TER-00001" sequential format
+  // the application generates, so it can never collide with it.
+  const territoryPathKey = `${province.id}:${ville.id}:${commune.id}:${quartier.id}`;
+  const territory = await prisma.territory.upsert({
+    where: { pathKey: territoryPathKey },
+    update: {},
+    create: {
+      code: "TER-SEED-EQUATEUR",
+      provinceId: province.id,
+      villeId: ville.id,
+      communeId: commune.id,
+      quartierId: quartier.id,
+      pathKey: territoryPathKey,
+    },
+  });
+
   const admin = await prisma.user.upsert({
     where: { email: "admin@santevie.test" },
     update: {},
@@ -77,10 +99,7 @@ async function main() {
       email: "admin@santevie.test",
       passwordHash,
       roleId: roles.get("ADMIN")!,
-      provinceId: province.id,
-      villeId: ville.id,
-      communeId: commune.id,
-      quartierId: quartier.id,
+      territoryId: territory.id,
     },
   });
 
@@ -93,10 +112,7 @@ async function main() {
       email: "manager@santevie.test",
       passwordHash,
       roleId: roles.get("MANAGER")!,
-      provinceId: province.id,
-      villeId: ville.id,
-      communeId: commune.id,
-      quartierId: quartier.id,
+      territoryId: territory.id,
       managerId: admin.id,
     },
   });
@@ -110,10 +126,7 @@ async function main() {
       email: "supervisor@santevie.test",
       passwordHash,
       roleId: roles.get("SUPERVISOR")!,
-      provinceId: province.id,
-      villeId: ville.id,
-      communeId: commune.id,
-      quartierId: quartier.id,
+      territoryId: territory.id,
       managerId: manager.id,
     },
   });
@@ -127,10 +140,7 @@ async function main() {
       email: "delegate@santevie.test",
       passwordHash,
       roleId: roles.get("DELEGATE")!,
-      provinceId: province.id,
-      villeId: ville.id,
-      communeId: commune.id,
-      quartierId: quartier.id,
+      territoryId: territory.id,
       managerId: supervisor.id,
     },
   });
@@ -164,10 +174,7 @@ async function main() {
       code: "CL-HOSP-0001",
       name: "Sample Clinic",
       typeId: clientTypes.get("HOSPITAL")!,
-      quartierId: quartier.id,
-      communeId: commune.id,
-      villeId: ville.id,
-      provinceId: province.id,
+      territoryId: territory.id,
       latitude: 0.0487,
       longitude: 18.2603,
     },
@@ -190,10 +197,7 @@ async function main() {
       code: "CL-DOC-0001",
       name: "Sample Doctor",
       typeId: clientTypes.get("DOCTOR")!,
-      quartierId: quartier.id,
-      communeId: commune.id,
-      villeId: ville.id,
-      provinceId: province.id,
+      territoryId: territory.id,
     },
   });
   if (doctorClient.typeId !== clientTypes.get("DOCTOR")) {

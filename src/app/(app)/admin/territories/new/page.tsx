@@ -3,6 +3,7 @@ import { requirePermission } from "@/server/auth/require-permission";
 import {
   listActiveCommunes,
   listActiveProvinces,
+  listActiveQuartiers,
   listActiveVilles,
 } from "@/server/repositories/territory-repository";
 
@@ -13,10 +14,11 @@ export const dynamic = "force-dynamic";
 export default async function NewTerritoryPage() {
   await requirePermission("territories:manage");
 
-  const [provinces, villes, communes, dict] = await Promise.all([
+  const [provinces, villes, communes, quartiers, dict] = await Promise.all([
     listActiveProvinces(),
     listActiveVilles(),
     listActiveCommunes(),
+    listActiveQuartiers(),
     getServerDictionary(),
   ]);
 
@@ -25,7 +27,7 @@ export default async function NewTerritoryPage() {
       <h1 className="text-xl font-semibold">{dict.territoriesPage.createTerritory}</h1>
       <TerritoryForm
         mode="create"
-        options={{ provinces, villes, communes }}
+        options={{ provinces, villes, communes, quartiers }}
         dict={dict.territoriesPage}
         hierarchyDict={dict.territory}
       />

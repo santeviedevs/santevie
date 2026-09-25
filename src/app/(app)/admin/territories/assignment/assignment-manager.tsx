@@ -8,66 +8,41 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 
-import {
-  CascadingTerritoryFields,
-  type CommuneOption,
-  type QuartierOption,
-  type TerritoryOption,
-  type TerritoryValue,
-  type VilleOption,
-} from "../cascading-territory-fields";
+import { TerritoryPicker, type TerritoryPickerOption } from "../territory-picker";
 import {
   type AssignmentFormState,
   assignTerritoryAction,
   removeTerritoryAssignmentAction,
 } from "./actions";
 
-type AssignmentSummary = {
-  id: string;
-  level: "province" | "ville" | "commune" | "quartier";
-  name: string;
-};
-
-const EMPTY_VALUE: TerritoryValue = {
-  provinceId: null,
-  villeId: null,
-  communeId: null,
-  quartierId: null,
-};
+type AssignmentSummary = { id: string; code: string; label: string };
 
 export function AssignmentManager({
   userId,
   assignments,
-  territoryData,
+  territoryOptions,
   dict,
-  territoryDict,
+  territoryPickerDict,
 }: {
   userId: string;
   assignments: AssignmentSummary[];
-  territoryData: {
-    provinces: TerritoryOption[];
-    villes: VilleOption[];
-    communes: CommuneOption[];
-    quartiers: QuartierOption[];
-  };
+  territoryOptions: TerritoryPickerOption[];
   dict: Dictionary["territoryAssignmentPage"];
-  territoryDict: Dictionary["territory"];
+  territoryPickerDict: Dictionary["territory"];
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
-  const [pickValue, setPickValue] = useState<TerritoryValue>(EMPTY_VALUE);
+  const [territoryId, setTerritoryId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function handleAdd() {
+    if (!territoryId) return;
     setError(null);
     startTransition(async () => {
       const formData = new FormData();
       formData.set("userId", userId);
-      if (pickValue.provinceId) formData.set("provinceId", pickValue.provinceId);
-      if (pickValue.villeId) formData.set("villeId", pickValue.villeId);
-      if (pickValue.communeId) formData.set("communeId", pickValue.communeId);
-      if (pickValue.quartierId) formData.set("quartierId", pickValue.quartierId);
+      formData.set("territoryId", territoryId);
 
       const result: AssignmentFormState = await assignTerritoryAction({ error: null }, formData);
 
@@ -80,7 +55,7 @@ export function AssignmentManager({
         return;
       }
 
-      setPickValue(EMPTY_VALUE);
+      setTerritoryId(null);
       toast.success(dict.assigned);
       router.refresh();
     });
@@ -113,41 +88,20 @@ export function AssignmentManager({
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 rounded-md border border-border p-4">
         <h2 className="text-sm font-semibold">{dict.addHeading}</h2>
-        <CascadingTerritoryFields
-          levels={["province", "ville", "commune", "quartier"]}
-          value={pickValue}
-          onChange={(patch) => setPickValue((current) => ({ ...current, ...patch }))}
-          data={territoryData}
-          required={false}
-          layout="row"
-          labels={{
-            province: territoryDict.province,
-            ville: territoryDict.ville,
-            commune: territoryDict.commune,
-            quartier: territoryDict.quartier,
-          }}
-          placeholders={{
-            province: territoryDict.selectProvince,
-            ville: territoryDict.selectVille,
-            commune: territoryDict.selectCommune,
-            quartier: territoryDict.selectQuartier,
-          }}
+        <TerritoryPicker
+          id="territoryId"
+          label={territoryPickerDict.province}
+          placeholder={territoryPickerDict.selectProvince}
+          clearLabel={territoryPickerDict.anyProvince}
+          noResultsLabel={territoryPickerDict.noMatches}
+          options={territoryOptions}
+          value={territoryId}
+          onChange={setTerritoryId}
+          disabled={isPending}
         />
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <div>
-          <Button
-            type="button"
-            onClick={handleAdd}
-            disabled={
-              isPending ||
-              !(
-                pickValue.provinceId ||
-                pickValue.villeId ||
-                pickValue.communeId ||
-                pickValue.quartierId
-              )
-            }
-          >
+          <Button type="button" onClick={handleAdd} disabled={isPending || !territoryId}>
             {isPending ? dict.saving : dict.assign}
           </Button>
         </div>
@@ -165,8 +119,8 @@ export function AssignmentManager({
                 className="flex items-center justify-between rounded-md border border-border px-3 py-2"
               >
                 <div className="flex items-center gap-2">
-                  <Badge variant="secondary">{territoryDict[assignment.level]}</Badge>
-                  <span className="text-sm">{assignment.name}</span>
+                  <Badge variant="secondary">{assignment.code}</Badge>
+                  <span className="text-sm">{assignment.label}</span>
                 </div>
                 <Button
                   type="button"

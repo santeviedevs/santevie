@@ -10,10 +10,16 @@ const listInclude = {
   // Admin scanning a flattened downstream list can tell which rows are
   // Supervisors versus Delegates without a separate lookup.
   manager: { select: { id: true, name: true, role: { select: { id: true, name: true } } } },
-  province: { select: { id: true, name: true } },
-  ville: { select: { id: true, name: true } },
-  commune: { select: { id: true, name: true } },
-  quartier: { select: { id: true, name: true } },
+  territory: {
+    select: {
+      id: true,
+      code: true,
+      province: { select: { id: true, name: true } },
+      ville: { select: { id: true, name: true } },
+      commune: { select: { id: true, name: true } },
+      quartier: { select: { id: true, name: true } },
+    },
+  },
 } satisfies Prisma.UserInclude;
 
 export type UserWithRelations = Prisma.UserGetPayload<{ include: typeof listInclude }>;
@@ -22,10 +28,7 @@ function buildWhere(filters: UserFilters): Prisma.UserWhereInput {
   return {
     ...(filters.roleId ? { roleId: filters.roleId } : {}),
     ...(filters.managerId ? { managerId: filters.managerId } : {}),
-    ...(filters.quartierId ? { quartierId: filters.quartierId } : {}),
-    ...(filters.communeId ? { communeId: filters.communeId } : {}),
-    ...(filters.villeId ? { villeId: filters.villeId } : {}),
-    ...(filters.provinceId ? { provinceId: filters.provinceId } : {}),
+    ...(filters.territoryId ? { territoryId: filters.territoryId } : {}),
     ...(filters.status ? { status: filters.status } : {}),
     ...(filters.q
       ? {
