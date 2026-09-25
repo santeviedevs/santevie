@@ -1,9 +1,16 @@
+import { NavDropdownItem } from "./nav-dropdown";
 import type { NavItem } from "./nav-items";
 import { NavLink } from "./nav-link";
 
+const ITEM_CLASS = "flex flex-1 flex-col items-center gap-1 py-2 text-xs font-medium";
+const ACTIVE_CLASS = "text-primary";
+const INACTIVE_CLASS = "text-muted-foreground";
+
 // Bottom tab bar for phones — the primary device for field delegates.
 // Combines both nav groups into one row since there's no sidebar to hold
-// the secondary items (install guide, etc.) on this breakpoint.
+// the secondary items (install guide, etc.) on this breakpoint. A grouped
+// item (e.g. "Territories") opens as a dropdown above the tab, `side="top"`
+// so it doesn't render off the bottom of the screen.
 export function BottomNav({
   items,
   secondaryItems,
@@ -20,15 +27,29 @@ export function BottomNav({
     >
       {allItems.map((item) => {
         const Icon = item.icon;
+        if (item.children) {
+          return (
+            <NavDropdownItem
+              key={item.label}
+              label={item.label}
+              icon={<Icon className="size-5 shrink-0" aria-hidden="true" />}
+              navChildren={item.children}
+              className={ITEM_CLASS}
+              activeClassName={ACTIVE_CLASS}
+              inactiveClassName={INACTIVE_CLASS}
+              side="top"
+            />
+          );
+        }
         return (
           <NavLink
             key={item.href}
-            href={item.href}
+            href={item.href!}
             label={item.label}
             icon={<Icon className="size-5 shrink-0" aria-hidden="true" />}
-            className="flex flex-1 flex-col items-center gap-1 py-2 text-xs font-medium"
-            activeClassName="text-primary"
-            inactiveClassName="text-muted-foreground"
+            className={ITEM_CLASS}
+            activeClassName={ACTIVE_CLASS}
+            inactiveClassName={INACTIVE_CLASS}
           />
         );
       })}

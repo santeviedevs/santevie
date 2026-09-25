@@ -110,10 +110,11 @@ model User {
   quartierId String?
   quartier   Quartier? @relation(fields: [quartierId], references: [id])
 
-  visits      Visit[]
-  orders      Order[]
-  attendances Attendance[]
-  targets     Target[]
+  visits               Visit[]
+  orders               Order[]
+  attendances          Attendance[]
+  targets              Target[]
+  territoryAssignments UserTerritoryAssignment[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -133,9 +134,10 @@ model Province {
   name   String @unique
   status Status @default(ACTIVE)
 
-  villes  Ville[]
-  users   User[]
-  clients Client[]
+  villes               Ville[]
+  users                User[]
+  clients              Client[]
+  territoryAssignments UserTerritoryAssignment[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -153,9 +155,10 @@ model Ville {
   provinceId String
   province   Province @relation(fields: [provinceId], references: [id])
 
-  communes Commune[]
-  users    User[]
-  clients  Client[]
+  communes             Commune[]
+  users                User[]
+  clients              Client[]
+  territoryAssignments UserTerritoryAssignment[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -174,9 +177,10 @@ model Commune {
   villeId String
   ville   Ville  @relation(fields: [villeId], references: [id])
 
-  quartiers Quartier[]
-  users     User[]
-  clients   Client[]
+  quartiers            Quartier[]
+  users                User[]
+  clients              Client[]
+  territoryAssignments UserTerritoryAssignment[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -195,9 +199,10 @@ model Quartier {
   communeId String
   commune   Commune @relation(fields: [communeId], references: [id])
 
-  users   User[]
-  clients Client[]
-  targets Target[]
+  users                User[]
+  clients              Client[]
+  targets              Target[]
+  territoryAssignments UserTerritoryAssignment[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -206,6 +211,58 @@ model Quartier {
 
   @@unique([communeId, name])
   @@map("quartiers")
+}
+
+// One row per (user, single territory) assignment — the set of territories
+// a delegate is allowed to work in (S2-04). Distinct from the four
+// home-territory fields on User above: those stay as a default/display
+// value, but any future work-scoping logic (e.g. restricting which clients
+// a delegate can select) must read from this table instead.
+//
+// Unlike User/Client's own four fields (which populate every ancestor level
+// together as the cascading select narrows down), each row here stores
+// only the single specific level actually being assigned — exactly one of
+// the four FKs is set, the rest stay null. This is deliberate: populating
+// ancestor levels too would make the per-level unique constraints below
+// misfire (e.g. two different Ville-level assignments under the same
+// Province would falsely collide on `provinceId` if it were also stored on
+// both rows).
+//
+// Four separate two-column unique constraints, not one across all four —
+// each blocks an exact duplicate at whichever level is actually populated
+// (Postgres never treats two NULLs as equal, so a constraint on a column
+// that's null for a given row simply doesn't apply to it). This still
+// allows a Province and a Quartier already inside it to both be assigned to
+// the same user — harmless overlap, deliberately not blocked (see the
+// project decision log for S2-04).
+model UserTerritoryAssignment {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  provinceId String?
+  province   Province? @relation(fields: [provinceId], references: [id])
+
+  villeId String?
+  ville   Ville?  @relation(fields: [villeId], references: [id])
+
+  communeId String?
+  commune   Commune? @relation(fields: [communeId], references: [id])
+
+  quartierId String?
+  quartier   Quartier? @relation(fields: [quartierId], references: [id])
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, provinceId])
+  @@unique([userId, villeId])
+  @@unique([userId, communeId])
+  @@unique([userId, quartierId])
+  @@map("user_territory_assignments")
 }
 
 // --- Master data ---

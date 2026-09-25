@@ -5,7 +5,11 @@ import type { Prisma } from "../../../generated/prisma/client";
 
 const listInclude = {
   role: true,
-  manager: { select: { id: true, name: true } },
+  // Manager's own role is included alongside their name — the Team screen
+  // shows it (S2-04: "Reports to Jane Doe (Supervisor)") so a Manager or
+  // Admin scanning a flattened downstream list can tell which rows are
+  // Supervisors versus Delegates without a separate lookup.
+  manager: { select: { id: true, name: true, role: { select: { id: true, name: true } } } },
   province: { select: { id: true, name: true } },
   ville: { select: { id: true, name: true } },
   commune: { select: { id: true, name: true } },
@@ -17,6 +21,7 @@ export type UserWithRelations = Prisma.UserGetPayload<{ include: typeof listIncl
 function buildWhere(filters: UserFilters): Prisma.UserWhereInput {
   return {
     ...(filters.roleId ? { roleId: filters.roleId } : {}),
+    ...(filters.managerId ? { managerId: filters.managerId } : {}),
     ...(filters.quartierId ? { quartierId: filters.quartierId } : {}),
     ...(filters.communeId ? { communeId: filters.communeId } : {}),
     ...(filters.villeId ? { villeId: filters.villeId } : {}),
@@ -79,6 +84,29 @@ export function listManagerOptions(excludeUserId?: string) {
   return prisma.user.findMany({
     where: { status: "ACTIVE", ...(excludeUserId ? { id: { not: excludeUserId } } : {}) },
     select: { id: true, name: true, employeeCode: true },
+    orderBy: { name: "asc" },
+  });
+}
+
+// Delegate picker for the Assign Territories screen — every active user,
+// named separately from listManagerOptions even though the query is
+// identical with no exclusion, since the two lists mean different things to
+// a caller even when they happen to return the same rows today.
+export function listActiveUserOptions() {
+  return listManagerOptions();
+}
+
+// Every active user in a manager-capable role (Admin/Manager/Supervisor,
+// i.e. whichever role ids the caller passes) — the Team screen's Reports-To
+// picker, when no Role filter narrows it to only currently-managing
+// accounts. Unlike listAssignmentsForUser-style downstream queries, this is
+// unscoped by any manager chain: a Manager with zero current reports still
+// shows up, since the point is letting the viewer pre-filter by someone
+// before they've been assigned a team.
+export function listUsersByRoleIds(roleIds: string[]) {
+  return prisma.user.findMany({
+    where: { status: "ACTIVE", roleId: { in: roleIds } },
+    select: { id: true, name: true, role: { select: { id: true, name: true } } },
     orderBy: { name: "asc" },
   });
 }

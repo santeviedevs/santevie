@@ -17,7 +17,10 @@ export type Dictionary = {
   nav: {
     home: string;
     users: string;
-    territories: string;
+    territoriesGroup: string;
+    manageTerritories: string;
+    territoryAssignment: string;
+    team: string;
     clients: string;
     products: string;
     installGuide: string;
@@ -81,6 +84,10 @@ export type Dictionary = {
     searchPlaceholder: string;
     roleLabel: string;
     anyRole: string;
+    // "Reports to" — currently only rendered on the Team screen (S2-04),
+    // kept here alongside roleLabel since it's a generic user-list filter.
+    reportsToLabel: string;
+    anyReportsTo: string;
     statusLabel: string;
     anyStatus: string;
     active: string;
@@ -121,6 +128,38 @@ export type Dictionary = {
     // Heading over the edit form's optional "also add a new one below this"
     // fields — e.g. editing a Province can grow a new Ville under it.
     addChildHeading: string;
+  };
+  // The Assign Territories admin screen (S2-04): pick a delegate, see
+  // and manage the set of territories (at any level) they're allowed to
+  // work in — distinct from territoriesPage above, which manages the
+  // territory hierarchy itself, not who's assigned to it.
+  territoryAssignmentPage: {
+    title: string;
+    userLabel: string;
+    selectUser: string;
+    pickUserPrompt: string;
+    addHeading: string;
+    currentHeading: string;
+    noAssignments: string;
+    assign: string;
+    saving: string;
+    remove: string;
+    assigned: string;
+    removed: string;
+  };
+  // The Supervisor's read-only "current team" screen (S2-04) — their
+  // downstream team (via scope.ts) and each member's territory
+  // assignments. No create/edit here, unlike territoryAssignmentPage.
+  teamPage: {
+    title: string;
+    columnEmployeeCode: string;
+    columnName: string;
+    columnRole: string;
+    columnReportsTo: string;
+    noManager: string;
+    columnTerritories: string;
+    noAssignments: string;
+    noResults: string;
   };
   userForm: {
     newUserTitle: string;
@@ -295,7 +334,10 @@ const en: Dictionary = {
   nav: {
     home: "Home",
     users: "Users",
-    territories: "Territories",
+    territoriesGroup: "Territories",
+    manageTerritories: "Manage Territories",
+    territoryAssignment: "Assign Territories",
+    team: "Team",
     clients: "Clients",
     products: "Products",
     installGuide: "Install guide",
@@ -349,6 +391,8 @@ const en: Dictionary = {
     searchPlaceholder: "Name, email or code",
     roleLabel: "Role",
     anyRole: "Any role",
+    reportsToLabel: "Reports to",
+    anyReportsTo: "Any",
     statusLabel: "Status",
     anyStatus: "Any status",
     active: "Active",
@@ -356,7 +400,7 @@ const en: Dictionary = {
     clearFilters: "Clear filters",
   },
   territoriesPage: {
-    title: "Territories",
+    title: "Manage Territories",
     newTerritory: "New territory",
     searchLabel: "Search",
     searchPlaceholder: "Name",
@@ -381,6 +425,31 @@ const en: Dictionary = {
     updated: "Territory updated",
     activate: "Activate",
     addChildHeading: "Also add a new one below",
+  },
+  territoryAssignmentPage: {
+    title: "Assign Territories",
+    userLabel: "User",
+    selectUser: "Select a user",
+    pickUserPrompt: "Select a user to see and manage their assigned territories.",
+    addHeading: "Assign a territory",
+    currentHeading: "Assigned territories",
+    noAssignments: "No territories assigned yet.",
+    assign: "Assign",
+    saving: "Saving...",
+    remove: "Remove",
+    assigned: "Territory assigned",
+    removed: "Assignment removed",
+  },
+  teamPage: {
+    title: "My team",
+    columnEmployeeCode: "Employee code",
+    columnName: "Name",
+    columnRole: "Role",
+    columnReportsTo: "Reports to",
+    noManager: "—",
+    columnTerritories: "Territories",
+    noAssignments: "No territories assigned",
+    noResults: "No one reports to you yet.",
   },
   userForm: {
     newUserTitle: "New user",
@@ -541,7 +610,10 @@ const fr: Dictionary = {
   nav: {
     home: "Accueil",
     users: "Utilisateurs",
-    territories: "Territoires",
+    territoriesGroup: "Territoires",
+    manageTerritories: "Gérer les territoires",
+    territoryAssignment: "Affecter des territoires",
+    team: "Équipe",
     clients: "Clients",
     products: "Produits",
     installGuide: "Guide d'installation",
@@ -595,6 +667,8 @@ const fr: Dictionary = {
     searchPlaceholder: "Nom, e-mail ou code",
     roleLabel: "Rôle",
     anyRole: "Tous les rôles",
+    reportsToLabel: "Rattaché à",
+    anyReportsTo: "Tous",
     statusLabel: "Statut",
     anyStatus: "Tous les statuts",
     active: "Actif",
@@ -602,7 +676,7 @@ const fr: Dictionary = {
     clearFilters: "Effacer les filtres",
   },
   territoriesPage: {
-    title: "Territoires",
+    title: "Gérer les territoires",
     newTerritory: "Nouveau territoire",
     searchLabel: "Recherche",
     searchPlaceholder: "Nom",
@@ -627,6 +701,31 @@ const fr: Dictionary = {
     updated: "Territoire mis à jour",
     activate: "Activer",
     addChildHeading: "Ajouter également un nouveau en dessous",
+  },
+  territoryAssignmentPage: {
+    title: "Affecter des territoires",
+    userLabel: "Utilisateur",
+    selectUser: "Sélectionner un utilisateur",
+    pickUserPrompt: "Sélectionnez un utilisateur pour voir et gérer ses territoires affectés.",
+    addHeading: "Affecter un territoire",
+    currentHeading: "Territoires affectés",
+    noAssignments: "Aucun territoire affecté pour le moment.",
+    assign: "Affecter",
+    saving: "Enregistrement...",
+    remove: "Retirer",
+    assigned: "Territoire affecté",
+    removed: "Affectation retirée",
+  },
+  teamPage: {
+    title: "Mon équipe",
+    columnEmployeeCode: "Code employé",
+    columnName: "Nom",
+    columnRole: "Rôle",
+    columnReportsTo: "Rattaché à",
+    noManager: "—",
+    columnTerritories: "Territoires",
+    noAssignments: "Aucun territoire affecté",
+    noResults: "Personne ne vous est rattaché pour le moment.",
   },
   userForm: {
     newUserTitle: "Nouvel utilisateur",
