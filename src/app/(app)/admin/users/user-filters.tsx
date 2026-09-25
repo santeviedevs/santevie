@@ -143,9 +143,9 @@ export function UserFilters({
 
       <TerritoryPicker
         id="territoryId"
-        label={territoryDict.province}
-        placeholder={territoryDict.anyProvince}
-        clearLabel={territoryDict.anyProvince}
+        label={territoryDict.territoryFilterLabel}
+        placeholder={territoryDict.anyTerritoryFilter}
+        clearLabel={territoryDict.anyTerritoryFilter}
         noResultsLabel={territoryDict.noMatches}
         options={territories}
         value={filters.territoryId ?? null}

@@ -55,6 +55,17 @@ export type Dictionary = {
     anyVille: string;
     anyCommune: string;
     anyQuartier: string;
+    // Label/placeholder for the single-combobox TerritoryPicker used on
+    // list-filter screens (clients, users, team) — distinct from `province`
+    // above, which is specifically the top hierarchy level in the
+    // Territories admin form.
+    territoryFilterLabel: string;
+    // Label for the same TerritoryPicker when used to assign/pick a
+    // territory on a record (client form, user form, territory assignment)
+    // rather than to filter a list.
+    territoryPickerLabel: string;
+    selectTerritoryFilter: string;
+    anyTerritoryFilter: string;
     // A plain string template rather than a `(name) => string` function —
     // this dict is passed into TerritoryForm, a Client Component, and
     // functions can't cross that Server → Client boundary (see the note on
@@ -404,6 +415,10 @@ const en: Dictionary = {
     anyVille: "Any ville",
     anyCommune: "Any commune",
     anyQuartier: "Any quartier",
+    territoryFilterLabel: "Territory Filter",
+    territoryPickerLabel: "Territory",
+    selectTerritoryFilter: "Select a territory",
+    anyTerritoryFilter: "Any territory",
     createOption: 'Create "{name}"',
     noMatches: "No matches",
     typeOrSelectPlaceholder: "Type or select {label}...",
@@ -710,6 +725,10 @@ const fr: Dictionary = {
     anyVille: "Toutes les villes",
     anyCommune: "Toutes les communes",
     anyQuartier: "Tous les quartiers",
+    territoryFilterLabel: "Filtre territoire",
+    territoryPickerLabel: "Territoire",
+    selectTerritoryFilter: "Sélectionner un territoire",
+    anyTerritoryFilter: "Tout territoire",
     createOption: 'Créer "{name}"',
     noMatches: "Aucun résultat",
     typeOrSelectPlaceholder: "Saisir ou sélectionner {label}...",

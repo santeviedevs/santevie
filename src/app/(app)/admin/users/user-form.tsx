@@ -194,9 +194,9 @@ export function UserForm({ mode, options, defaultValues, dict, territoryDict }: 
         <Label>{dict.territorySectionLabel}</Label>
         <TerritoryPicker
           id="territoryId"
-          label={territoryDict.province}
-          placeholder={territoryDict.selectProvince}
-          clearLabel={territoryDict.anyProvince}
+          label={territoryDict.territoryPickerLabel}
+          placeholder={territoryDict.selectTerritoryFilter}
+          clearLabel={territoryDict.anyTerritoryFilter}
           noResultsLabel={territoryDict.noMatches}
           options={options.territories}
           value={territoryId ?? null}

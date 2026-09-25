@@ -90,9 +90,9 @@ export function AssignmentManager({
         <h2 className="text-sm font-semibold">{dict.addHeading}</h2>
         <TerritoryPicker
           id="territoryId"
-          label={territoryPickerDict.province}
-          placeholder={territoryPickerDict.selectProvince}
-          clearLabel={territoryPickerDict.anyProvince}
+          label={territoryPickerDict.territoryPickerLabel}
+          placeholder={territoryPickerDict.selectTerritoryFilter}
+          clearLabel={territoryPickerDict.anyTerritoryFilter}
           noResultsLabel={territoryPickerDict.noMatches}
           options={territoryOptions}
           value={territoryId}
