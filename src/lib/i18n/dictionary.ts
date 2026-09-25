@@ -41,6 +41,8 @@ export type Dictionary = {
   // Ville > Commune > Quartier), plus placeholders reused by every
   // cascading select.
   territory: {
+    code: string;
+    codeRequired: string;
     province: string;
     ville: string;
     commune: string;
@@ -100,6 +102,8 @@ export type Dictionary = {
   territoriesPage: {
     title: string;
     newTerritory: string;
+    importButton: string;
+    columnCode: string;
     searchLabel: string;
     searchPlaceholder: string;
     statusLabel: string;
@@ -185,6 +189,7 @@ export type Dictionary = {
   clientsPage: {
     title: string;
     newClient: string;
+    importButton: string;
     columnCode: string;
     columnName: string;
     columnType: string;
@@ -259,6 +264,7 @@ export type Dictionary = {
   productsPage: {
     title: string;
     newProduct: string;
+    importButton: string;
     exchangeRate: string;
     columnCode: string;
     columnName: string;
@@ -321,6 +327,38 @@ export type Dictionary = {
     saving: string;
     rateUpdated: string;
   };
+  // The bulk import screen (S2-05) — one shared wizard for territories,
+  // clients and products, distinguished only by which entity's endpoint
+  // and column list it's pointed at.
+  importPage: {
+    backToList: string;
+    downloadTemplate: string;
+    chooseFile: string;
+    noFileChosen: string;
+    preview: string;
+    previewing: string;
+    confirmImport: string;
+    importing: string;
+    // Shown once the file has fully reached the server but the row-by-row
+    // validation/resolution is still running — distinct from `previewing`/
+    // `importing`, which describe the upload itself.
+    processingFile: string;
+    startOver: string;
+    totalRows: string;
+    willCreate: string;
+    willUpdate: string;
+    willReject: string;
+    errorsHeading: string;
+    rowColumn: string;
+    errorsColumn: string;
+    downloadErrorReport: string;
+    resultHeading: string;
+    created: string;
+    updated: string;
+    rejected: string;
+    linkWarningsHeading: string;
+    genericError: string;
+  };
 };
 
 const en: Dictionary = {
@@ -352,6 +390,8 @@ const en: Dictionary = {
     signingIn: "Signing in...",
   },
   territory: {
+    code: "Code",
+    codeRequired: "Code is required",
     province: "Province",
     ville: "Ville",
     commune: "Commune",
@@ -400,6 +440,8 @@ const en: Dictionary = {
   territoriesPage: {
     title: "Manage Territories",
     newTerritory: "New territory",
+    importButton: "Import",
+    columnCode: "Code",
     searchLabel: "Search",
     searchPlaceholder: "Name",
     statusLabel: "Status",
@@ -471,6 +513,7 @@ const en: Dictionary = {
   clientsPage: {
     title: "Clients",
     newClient: "New client",
+    importButton: "Import",
     columnCode: "Code",
     columnName: "Name",
     columnType: "Type",
@@ -537,6 +580,7 @@ const en: Dictionary = {
   productsPage: {
     title: "Products",
     newProduct: "New product",
+    importButton: "Import",
     exchangeRate: "Exchange rate",
     columnCode: "Code",
     columnName: "Name",
@@ -595,6 +639,32 @@ const en: Dictionary = {
     saving: "Saving...",
     rateUpdated: "Exchange rate updated",
   },
+  importPage: {
+    backToList: "Back to list",
+    downloadTemplate: "Download template",
+    chooseFile: "Choose file",
+    noFileChosen: "No file chosen",
+    preview: "Preview",
+    previewing: "Checking file...",
+    confirmImport: "Confirm import",
+    importing: "Importing...",
+    processingFile: "Processing rows...",
+    startOver: "Start over",
+    totalRows: "Total rows",
+    willCreate: "Will create",
+    willUpdate: "Will update",
+    willReject: "Will reject",
+    errorsHeading: "Rows with errors",
+    rowColumn: "Row",
+    errorsColumn: "Errors",
+    downloadErrorReport: "Download error report",
+    resultHeading: "Import complete",
+    created: "Created",
+    updated: "Updated",
+    rejected: "Rejected",
+    linkWarningsHeading: "Hospital links that couldn't be resolved",
+    genericError: "Something went wrong. Check the file and try again.",
+  },
 };
 
 const fr: Dictionary = {
@@ -626,6 +696,8 @@ const fr: Dictionary = {
     signingIn: "Connexion...",
   },
   territory: {
+    code: "Code",
+    codeRequired: "Le code est requis",
     province: "Province",
     ville: "Ville",
     commune: "Commune",
@@ -674,6 +746,8 @@ const fr: Dictionary = {
   territoriesPage: {
     title: "Gérer les territoires",
     newTerritory: "Nouveau territoire",
+    importButton: "Importer",
+    columnCode: "Code",
     searchLabel: "Recherche",
     searchPlaceholder: "Nom",
     statusLabel: "Statut",
@@ -745,6 +819,7 @@ const fr: Dictionary = {
   clientsPage: {
     title: "Clients",
     newClient: "Nouveau client",
+    importButton: "Importer",
     columnCode: "Code",
     columnName: "Nom",
     columnType: "Type",
@@ -812,6 +887,7 @@ const fr: Dictionary = {
   productsPage: {
     title: "Produits",
     newProduct: "Nouveau produit",
+    importButton: "Importer",
     exchangeRate: "Taux de change",
     columnCode: "Code",
     columnName: "Nom",
@@ -870,6 +946,32 @@ const fr: Dictionary = {
     save: "Enregistrer le taux",
     saving: "Enregistrement...",
     rateUpdated: "Taux de change mis à jour",
+  },
+  importPage: {
+    backToList: "Retour à la liste",
+    downloadTemplate: "Télécharger le modèle",
+    chooseFile: "Choisir un fichier",
+    noFileChosen: "Aucun fichier choisi",
+    preview: "Aperçu",
+    previewing: "Vérification du fichier...",
+    confirmImport: "Confirmer l'import",
+    importing: "Import en cours...",
+    processingFile: "Traitement des lignes...",
+    startOver: "Recommencer",
+    totalRows: "Lignes totales",
+    willCreate: "À créer",
+    willUpdate: "À mettre à jour",
+    willReject: "À rejeter",
+    errorsHeading: "Lignes en erreur",
+    rowColumn: "Ligne",
+    errorsColumn: "Erreurs",
+    downloadErrorReport: "Télécharger le rapport d'erreurs",
+    resultHeading: "Import terminé",
+    created: "Créés",
+    updated: "Mis à jour",
+    rejected: "Rejetés",
+    linkWarningsHeading: "Liens hôpitaux non résolus",
+    genericError: "Une erreur est survenue. Vérifiez le fichier et réessayez.",
   },
 };
 
