@@ -41,7 +41,13 @@ type ProductFormProps = {
   dict: Dictionary["productForm"];
 };
 
-export function ProductForm({ mode, categories, currentRate, defaultValues, dict }: ProductFormProps) {
+export function ProductForm({
+  mode,
+  categories,
+  currentRate,
+  defaultValues,
+  dict,
+}: ProductFormProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();

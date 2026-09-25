@@ -765,7 +765,8 @@ const fr: Dictionary = {
     currentRateLabel: "Taux actuel",
     noRateSet: "Aucun taux défini",
     rateLabel: "Taux USD vers CDF",
-    rateHint: "Défini manuellement — mis à jour quand l'administrateur le décide, jamais automatiquement.",
+    rateHint:
+      "Défini manuellement — mis à jour quand l'administrateur le décide, jamais automatiquement.",
     historyTitle: "Historique",
     save: "Enregistrer le taux",
     saving: "Enregistrement...",

@@ -1,7 +1,10 @@
 import { formatCdf, formatUsd } from "@/lib/format-money";
 import { getServerDictionary } from "@/lib/i18n/server";
 import { requirePermission } from "@/server/auth/require-permission";
-import { getCurrentExchangeRate, listExchangeRateEntries } from "@/server/services/exchange-rate-service";
+import {
+  getCurrentExchangeRate,
+  listExchangeRateEntries,
+} from "@/server/services/exchange-rate-service";
 
 import { ExchangeRateForm } from "./exchange-rate-form";
 
@@ -26,9 +29,7 @@ export default async function ExchangeRatePage() {
       <div className="rounded-md border border-border p-4">
         <p className="text-sm text-muted-foreground">{t.currentRateLabel}</p>
         <p className="text-lg font-semibold">
-          {current
-            ? `${formatUsd(1)} = ${formatCdf(current.rate)}`
-            : t.noRateSet}
+          {current ? `${formatUsd(1)} = ${formatCdf(current.rate)}` : t.noRateSet}
         </p>
       </div>
 
@@ -45,9 +46,7 @@ export default async function ExchangeRatePage() {
               </span>
             </li>
           ))}
-          {history.length === 0 ? (
-            <li className="text-muted-foreground">{t.noRateSet}</li>
-          ) : null}
+          {history.length === 0 ? <li className="text-muted-foreground">{t.noRateSet}</li> : null}
         </ul>
       </div>
     </div>
