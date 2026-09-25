@@ -13,11 +13,13 @@ export type Dictionary = {
   editTerritoryTitle: (name: string) => string;
   editClientTitle: (name: string) => string;
   viewClientTitle: (name: string) => string;
+  editProductTitle: (name: string) => string;
   nav: {
     home: string;
     users: string;
     territories: string;
     clients: string;
+    products: string;
     installGuide: string;
   };
   header: {
@@ -213,6 +215,75 @@ export type Dictionary = {
     notProvided: string;
     hospitalCode: string;
   };
+  // The Product catalogue admin screen (S2-03). Both grossPrice and
+  // netPrice are shown — the source price list carries both, and the
+  // admin team relies on comparing them, same reasoning as the schema
+  // comment on the Product model.
+  productsPage: {
+    title: string;
+    newProduct: string;
+    exchangeRate: string;
+    columnCode: string;
+    columnName: string;
+    columnCategory: string;
+    columnGrossPrice: string;
+    columnNetPrice: string;
+    columnStatus: string;
+    edit: string;
+    noResults: string;
+    statusActive: string;
+    statusInactive: string;
+  };
+  productFilters: {
+    searchLabel: string;
+    searchPlaceholder: string;
+    categoryLabel: string;
+    anyCategory: string;
+    sortLabel: string;
+    sortDefault: string;
+    sortPriceAsc: string;
+    sortPriceDesc: string;
+    statusLabel: string;
+    anyStatus: string;
+    active: string;
+    inactive: string;
+    clearFilters: string;
+  };
+  productForm: {
+    newProductTitle: string;
+    code: string;
+    name: string;
+    category: string;
+    noCategory: string;
+    grossPrice: string;
+    netPrice: string;
+    // A convenience-only calculator, not a stored field — see the
+    // comment in product-form.tsx.
+    discountPercentHelper: string;
+    discountPercentPlaceholder: string;
+    cdfPreviewLabel: string;
+    activate: string;
+    activeDescription: string;
+    inactiveDescription: string;
+    createProduct: string;
+    saveChanges: string;
+    saving: string;
+    productCreated: string;
+    productUpdated: string;
+  };
+  // The USD → CDF exchange-rate settings screen — a single current rate an
+  // admin can update, plus the append-only history of every past rate.
+  exchangeRatePage: {
+    title: string;
+    currentRateLabel: string;
+    noRateSet: string;
+    rateLabel: string;
+    rateHint: string;
+    historyTitle: string;
+    save: string;
+    saving: string;
+    rateUpdated: string;
+  };
 };
 
 const en: Dictionary = {
@@ -220,11 +291,13 @@ const en: Dictionary = {
   editTerritoryTitle: (name) => `Edit ${name}`,
   editClientTitle: (name) => `Edit ${name}`,
   viewClientTitle: (name) => name,
+  editProductTitle: (name) => `Edit ${name}`,
   nav: {
     home: "Home",
     users: "Users",
     territories: "Territories",
     clients: "Clients",
+    products: "Products",
     installGuide: "Install guide",
   },
   header: {
@@ -396,6 +469,67 @@ const en: Dictionary = {
     notProvided: "Not provided",
     hospitalCode: "Code",
   },
+  productsPage: {
+    title: "Products",
+    newProduct: "New product",
+    exchangeRate: "Exchange rate",
+    columnCode: "Code",
+    columnName: "Name",
+    columnCategory: "Category",
+    columnGrossPrice: "Gross price",
+    columnNetPrice: "Net price",
+    columnStatus: "Status",
+    edit: "Edit",
+    noResults: "No products match these filters.",
+    statusActive: "ACTIVE",
+    statusInactive: "INACTIVE",
+  },
+  productFilters: {
+    searchLabel: "Search",
+    searchPlaceholder: "Name or code",
+    categoryLabel: "Category",
+    anyCategory: "Any category",
+    sortLabel: "Sort by price",
+    sortDefault: "Default (name)",
+    sortPriceAsc: "Price: Low to high",
+    sortPriceDesc: "Price: High to low",
+    statusLabel: "Status",
+    anyStatus: "Any status",
+    active: "Active",
+    inactive: "Inactive",
+    clearFilters: "Clear filters",
+  },
+  productForm: {
+    newProductTitle: "New product",
+    code: "Code",
+    name: "Name",
+    category: "Category",
+    noCategory: "No category",
+    grossPrice: "Gross price (USD)",
+    netPrice: "Net price (USD)",
+    discountPercentHelper: "Discount % (optional)",
+    discountPercentPlaceholder: "e.g. 10",
+    cdfPreviewLabel: "≈",
+    activate: "Activate",
+    activeDescription: "Selectable for new orders.",
+    inactiveDescription: "Deactivated — hidden from new order selection.",
+    createProduct: "Create product",
+    saveChanges: "Save changes",
+    saving: "Saving...",
+    productCreated: "Product created",
+    productUpdated: "Product updated",
+  },
+  exchangeRatePage: {
+    title: "Exchange rate",
+    currentRateLabel: "Current rate",
+    noRateSet: "No rate set yet",
+    rateLabel: "USD to CDF rate",
+    rateHint: "Set manually — updates whenever the admin decides, not automatically.",
+    historyTitle: "History",
+    save: "Save rate",
+    saving: "Saving...",
+    rateUpdated: "Exchange rate updated",
+  },
 };
 
 const fr: Dictionary = {
@@ -403,11 +537,13 @@ const fr: Dictionary = {
   editTerritoryTitle: (name) => `Modifier ${name}`,
   editClientTitle: (name) => `Modifier ${name}`,
   viewClientTitle: (name) => name,
+  editProductTitle: (name) => `Modifier ${name}`,
   nav: {
     home: "Accueil",
     users: "Utilisateurs",
     territories: "Territoires",
     clients: "Clients",
+    products: "Produits",
     installGuide: "Guide d'installation",
   },
   header: {
@@ -579,6 +715,68 @@ const fr: Dictionary = {
     address: "Adresse",
     notProvided: "Non renseigné",
     hospitalCode: "Code",
+  },
+  productsPage: {
+    title: "Produits",
+    newProduct: "Nouveau produit",
+    exchangeRate: "Taux de change",
+    columnCode: "Code",
+    columnName: "Nom",
+    columnCategory: "Catégorie",
+    columnGrossPrice: "Prix brut",
+    columnNetPrice: "Prix net",
+    columnStatus: "Statut",
+    edit: "Modifier",
+    noResults: "Aucun produit ne correspond à ces filtres.",
+    statusActive: "ACTIF",
+    statusInactive: "INACTIF",
+  },
+  productFilters: {
+    searchLabel: "Recherche",
+    searchPlaceholder: "Nom ou code",
+    categoryLabel: "Catégorie",
+    anyCategory: "Toutes les catégories",
+    sortLabel: "Trier par prix",
+    sortDefault: "Par défaut (nom)",
+    sortPriceAsc: "Prix : croissant",
+    sortPriceDesc: "Prix : décroissant",
+    statusLabel: "Statut",
+    anyStatus: "Tous les statuts",
+    active: "Actif",
+    inactive: "Inactif",
+    clearFilters: "Effacer les filtres",
+  },
+  productForm: {
+    newProductTitle: "Nouveau produit",
+    code: "Code",
+    name: "Nom",
+    category: "Catégorie",
+    noCategory: "Aucune catégorie",
+    grossPrice: "Prix brut (USD)",
+    netPrice: "Prix net (USD)",
+    discountPercentHelper: "Remise % (facultatif)",
+    discountPercentPlaceholder: "ex. 10",
+    cdfPreviewLabel: "≈",
+    activate: "Activer",
+    activeDescription: "Sélectionnable pour de nouvelles commandes.",
+    inactiveDescription: "Désactivé — masqué des nouvelles commandes.",
+    createProduct: "Créer le produit",
+    saveChanges: "Enregistrer",
+    saving: "Enregistrement...",
+    productCreated: "Produit créé",
+    productUpdated: "Produit mis à jour",
+  },
+  exchangeRatePage: {
+    title: "Taux de change",
+    currentRateLabel: "Taux actuel",
+    noRateSet: "Aucun taux défini",
+    rateLabel: "Taux USD vers CDF",
+    rateHint:
+      "Défini manuellement — mis à jour quand l'administrateur le décide, jamais automatiquement.",
+    historyTitle: "Historique",
+    save: "Enregistrer le taux",
+    saving: "Enregistrement...",
+    rateUpdated: "Taux de change mis à jour",
   },
 };
 

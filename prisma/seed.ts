@@ -219,16 +219,72 @@ async function main() {
     create: { doctorId: doctor.id, hospitalId: hospital.id },
   });
 
-  await prisma.product.upsert({
-    where: { code: "PR-0001" },
-    update: {},
-    create: {
-      code: "PR-0001",
-      name: "Sample Product",
-      price: 100,
-      currency: "AED",
-    },
-  });
+  // A small starting taxonomy, from our own reading of the price list's
+  // generic names — the sheet itself has no category column, and the
+  // client hasn't confirmed a real one yet (see product.ts). Left broad
+  // deliberately; products are free to have no category at all.
+  const productCategories = new Map<string, string>();
+  for (const [code, name] of [
+    ["ANTIBIOTIC", "Antibiotic"],
+    ["ANALGESIC", "Analgesic / Anti-inflammatory"],
+    ["ANTIPARASITIC", "Antiparasitic"],
+    ["GASTRO", "Gastro-intestinal"],
+    ["VITAMIN", "Vitamins & supplements"],
+  ]) {
+    const category = await prisma.productCategory.upsert({
+      where: { code },
+      update: {},
+      create: { code, name },
+    });
+    productCategories.set(code, category.id);
+  }
+
+  // Real sample values from Alisons' August 2026 price list (distributed
+  // via Santevie/Kinshasa) — gross and net exactly as given (net already
+  // reflects the client's own discount, not derived from a percentage; see
+  // product.ts). No `code` column exists in the source sheet, so these are
+  // generated placeholders, pending real codes from the client.
+  //
+  // Codes namespaced as "PR-ALS-..." deliberately, not "PR-0001" onward —
+  // this seed runs against a shared dev database that already has a
+  // "PR-0001" Product row from the original (pre-S2-03) seed, under the old
+  // single-price shape. Reusing that code here would upsert against it with
+  // an empty `update: {}` and silently leave its stale name/price in place
+  // — exactly the bug the identical comment on the Client seed above is
+  // there to prevent a repeat of.
+  for (const [code, name, categoryCode, grossPrice, netPrice] of [
+    ["PR-ALS-0001", "AGGUPLAX (CLOPIDOGREL) 75 mg", "ANTIPARASITIC", 3.334, 3.0],
+    ["PR-ALS-0002", "ALBENTEL (ALBENDAZOLE) 400 mg", "ANTIPARASITIC", 7.0, 6.3],
+    ["PR-ALS-0003", "CIFIN 500 mg (Ciprofloxacine)", "ANTIBIOTIC", 7.223, 6.5],
+    ["PR-ALS-0004", "DOLAREN Plus(Diclofénac+para+chlorzoxazone)", "ANALGESIC", 4.445, 4.0],
+    ["PR-ALS-0005", "ALAIZE (ANTI ACIDE) susp", "GASTRO", 2.5, 2.25],
+    ["PR-ALS-0006", "ORACEE 500 mg (Vitamine C 500 mg)", "VITAMIN", 2.5, 2.25],
+  ] as const) {
+    const product = await prisma.product.upsert({
+      where: { code },
+      update: {},
+      create: {
+        code,
+        name,
+        categoryId: productCategories.get(categoryCode)!,
+        grossPrice,
+        netPrice,
+      },
+    });
+    await prisma.productPriceHistory.upsert({
+      where: { id: `${product.id}-seed` },
+      update: {},
+      create: { id: `${product.id}-seed`, productId: product.id, grossPrice, netPrice },
+    });
+  }
+
+  // Starting USD → CDF rate — Deepak's own figure from the pricing
+  // discussion ("today's rate is $1 = 2350 CDF"), set manually and never
+  // auto-fetched (see exchange-rate-service.ts).
+  const hasRate = await prisma.exchangeRate.findFirst();
+  if (!hasRate) {
+    await prisma.exchangeRate.create({ data: { rate: 2350 } });
+  }
 
   console.log("Seed complete.");
 }
