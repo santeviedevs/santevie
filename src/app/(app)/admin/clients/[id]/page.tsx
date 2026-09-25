@@ -36,14 +36,16 @@ export default async function ClientDetailPage({ params }: ClientDetailPageProps
   const formDict = dict.clientForm;
   const notProvided = <span className="text-muted-foreground">{t.notProvided}</span>;
 
-  const territoryPath = [
-    client.province?.name,
-    client.ville?.name,
-    client.commune?.name,
-    client.quartier?.name,
-  ]
-    .filter(Boolean)
-    .join(" › ");
+  const territoryPath = client.territory
+    ? [
+        client.territory.province.name,
+        client.territory.ville?.name,
+        client.territory.commune?.name,
+        client.territory.quartier?.name,
+      ]
+        .filter(Boolean)
+        .join(" › ")
+    : "";
 
   return (
     <div className="flex flex-col gap-6 p-6">

@@ -19,25 +19,11 @@ vi.mock("@/server/repositories/client-repository", () => ({
 const setDoctorHospitals = vi.fn();
 vi.mock("@/server/repositories/doctor-hospital-repository", () => ({ setDoctorHospitals }));
 
-const findProvinceById = vi.fn();
-const findVilleById = vi.fn();
-const findCommuneById = vi.fn();
-const findQuartierById = vi.fn();
-const listActiveProvinces = vi.fn();
-const listActiveVilles = vi.fn();
-const listActiveCommunes = vi.fn();
-const listActiveQuartiers = vi.fn();
+const findTerritoryById = vi.fn();
+vi.mock("@/server/repositories/territory-repository", () => ({ findTerritoryById }));
 
-vi.mock("@/server/repositories/territory-repository", () => ({
-  findProvinceById,
-  findVilleById,
-  findCommuneById,
-  findQuartierById,
-  listActiveProvinces,
-  listActiveVilles,
-  listActiveCommunes,
-  listActiveQuartiers,
-}));
+const listActiveTerritoryOptions = vi.fn();
+vi.mock("@/server/services/territory-service", () => ({ listActiveTerritoryOptions }));
 
 const {
   createClient,
@@ -61,10 +47,7 @@ const baseClientRow = (overrides: Record<string, unknown> = {}) => ({
   longitude: null,
   status: "ACTIVE",
   type: CHEMIST_TYPE,
-  province: null,
-  ville: null,
-  commune: null,
-  quartier: null,
+  territory: null,
   doctor: null,
   hospital: null,
   ...overrides,
@@ -73,10 +56,7 @@ const baseClientRow = (overrides: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   vi.clearAllMocks();
   listClientTypes.mockResolvedValue([DOCTOR_TYPE, HOSPITAL_TYPE, CHEMIST_TYPE]);
-  findProvinceById.mockResolvedValue({ id: "province-1", status: "ACTIVE" });
-  findVilleById.mockResolvedValue({ id: "ville-1", provinceId: "province-1", status: "ACTIVE" });
-  findCommuneById.mockResolvedValue({ id: "commune-1", villeId: "ville-1", status: "ACTIVE" });
-  findQuartierById.mockResolvedValue({ id: "quartier-1", status: "ACTIVE" });
+  findTerritoryById.mockResolvedValue({ id: "territory-1", status: "ACTIVE" });
   createClientWithExtension.mockResolvedValue(baseClientRow());
   updateClientWithExtension.mockResolvedValue(baseClientRow());
 });
@@ -93,11 +73,11 @@ describe("createClient", () => {
     );
   });
 
-  it("rejects an inactive quartier", async () => {
-    findQuartierById.mockResolvedValue({ id: "quartier-1", status: "INACTIVE" });
+  it("rejects an inactive territory", async () => {
+    findTerritoryById.mockResolvedValue({ id: "territory-1", status: "INACTIVE" });
     await expect(
       createClient(
-        { code: "CL-0001", name: "Sample", typeId: CHEMIST_TYPE.id, quartierId: "quartier-1" },
+        { code: "CL-0001", name: "Sample", typeId: CHEMIST_TYPE.id, territoryId: "territory-1" },
         "actor-1",
       ),
     ).rejects.toThrow(InactiveTerritoryError);

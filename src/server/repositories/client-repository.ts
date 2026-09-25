@@ -5,10 +5,16 @@ import type { Prisma } from "../../../generated/prisma/client";
 
 const listInclude = {
   type: true,
-  province: { select: { id: true, name: true } },
-  ville: { select: { id: true, name: true } },
-  commune: { select: { id: true, name: true } },
-  quartier: { select: { id: true, name: true } },
+  territory: {
+    select: {
+      id: true,
+      code: true,
+      province: { select: { id: true, name: true } },
+      ville: { select: { id: true, name: true } },
+      commune: { select: { id: true, name: true } },
+      quartier: { select: { id: true, name: true } },
+    },
+  },
   doctor: {
     include: {
       hospitals: {
@@ -26,10 +32,7 @@ export type ClientWithRelations = Prisma.ClientGetPayload<{ include: typeof list
 function buildWhere(filters: ClientFilters): Prisma.ClientWhereInput {
   return {
     ...(filters.typeId ? { typeId: filters.typeId } : {}),
-    ...(filters.quartierId ? { quartierId: filters.quartierId } : {}),
-    ...(filters.communeId ? { communeId: filters.communeId } : {}),
-    ...(filters.villeId ? { villeId: filters.villeId } : {}),
-    ...(filters.provinceId ? { provinceId: filters.provinceId } : {}),
+    ...(filters.territoryId ? { territoryId: filters.territoryId } : {}),
     ...(filters.status ? { status: filters.status } : {}),
     ...(filters.missingCoordinates ? { OR: [{ latitude: null }, { longitude: null }] } : {}),
     ...(filters.q

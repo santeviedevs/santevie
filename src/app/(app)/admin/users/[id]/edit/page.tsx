@@ -43,10 +43,7 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
           email: user.email,
           roleId: user.role.id,
           managerId: user.manager?.id ?? null,
-          provinceId: user.province?.id ?? null,
-          villeId: user.ville?.id ?? null,
-          communeId: user.commune?.id ?? null,
-          quartierId: user.quartier?.id ?? null,
+          territoryId: user.territory?.id ?? null,
           status: user.status,
         }}
       />

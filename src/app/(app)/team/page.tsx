@@ -10,15 +10,10 @@ import {
 import { getServerDictionary } from "@/lib/i18n/server";
 import { userFiltersSchema } from "@/lib/schemas/user";
 import { requireAnyPermission } from "@/server/auth/require-permission";
-import {
-  listActiveCommunes,
-  listActiveProvinces,
-  listActiveQuartiers,
-  listActiveVilles,
-} from "@/server/repositories/territory-repository";
 import { listRoleOptions, listUsersByRoleIds } from "@/server/repositories/user-repository";
 import { getDownstreamUserIds } from "@/server/scope";
 import { listTerritoryAssignments } from "@/server/services/territory-assignment-service";
+import { listActiveTerritoryOptions } from "@/server/services/territory-service";
 import { listUsers } from "@/server/services/user-service";
 
 import { TeamFilters } from "./team-filters";
@@ -51,27 +46,20 @@ export default async function TeamPage({ searchParams }: TeamPageProps) {
     q: firstValue(params.q),
     roleId: firstValue(params.roleId),
     managerId: firstValue(params.managerId),
-    provinceId: firstValue(params.provinceId),
-    villeId: firstValue(params.villeId),
-    communeId: firstValue(params.communeId),
-    quartierId: firstValue(params.quartierId),
+    territoryId: firstValue(params.territoryId),
     status: firstValue(params.status),
   });
 
   const downstream = await getDownstreamUserIds(session.user.id);
   const scope = { kind: "ids", userIds: downstream } as const;
 
-  const [members, allDownstream, roles, provinces, villes, communes, quartiers, dict] =
-    await Promise.all([
-      listUsers(filters, scope),
-      listUsers({}, scope),
-      listRoleOptions(),
-      listActiveProvinces(),
-      listActiveVilles(),
-      listActiveCommunes(),
-      listActiveQuartiers(),
-      getServerDictionary(),
-    ]);
+  const [members, allDownstream, roles, territories, dict] = await Promise.all([
+    listUsers(filters, scope),
+    listUsers({}, scope),
+    listRoleOptions(),
+    listActiveTerritoryOptions(),
+    getServerDictionary(),
+  ]);
   const t = dict.teamPage;
 
   // Reports-To's options depend on whether a Role is selected:
@@ -128,10 +116,7 @@ export default async function TeamPage({ searchParams }: TeamPageProps) {
       <TeamFilters
         roles={roles}
         managers={managerOptions}
-        provinces={provinces}
-        villes={villes}
-        communes={communes}
-        quartiers={quartiers}
+        territories={territories}
         filters={filters}
         dict={dict.filters}
         territoryDict={dict.territory}
@@ -167,7 +152,7 @@ export default async function TeamPage({ searchParams }: TeamPageProps) {
                     ) : (
                       assignmentsByMember[index]!.map((assignment) => (
                         <Badge key={assignment.id} variant="secondary">
-                          {assignment.name}
+                          {assignment.code}
                         </Badge>
                       ))
                     )}

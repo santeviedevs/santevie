@@ -12,10 +12,10 @@ vi.mock("@/server/repositories/territory-assignment-repository", () => ({
   listAssignmentsForUser,
 }));
 
-const findTerritoryEntryById = vi.fn();
+const findTerritoryById = vi.fn();
 
 vi.mock("@/server/repositories/territory-repository", () => ({
-  findTerritoryEntryById,
+  findTerritoryById,
 }));
 
 const {
@@ -30,65 +30,55 @@ const {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  findTerritoryEntryById.mockResolvedValue({
-    level: "quartier",
-    row: { id: "quartier-1", status: "ACTIVE" },
-  });
+  findTerritoryById.mockResolvedValue({ id: "territory-1", status: "ACTIVE" });
 });
 
 describe("assignTerritory", () => {
-  it("assigns the deepest level given, ignoring the ancestor ids carried alongside it", async () => {
+  it("assigns the given territory to the user", async () => {
     createAssignment.mockResolvedValueOnce({
       id: "assignment-1",
-      province: null,
-      ville: null,
-      commune: null,
-      quartier: { id: "quartier-1", name: "Bongondo" },
+      territory: {
+        id: "territory-1",
+        code: "TER-00001",
+        province: { id: "p1", name: "Équateur" },
+        ville: null,
+        commune: null,
+        quartier: { id: "q1", name: "Bongondo" },
+      },
     });
 
     const result = await assignTerritory(
-      {
-        userId: "user-1",
-        provinceId: "province-1",
-        villeId: "ville-1",
-        communeId: "commune-1",
-        quartierId: "quartier-1",
-      },
+      { userId: "user-1", territoryId: "territory-1" },
       "actor-1",
     );
 
-    expect(result).toMatchObject({ level: "quartier", name: "Bongondo" });
+    expect(result).toMatchObject({
+      id: "assignment-1",
+      code: "TER-00001",
+      label: "Équateur › Bongondo",
+    });
     expect(createAssignment).toHaveBeenCalledWith(
       expect.objectContaining({
         user: { connect: { id: "user-1" } },
-        quartier: { connect: { id: "quartier-1" } },
+        territory: { connect: { id: "territory-1" } },
       }),
-    );
-    // Only the deepest level is ever persisted — see the model comment in
-    // schema.prisma for why storing every ancestor would break the
-    // per-level unique constraints.
-    expect(createAssignment).not.toHaveBeenCalledWith(
-      expect.objectContaining({ province: expect.anything() }),
     );
   });
 
   it("rejects assigning an inactive territory", async () => {
-    findTerritoryEntryById.mockResolvedValueOnce({
-      level: "quartier",
-      row: { id: "quartier-1", status: "INACTIVE" },
-    });
+    findTerritoryById.mockResolvedValueOnce({ id: "territory-1", status: "INACTIVE" });
 
     await expect(
-      assignTerritory({ userId: "user-1", quartierId: "quartier-1" }, "actor-1"),
+      assignTerritory({ userId: "user-1", territoryId: "territory-1" }, "actor-1"),
     ).rejects.toThrow(InactiveTerritoryError);
     expect(createAssignment).not.toHaveBeenCalled();
   });
 
   it("rejects when the target territory no longer exists", async () => {
-    findTerritoryEntryById.mockResolvedValueOnce(null);
+    findTerritoryById.mockResolvedValueOnce(null);
 
     await expect(
-      assignTerritory({ userId: "user-1", quartierId: "missing" }, "actor-1"),
+      assignTerritory({ userId: "user-1", territoryId: "missing" }, "actor-1"),
     ).rejects.toThrow(TerritoryNotFoundError);
   });
 
@@ -96,7 +86,7 @@ describe("assignTerritory", () => {
     createAssignment.mockRejectedValueOnce({ code: "P2002" });
 
     await expect(
-      assignTerritory({ userId: "user-1", quartierId: "quartier-1" }, "actor-1"),
+      assignTerritory({ userId: "user-1", territoryId: "territory-1" }, "actor-1"),
     ).rejects.toThrow(DuplicateAssignmentError);
   });
 
@@ -104,7 +94,7 @@ describe("assignTerritory", () => {
     createAssignment.mockRejectedValueOnce(new Error("connection lost"));
 
     await expect(
-      assignTerritory({ userId: "user-1", quartierId: "quartier-1" }, "actor-1"),
+      assignTerritory({ userId: "user-1", territoryId: "territory-1" }, "actor-1"),
     ).rejects.toThrow("connection lost");
   });
 });
@@ -127,29 +117,42 @@ describe("removeTerritoryAssignment", () => {
 });
 
 describe("listTerritoryAssignments", () => {
-  it("maps each row to its level and name", async () => {
+  it("maps each row to its territory code and path label", async () => {
     listAssignmentsForUser.mockResolvedValueOnce([
       {
         id: "a1",
-        province: { id: "p1", name: "Équateur" },
-        ville: null,
-        commune: null,
-        quartier: null,
+        territory: {
+          id: "t1",
+          code: "TER-00001",
+          province: { id: "p1", name: "Équateur" },
+          ville: null,
+          commune: null,
+          quartier: null,
+        },
       },
       {
         id: "a2",
-        province: null,
-        ville: null,
-        commune: null,
-        quartier: { id: "q1", name: "Bongondo" },
+        territory: {
+          id: "t2",
+          code: "TER-00002",
+          province: { id: "p1", name: "Équateur" },
+          ville: { id: "v1", name: "Mbandaka" },
+          commune: { id: "c1", name: "Wangata" },
+          quartier: { id: "q1", name: "Bongondo" },
+        },
       },
     ]);
 
     const result = await listTerritoryAssignments("user-1");
 
     expect(result).toEqual([
-      { id: "a1", level: "province", name: "Équateur" },
-      { id: "a2", level: "quartier", name: "Bongondo" },
+      { id: "a1", territoryId: "t1", code: "TER-00001", label: "Équateur" },
+      {
+        id: "a2",
+        territoryId: "t2",
+        code: "TER-00002",
+        label: "Équateur › Mbandaka › Wangata › Bongondo",
+      },
     ]);
   });
 });

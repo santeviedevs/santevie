@@ -41,11 +41,6 @@ function messageFor(error: unknown): string {
   throw error;
 }
 
-function readId(formData: FormData, key: string): string | null {
-  const value = formData.get(key);
-  return typeof value === "string" && value.length > 0 ? value : null;
-}
-
 export async function assignTerritoryAction(
   _prevState: AssignmentFormState,
   formData: FormData,
@@ -55,10 +50,7 @@ export async function assignTerritoryAction(
 
   const parsed = assignTerritorySchema.safeParse({
     userId: formData.get("userId"),
-    provinceId: readId(formData, "provinceId"),
-    villeId: readId(formData, "villeId"),
-    communeId: readId(formData, "communeId"),
-    quartierId: readId(formData, "quartierId"),
+    territoryId: formData.get("territoryId"),
   });
 
   if (!parsed.success) {
