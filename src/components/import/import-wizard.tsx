@@ -178,7 +178,12 @@ export function ImportWizard({ entity, backHref, dict }: ImportWizardProps) {
       const formData = new FormData();
       formData.set("mode", "preview");
       formData.set("file", file);
-      const response = await uploadForm(apiUrl, formData, handleUploadProgress, handleServerProgress);
+      const response = await uploadForm(
+        apiUrl,
+        formData,
+        handleUploadProgress,
+        handleServerProgress,
+      );
       if (!response.ok) {
         const body = response.body as { error?: string } | null;
         setError(body?.error ?? dict.genericError);
@@ -206,7 +211,12 @@ export function ImportWizard({ entity, backHref, dict }: ImportWizardProps) {
       const formData = new FormData();
       formData.set("mode", "commit");
       formData.set("file", file);
-      const response = await uploadForm(apiUrl, formData, handleUploadProgress, handleServerProgress);
+      const response = await uploadForm(
+        apiUrl,
+        formData,
+        handleUploadProgress,
+        handleServerProgress,
+      );
       if (!response.ok) {
         const body = response.body as { error?: string } | null;
         setError(body?.error ?? dict.genericError);
