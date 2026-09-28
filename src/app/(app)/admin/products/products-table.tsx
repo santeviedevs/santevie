@@ -72,6 +72,7 @@ export function ProductsTable({
               <TableHead>{dict.columnCategory}</TableHead>
               <TableHead>{dict.columnGrossPrice}</TableHead>
               <TableHead>{dict.columnNetPrice}</TableHead>
+              <TableHead>{dict.columnQuantityPerCarton}</TableHead>
               <TableHead>{dict.columnStatus}</TableHead>
               <TableHead />
             </TableRow>
@@ -84,6 +85,7 @@ export function ProductsTable({
                 <TableCell>{product.category?.name ?? "—"}</TableCell>
                 <TableCell>{price(product.grossPrice)}</TableCell>
                 <TableCell>{price(product.netPrice)}</TableCell>
+                <TableCell>{product.quantityPerCarton}</TableCell>
                 <TableCell>
                   <Badge variant={product.status === "ACTIVE" ? "default" : "secondary"}>
                     {product.status === "ACTIVE" ? dict.statusActive : dict.statusInactive}
@@ -102,7 +104,7 @@ export function ProductsTable({
             ))}
             {products.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground">
+                <TableCell colSpan={8} className="text-center text-muted-foreground">
                   {dict.noResults}
                 </TableCell>
               </TableRow>

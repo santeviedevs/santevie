@@ -49,6 +49,7 @@ function readCommon(formData: FormData) {
     categoryId: readId(formData, "categoryId"),
     grossPrice: readNumber(formData, "grossPrice"),
     netPrice: readNumber(formData, "netPrice"),
+    quantityPerCarton: readNumber(formData, "quantityPerCarton"),
   };
 }
 

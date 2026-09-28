@@ -439,7 +439,9 @@ model Product {
   name       String
   grossPrice Decimal @db.Decimal(12, 2)
   netPrice   Decimal @db.Decimal(12, 2)
-  status     Status  @default(ACTIVE)
+  // Units per carton for bulk ordering/logistics — not used in pricing math.
+  quantityPerCarton Int    @default(1)
+  status            Status @default(ACTIVE)
 
   categoryId String?
   category   ProductCategory? @relation(fields: [categoryId], references: [id])

@@ -40,6 +40,7 @@ export type ProductSummary = {
   name: string;
   grossPrice: number;
   netPrice: number;
+  quantityPerCarton: number;
   status: "ACTIVE" | "INACTIVE";
   category: { id: string; code: string; name: string } | null;
 };
@@ -51,6 +52,7 @@ function toSummary(product: ProductWithCategory): ProductSummary {
     name: product.name,
     grossPrice: Number(product.grossPrice),
     netPrice: Number(product.netPrice),
+    quantityPerCarton: product.quantityPerCarton,
     status: product.status,
     category: product.category,
   };
@@ -81,6 +83,7 @@ export async function createProduct(
       name: input.name,
       grossPrice: input.grossPrice,
       netPrice: input.netPrice,
+      quantityPerCarton: input.quantityPerCarton,
       status: "ACTIVE",
       category: input.categoryId ? { connect: { id: input.categoryId } } : undefined,
       createdBy: actorId,
@@ -118,6 +121,7 @@ export async function updateProduct(
       name: input.name,
       grossPrice: input.grossPrice,
       netPrice: input.netPrice,
+      quantityPerCarton: input.quantityPerCarton,
       category: input.categoryId ? { connect: { id: input.categoryId } } : { disconnect: true },
       ...(input.status ? { status: input.status } : {}),
       updatedBy: actorId,

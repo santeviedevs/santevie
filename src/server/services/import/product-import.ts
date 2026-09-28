@@ -14,6 +14,7 @@ export const PRODUCT_IMPORT_COLUMNS = [
   "category",
   "grossPrice",
   "netPrice",
+  "quantityPerCarton",
 ] as const;
 
 type ResolvedProductInput = {
@@ -22,6 +23,7 @@ type ResolvedProductInput = {
   categoryId: string | null;
   grossPrice: number;
   netPrice: number;
+  quantityPerCarton: number;
 };
 
 function toNumber(value: string): number | null {
@@ -44,6 +46,9 @@ async function resolveRow(
   const categoryCode = (row.category ?? "").trim();
   const grossPrice = toNumber(row.grossPrice ?? "");
   const netPrice = toNumber(row.netPrice ?? "");
+  // Defaults to 1 when the column is blank, matching the schema default for
+  // rows created outside import.
+  const quantityPerCarton = toNumber(row.quantityPerCarton ?? "") ?? 1;
 
   let categoryId: string | null = null;
   if (categoryCode) {
@@ -60,6 +65,7 @@ async function resolveRow(
     categoryId,
     grossPrice: grossPrice ?? 0,
     netPrice: netPrice ?? 0,
+    quantityPerCarton,
   };
   const schema = existing ? updateProductSchema : createProductSchema;
   const parsed = schema.safeParse(existing ? { ...candidate, id: existing.id } : candidate);
@@ -75,6 +81,7 @@ async function resolveRow(
     categoryId,
     grossPrice: grossPrice!,
     netPrice: netPrice!,
+    quantityPerCarton,
   };
   return existing
     ? { row: rowNumber, action: "update", id: existing.id, data }
@@ -120,6 +127,7 @@ export async function commitProductImport(
           categoryId: outcome.data.categoryId,
           grossPrice: outcome.data.grossPrice,
           netPrice: outcome.data.netPrice,
+          quantityPerCarton: outcome.data.quantityPerCarton,
         },
         actorId,
       );
@@ -133,6 +141,7 @@ export async function commitProductImport(
           categoryId: outcome.data.categoryId,
           grossPrice: outcome.data.grossPrice,
           netPrice: outcome.data.netPrice,
+          quantityPerCarton: outcome.data.quantityPerCarton,
         },
         actorId,
       );

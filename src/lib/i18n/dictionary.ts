@@ -290,6 +290,7 @@ export type Dictionary = {
     columnCategory: string;
     columnGrossPrice: string;
     columnNetPrice: string;
+    columnQuantityPerCarton: string;
     columnStatus: string;
     edit: string;
     noResults: string;
@@ -317,12 +318,14 @@ export type Dictionary = {
     name: string;
     category: string;
     noCategory: string;
+    quantityPerCarton: string;
     grossPrice: string;
     netPrice: string;
     // A convenience-only calculator, not a stored field — see the
     // comment in product-form.tsx.
     discountPercentHelper: string;
     discountPercentPlaceholder: string;
+    discountPercentMaxError: string;
     cdfPreviewLabel: string;
     activate: string;
     activeDescription: string;
@@ -617,6 +620,7 @@ const en: Dictionary = {
     columnCategory: "Category",
     columnGrossPrice: "Gross price",
     columnNetPrice: "Net price",
+    columnQuantityPerCarton: "Qty/carton",
     columnStatus: "Status",
     edit: "Edit",
     noResults: "No products match these filters.",
@@ -644,10 +648,12 @@ const en: Dictionary = {
     name: "Name",
     category: "Category",
     noCategory: "No category",
+    quantityPerCarton: "Quantity per carton",
     grossPrice: "Gross price (USD)",
     netPrice: "Net price (USD)",
     discountPercentHelper: "Discount % (optional)",
     discountPercentPlaceholder: "e.g. 10",
+    discountPercentMaxError: "Can't enter discount more than 10%.",
     cdfPreviewLabel: "≈",
     activate: "Activate",
     activeDescription: "Selectable for new orders.",
@@ -935,6 +941,7 @@ const fr: Dictionary = {
     columnCategory: "Catégorie",
     columnGrossPrice: "Prix brut",
     columnNetPrice: "Prix net",
+    columnQuantityPerCarton: "Qté/carton",
     columnStatus: "Statut",
     edit: "Modifier",
     noResults: "Aucun produit ne correspond à ces filtres.",
@@ -962,10 +969,12 @@ const fr: Dictionary = {
     name: "Nom",
     category: "Catégorie",
     noCategory: "Aucune catégorie",
+    quantityPerCarton: "Quantité par carton",
     grossPrice: "Prix brut (USD)",
     netPrice: "Prix net (USD)",
     discountPercentHelper: "Remise % (facultatif)",
     discountPercentPlaceholder: "ex. 10",
+    discountPercentMaxError: "Impossible de saisir une remise supérieure à 10 %.",
     cdfPreviewLabel: "≈",
     activate: "Activer",
     activeDescription: "Sélectionnable pour de nouvelles commandes.",

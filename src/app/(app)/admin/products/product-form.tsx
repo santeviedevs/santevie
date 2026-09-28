@@ -57,6 +57,7 @@ export function ProductForm({
   // field — nothing here is enforced server-side (see product.ts: gross
   // and net are stored exactly as entered, never derived from a formula).
   const [discountPercent, setDiscountPercent] = useState("");
+  const [discountPercentError, setDiscountPercentError] = useState<string | null>(null);
 
   const schema = mode === "create" ? createProductSchema : updateProductSchema;
   const {
@@ -78,6 +79,13 @@ export function ProductForm({
   function applyDiscountPercent(percentText: string) {
     setDiscountPercent(percentText);
     const percent = Number(percentText);
+
+    if (Number.isFinite(percent) && percent > 10) {
+      setDiscountPercentError(dict.discountPercentMaxError);
+    } else {
+      setDiscountPercentError(null);
+    }
+
     if (!Number.isFinite(percent) || typeof grossPrice !== "number") return;
     const computed = Math.round(grossPrice * (1 - percent / 100) * 1000) / 1000;
     setValue("netPrice", computed, { shouldValidate: true });
@@ -93,6 +101,7 @@ export function ProductForm({
       if (values.categoryId) formData.set("categoryId", values.categoryId);
       formData.set("grossPrice", String(values.grossPrice));
       formData.set("netPrice", String(values.netPrice));
+      formData.set("quantityPerCarton", String(values.quantityPerCarton));
       if (mode === "edit" && "status" in values && values.status) {
         formData.set("status", values.status);
       }
@@ -156,6 +165,21 @@ export function ProductForm({
       </div>
 
       <div className="flex flex-col gap-2">
+        <Label htmlFor="quantityPerCarton">{dict.quantityPerCarton}</Label>
+        <Input
+          id="quantityPerCarton"
+          type="number"
+          step="1"
+          min="1"
+          disabled={isPending}
+          {...register("quantityPerCarton", { valueAsNumber: true })}
+        />
+        {errors.quantityPerCarton ? (
+          <p className="text-sm text-destructive">{errors.quantityPerCarton.message}</p>
+        ) : null}
+      </div>
+
+      <div className="flex flex-col gap-2">
         <Label htmlFor="grossPrice">{dict.grossPrice}</Label>
         <Input
           id="grossPrice"
@@ -183,6 +207,9 @@ export function ProductForm({
           onChange={(event) => applyDiscountPercent(event.target.value)}
           placeholder={dict.discountPercentPlaceholder}
         />
+        {discountPercentError ? (
+          <p className="text-sm text-destructive">{discountPercentError}</p>
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-2">

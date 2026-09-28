@@ -27,6 +27,7 @@ const baseProductRow = (overrides: Record<string, unknown> = {}) => ({
   name: "Test Product",
   grossPrice: 3.334,
   netPrice: 3.0,
+  quantityPerCarton: 1,
   status: "ACTIVE",
   category: null,
   ...overrides,
@@ -38,6 +39,7 @@ const baseInput = {
   categoryId: null as string | null,
   grossPrice: 10,
   netPrice: 9,
+  quantityPerCarton: 1,
 };
 
 beforeEach(() => {
@@ -79,6 +81,7 @@ describe("updateProduct", () => {
         categoryId: null,
         grossPrice: 12,
         netPrice: 11,
+        quantityPerCarton: 1,
       },
       "actor-1",
     );
@@ -100,6 +103,7 @@ describe("updateProduct", () => {
         categoryId: null,
         grossPrice: 3.334,
         netPrice: 3.0,
+        quantityPerCarton: 1,
       },
       "actor-1",
     );
