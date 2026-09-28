@@ -1,5 +1,7 @@
+import type { PagedResult } from "@/lib/pagination";
 import type { CreateProductInput, ProductFilters, UpdateProductInput } from "@/lib/schemas/product";
 import {
+  countProducts,
   createPriceHistoryEntry,
   createProduct as createProductRow,
   findProductById,
@@ -54,9 +56,9 @@ function toSummary(product: ProductWithCategory): ProductSummary {
   };
 }
 
-export async function listProducts(filters: ProductFilters): Promise<ProductSummary[]> {
-  const products = await findProducts(filters);
-  return products.map(toSummary);
+export async function listProducts(filters: ProductFilters): Promise<PagedResult<ProductSummary>> {
+  const [products, total] = await Promise.all([findProducts(filters), countProducts(filters)]);
+  return { items: products.map(toSummary), total, page: filters.page, pageSize: filters.pageSize };
 }
 
 export async function getProduct(id: string): Promise<ProductSummary | null> {

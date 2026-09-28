@@ -1,9 +1,12 @@
 import { randomUUID } from "node:crypto";
 
+import type { PagedResult } from "@/lib/pagination";
 import type { CreateUserInput, UpdateUserInput, UserFilters } from "@/lib/schemas/user";
 import { hashPassword } from "@/server/auth/password";
 import {
+  countUsers,
   createUser as createUserRow,
+  findAllUsersInScope,
   findManagerLinks,
   findUserById,
   findUsers,
@@ -83,8 +86,23 @@ function toSummary(user: UserWithRelations): UserSummary {
   };
 }
 
-export async function listUsers(filters: UserFilters, scope: Scope): Promise<UserSummary[]> {
-  const users = await findUsers(filters, scopeUserIds(scope));
+export async function listUsers(
+  filters: UserFilters,
+  scope: Scope,
+): Promise<PagedResult<UserSummary>> {
+  const scopedIds = scopeUserIds(scope);
+  const [users, total] = await Promise.all([
+    findUsers(filters, scopedIds),
+    countUsers(filters, scopedIds),
+  ]);
+  return { items: users.map(toSummary), total, page: filters.page, pageSize: filters.pageSize };
+}
+
+// Every user in scope, unpaginated — for deriving filter-dropdown options
+// (Team's Reports-To list) from the complete downstream set rather than
+// just whatever page is currently displayed.
+export async function listAllUsersInScope(scope: Scope): Promise<UserSummary[]> {
+  const users = await findAllUsersInScope(scopeUserIds(scope));
   return users.map(toSummary);
 }
 

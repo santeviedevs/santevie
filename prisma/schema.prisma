@@ -118,6 +118,9 @@ model User {
   updatedBy String?
   updatedAt DateTime @updatedAt
 
+  @@index([territoryId, status])
+  @@index([roleId, status])
+  @@index([managerId])
   @@map("users")
 }
 
@@ -242,6 +245,9 @@ model Territory {
   updatedBy String?
   updatedAt DateTime @updatedAt
 
+  @@index([provinceId, status])
+  @@index([villeId])
+  @@index([communeId])
   @@map("territories")
 }
 
@@ -328,6 +334,8 @@ model Client {
   updatedBy String?
   updatedAt DateTime @updatedAt
 
+  @@index([territoryId, status])
+  @@index([typeId, status])
   @@map("clients")
 }
 
@@ -445,6 +453,7 @@ model Product {
   updatedBy String?
   updatedAt DateTime @updatedAt
 
+  @@index([categoryId, status])
   @@map("products")
 }
 

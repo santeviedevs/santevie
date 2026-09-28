@@ -1,3 +1,4 @@
+import { toSkipTake } from "@/lib/pagination";
 import type { ClientFilters } from "@/lib/schemas/client";
 import { prisma } from "@/server/db";
 
@@ -51,7 +52,12 @@ export function findClients(filters: ClientFilters): Promise<ClientWithRelations
     where: buildWhere(filters),
     include: listInclude,
     orderBy: { name: "asc" },
+    ...toSkipTake(filters),
   });
+}
+
+export function countClients(filters: ClientFilters): Promise<number> {
+  return prisma.client.count({ where: buildWhere(filters) });
 }
 
 export function findClientById(id: string): Promise<ClientWithRelations | null> {

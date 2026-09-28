@@ -1,7 +1,9 @@
 import Link from "next/link";
 
+import { PaginationControls } from "@/components/pagination-controls";
 import { Button } from "@/components/ui/button";
 import { getServerDictionary } from "@/lib/i18n/server";
+import { totalPages } from "@/lib/pagination";
 import { productFiltersSchema } from "@/lib/schemas/product";
 import { requirePermission } from "@/server/auth/require-permission";
 import { getCurrentExchangeRate } from "@/server/services/exchange-rate-service";
@@ -32,9 +34,11 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     categoryId: firstValue(params.categoryId),
     status: firstValue(params.status),
     sort: firstValue(params.sort),
+    page: firstValue(params.page),
+    pageSize: firstValue(params.pageSize),
   });
 
-  const [products, categories, currentRate, dict] = await Promise.all([
+  const [{ items: products, total }, categories, currentRate, dict] = await Promise.all([
     listProducts(filters),
     listProductCategories(),
     getCurrentExchangeRate(),
@@ -60,6 +64,19 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       <ProductFilters categories={categories} filters={filters} dict={dict.productFilters} />
 
       <ProductsTable products={products} currentRate={currentRate?.rate ?? null} dict={t} />
+
+      <PaginationControls
+        page={filters.page}
+        pageSize={filters.pageSize}
+        total={total}
+        previousLabel={dict.pagination.previous}
+        nextLabel={dict.pagination.next}
+        pageInfoLabel={dict.pagination.pageInfo(
+          filters.page,
+          totalPages(total, filters.pageSize),
+          total,
+        )}
+      />
     </div>
   );
 }

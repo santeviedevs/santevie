@@ -1,3 +1,4 @@
+import type { PagedResult } from "@/lib/pagination";
 import type {
   AncestorLevelInput,
   CreateTerritoryInput,
@@ -5,6 +6,7 @@ import type {
   UpdateTerritoryInput,
 } from "@/lib/schemas/territory";
 import {
+  countFilteredTerritories,
   countTerritories,
   countTerritoryDependents,
   createCommune as createCommuneRow,
@@ -123,9 +125,14 @@ function toSummary(row: TerritoryRow): TerritorySummary {
   };
 }
 
-export async function listTerritories(filters: TerritoryFilters): Promise<TerritorySummary[]> {
-  const rows = await findTerritories(filters);
-  return rows.map(toSummary);
+export async function listTerritories(
+  filters: TerritoryFilters,
+): Promise<PagedResult<TerritorySummary>> {
+  const [rows, total] = await Promise.all([
+    findTerritories(filters),
+    countFilteredTerritories(filters),
+  ]);
+  return { items: rows.map(toSummary), total, page: filters.page, pageSize: filters.pageSize };
 }
 
 export async function getTerritory(id: string): Promise<TerritorySummary | null> {

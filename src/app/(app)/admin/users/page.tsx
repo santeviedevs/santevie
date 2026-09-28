@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { PaginationControls } from "@/components/pagination-controls";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getServerDictionary } from "@/lib/i18n/server";
+import { totalPages } from "@/lib/pagination";
 import { userFiltersSchema } from "@/lib/schemas/user";
 import { requirePermission } from "@/server/auth/require-permission";
 import { listRoleOptions } from "@/server/repositories/user-repository";
@@ -50,10 +52,12 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
     roleId: firstValue(params.roleId),
     territoryId: firstValue(params.territoryId),
     status: firstValue(params.status),
+    page: firstValue(params.page),
+    pageSize: firstValue(params.pageSize),
   });
 
   const scope = await getUserScope(session);
-  const [users, roles, territories, dict] = await Promise.all([
+  const [{ items: users, total }, roles, territories, dict] = await Promise.all([
     listUsers(filters, scope),
     listRoleOptions(),
     listActiveTerritoryOptions(),
@@ -125,6 +129,19 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
           </TableBody>
         </Table>
       </div>
+
+      <PaginationControls
+        page={filters.page}
+        pageSize={filters.pageSize}
+        total={total}
+        previousLabel={dict.pagination.previous}
+        nextLabel={dict.pagination.next}
+        pageInfoLabel={dict.pagination.pageInfo(
+          filters.page,
+          totalPages(total, filters.pageSize),
+          total,
+        )}
+      />
     </div>
   );
 }

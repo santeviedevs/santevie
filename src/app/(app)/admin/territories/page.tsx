@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { PaginationControls } from "@/components/pagination-controls";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getServerDictionary } from "@/lib/i18n/server";
+import { totalPages } from "@/lib/pagination";
 import { territoryFiltersSchema } from "@/lib/schemas/territory";
 import { requirePermission } from "@/server/auth/require-permission";
 import {
@@ -52,9 +54,11 @@ export default async function TerritoriesPage({ searchParams }: TerritoriesPageP
     villeId: firstValue(params.villeId),
     communeId: firstValue(params.communeId),
     status: firstValue(params.status),
+    page: firstValue(params.page),
+    pageSize: firstValue(params.pageSize),
   });
 
-  const [territories, provinces, villes, communes, dict] = await Promise.all([
+  const [{ items: territories, total }, provinces, villes, communes, dict] = await Promise.all([
     listTerritories(filters),
     listActiveProvinces(),
     listActiveVilles(),
@@ -131,6 +135,19 @@ export default async function TerritoriesPage({ searchParams }: TerritoriesPageP
           </TableBody>
         </Table>
       </div>
+
+      <PaginationControls
+        page={filters.page}
+        pageSize={filters.pageSize}
+        total={total}
+        previousLabel={dict.pagination.previous}
+        nextLabel={dict.pagination.next}
+        pageInfoLabel={dict.pagination.pageInfo(
+          filters.page,
+          totalPages(total, filters.pageSize),
+          total,
+        )}
+      />
     </div>
   );
 }

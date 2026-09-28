@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { PaginationControls } from "@/components/pagination-controls";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getServerDictionary } from "@/lib/i18n/server";
+import { totalPages } from "@/lib/pagination";
 import { clientFiltersSchema } from "@/lib/schemas/client";
 import { requirePermission } from "@/server/auth/require-permission";
 import { listClientTypes } from "@/server/repositories/client-repository";
@@ -42,9 +44,11 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
     territoryId: firstValue(params.territoryId),
     status: firstValue(params.status),
     missingCoordinates: firstValue(params.missingCoordinates),
+    page: firstValue(params.page),
+    pageSize: firstValue(params.pageSize),
   });
 
-  const [clients, types, territories, dict] = await Promise.all([
+  const [{ items: clients, total }, types, territories, dict] = await Promise.all([
     listClients(filters),
     listClientTypes(),
     listActiveTerritoryOptions(),
@@ -132,6 +136,19 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
           </TableBody>
         </Table>
       </div>
+
+      <PaginationControls
+        page={filters.page}
+        pageSize={filters.pageSize}
+        total={total}
+        previousLabel={dict.pagination.previous}
+        nextLabel={dict.pagination.next}
+        pageInfoLabel={dict.pagination.pageInfo(
+          filters.page,
+          totalPages(total, filters.pageSize),
+          total,
+        )}
+      />
     </div>
   );
 }

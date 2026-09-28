@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { paginationParamsSchema } from "@/lib/pagination";
+
 // cuid — matches the id format Prisma generates for Province/Ville/Commune/
 // Quartier/Territory.
 const id = z.string().min(1);
@@ -62,11 +64,13 @@ export type UpdateTerritoryInput = z.infer<typeof updateTerritorySchema>;
 
 // The Territories list filter bar: search by code or any level's name,
 // narrow by ancestry, and status.
-export const territoryFiltersSchema = z.object({
-  q: z.string().trim().optional(),
-  status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
-  provinceId: z.string().optional(),
-  villeId: z.string().optional(),
-  communeId: z.string().optional(),
-});
+export const territoryFiltersSchema = z
+  .object({
+    q: z.string().trim().optional(),
+    status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+    provinceId: z.string().optional(),
+    villeId: z.string().optional(),
+    communeId: z.string().optional(),
+  })
+  .merge(paginationParamsSchema);
 export type TerritoryFilters = z.infer<typeof territoryFiltersSchema>;
