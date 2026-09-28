@@ -16,6 +16,7 @@ const listActiveTerritories = vi.fn();
 const updateTerritoryRow = vi.fn();
 const countTerritories = vi.fn();
 const countTerritoryDependents = vi.fn();
+const countFilteredTerritories = vi.fn();
 
 vi.mock("@/server/repositories/territory-repository", () => ({
   createCommune,
@@ -34,6 +35,7 @@ vi.mock("@/server/repositories/territory-repository", () => ({
   updateTerritoryRow,
   countTerritories,
   countTerritoryDependents,
+  countFilteredTerritories,
 }));
 
 const {
@@ -289,20 +291,26 @@ describe("updateTerritoryEntry", () => {
 describe("listTerritories / getTerritory / listActiveTerritoryOptions", () => {
   it("maps territory rows to summaries", async () => {
     findTerritories.mockResolvedValueOnce([baseTerritoryRow()]);
+    countFilteredTerritories.mockResolvedValueOnce(1);
 
-    const result = await listTerritories({});
+    const result = await listTerritories({ page: 1, pageSize: 25 });
 
-    expect(result).toEqual([
-      {
-        id: "territory-1",
-        code: "TER-00001",
-        status: "ACTIVE",
-        province: { id: "province-1", name: "Équateur" },
-        ville: null,
-        commune: null,
-        quartier: null,
-      },
-    ]);
+    expect(result).toEqual({
+      items: [
+        {
+          id: "territory-1",
+          code: "TER-00001",
+          status: "ACTIVE",
+          province: { id: "province-1", name: "Équateur" },
+          ville: null,
+          commune: null,
+          quartier: null,
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 25,
+    });
   });
 
   it("returns null when a territory doesn't exist", async () => {

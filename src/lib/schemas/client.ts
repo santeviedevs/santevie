@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { paginationParamsSchema } from "@/lib/pagination";
+
 // cuid — matches the id format Prisma generates for ClientType/Client/
 // Doctor/Hospital/Province/Ville/Commune/Quartier.
 const id = z.string().min(1);
@@ -71,13 +73,15 @@ export const updateClientSchema = createClientSchema.extend({
 });
 export type UpdateClientInput = z.infer<typeof updateClientSchema>;
 
-export const clientFiltersSchema = z.object({
-  q: z.string().trim().optional(),
-  typeId: z.string().optional(),
-  territoryId: z.string().optional(),
-  status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
-  // "Missing coordinates" — surfaces the clients proximity validation can't
-  // work for yet (S2-02's "flag clients with no coordinates").
-  missingCoordinates: z.coerce.boolean().optional(),
-});
+export const clientFiltersSchema = z
+  .object({
+    q: z.string().trim().optional(),
+    typeId: z.string().optional(),
+    territoryId: z.string().optional(),
+    status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+    // "Missing coordinates" — surfaces the clients proximity validation can't
+    // work for yet (S2-02's "flag clients with no coordinates").
+    missingCoordinates: z.coerce.boolean().optional(),
+  })
+  .merge(paginationParamsSchema);
 export type ClientFilters = z.infer<typeof clientFiltersSchema>;

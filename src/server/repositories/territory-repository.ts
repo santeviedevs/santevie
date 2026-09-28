@@ -1,3 +1,4 @@
+import { toSkipTake } from "@/lib/pagination";
 import type { TerritoryFilters } from "@/lib/schemas/territory";
 import { prisma } from "@/server/db";
 
@@ -247,7 +248,16 @@ export function findTerritories(filters: TerritoryFilters): Promise<TerritoryRow
     where: buildTerritoryWhere(filters),
     include: territoryInclude,
     orderBy: { code: "asc" },
+    ...toSkipTake(filters),
   });
+}
+
+// Distinct from countTerritories() above, which counts every row
+// unconditionally to generate the next sequential code — this counts
+// against the same filters findTerritories uses, for the list screen's
+// pagination total.
+export function countFilteredTerritories(filters: TerritoryFilters): Promise<number> {
+  return prisma.territory.count({ where: buildTerritoryWhere(filters) });
 }
 
 // Active only — for the flat Territory picker used by User/Client forms

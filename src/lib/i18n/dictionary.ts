@@ -29,6 +29,12 @@ export type Dictionary = {
     signOut: string;
     languageToggleLabel: string;
   };
+  // Shared by every admin/team list screen's pagination controls.
+  pagination: {
+    previous: string;
+    next: string;
+    pageInfo: (page: number, totalPages: number, total: number) => string;
+  };
   loginPage: {
     title: string;
     email: string;
@@ -395,6 +401,11 @@ const en: Dictionary = {
     signOut: "Sign out",
     languageToggleLabel: "Language",
   },
+  pagination: {
+    previous: "Previous",
+    next: "Next",
+    pageInfo: (page, totalPages, total) => `Page ${page} of ${totalPages} (${total} total)`,
+  },
   loginPage: {
     title: "Sign in",
     email: "Email",
@@ -706,6 +717,11 @@ const fr: Dictionary = {
   header: {
     signOut: "Se déconnecter",
     languageToggleLabel: "Langue",
+  },
+  pagination: {
+    previous: "Précédent",
+    next: "Suivant",
+    pageInfo: (page, totalPages, total) => `Page ${page} sur ${totalPages} (${total} au total)`,
   },
   loginPage: {
     title: "Se connecter",

@@ -1,3 +1,4 @@
+import { toSkipTake } from "@/lib/pagination";
 import type { UserFilters } from "@/lib/schemas/user";
 import { prisma } from "@/server/db";
 
@@ -51,6 +52,26 @@ export function findUsers(
 ): Promise<UserWithRelations[]> {
   return prisma.user.findMany({
     where: { ...buildWhere(filters), ...(scopedIds ? { id: { in: scopedIds } } : {}) },
+    include: listInclude,
+    orderBy: { name: "asc" },
+    ...toSkipTake(filters),
+  });
+}
+
+export function countUsers(filters: UserFilters, scopedIds?: string[]): Promise<number> {
+  return prisma.user.count({
+    where: { ...buildWhere(filters), ...(scopedIds ? { id: { in: scopedIds } } : {}) },
+  });
+}
+
+// Every user in scope, unpaginated — used to derive filter-dropdown options
+// (Team's Reports-To list) from the *complete* downstream set, never just
+// the current page. Never used for a list screen's row data itself, so the
+// hard page-size ceiling doesn't apply here: this reads one manager's
+// downstream org, not an unbounded table scan.
+export function findAllUsersInScope(scopedIds?: string[]): Promise<UserWithRelations[]> {
+  return prisma.user.findMany({
+    where: scopedIds ? { id: { in: scopedIds } } : {},
     include: listInclude,
     orderBy: { name: "asc" },
   });

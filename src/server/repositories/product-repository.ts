@@ -1,3 +1,4 @@
+import { toSkipTake } from "@/lib/pagination";
 import type { ProductFilters } from "@/lib/schemas/product";
 import { prisma } from "@/server/db";
 
@@ -35,7 +36,12 @@ export function findProducts(filters: ProductFilters): Promise<ProductWithCatego
     where: buildWhere(filters),
     include: listInclude,
     orderBy: buildOrderBy(filters),
+    ...toSkipTake(filters),
   });
+}
+
+export function countProducts(filters: ProductFilters): Promise<number> {
+  return prisma.product.count({ where: buildWhere(filters) });
 }
 
 export function findProductById(id: string): Promise<ProductWithCategory | null> {

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { paginationParamsSchema } from "@/lib/pagination";
+
 // cuid — matches the id format Prisma generates for ProductCategory/Product.
 const id = z.string().min(1);
 
@@ -66,10 +68,12 @@ export type UpdateProductInput = z.infer<typeof updateProductSchema>;
 export const productSortSchema = z.enum(["priceAsc", "priceDesc"]);
 export type ProductSort = z.infer<typeof productSortSchema>;
 
-export const productFiltersSchema = z.object({
-  q: z.string().trim().optional(),
-  categoryId: z.string().optional(),
-  status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
-  sort: productSortSchema.optional(),
-});
+export const productFiltersSchema = z
+  .object({
+    q: z.string().trim().optional(),
+    categoryId: z.string().optional(),
+    status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+    sort: productSortSchema.optional(),
+  })
+  .merge(paginationParamsSchema);
 export type ProductFilters = z.infer<typeof productFiltersSchema>;

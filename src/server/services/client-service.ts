@@ -1,6 +1,8 @@
+import type { PagedResult } from "@/lib/pagination";
 import type { ClientFilters, CreateClientInput, UpdateClientInput } from "@/lib/schemas/client";
 import {
   type ClientWithRelations,
+  countClients,
   createClientWithExtension,
   findClientById,
   findClients,
@@ -125,9 +127,9 @@ function toSummary(client: ClientWithRelations): ClientSummary {
   };
 }
 
-export async function listClients(filters: ClientFilters): Promise<ClientSummary[]> {
-  const clients = await findClients(filters);
-  return clients.map(toSummary);
+export async function listClients(filters: ClientFilters): Promise<PagedResult<ClientSummary>> {
+  const [clients, total] = await Promise.all([findClients(filters), countClients(filters)]);
+  return { items: clients.map(toSummary), total, page: filters.page, pageSize: filters.pageSize };
 }
 
 export async function getClient(id: string): Promise<ClientSummary | null> {
