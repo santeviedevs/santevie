@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,18 +37,39 @@ export function UserFilters({
   const router = useRouter();
   const pathname = usePathname();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // The search input is uncontrolled (see the key on it below); reading its
-  // value straight from the DOM when a Select applies alongside a
-  // still-pending search edit avoids keeping a parallel value in sync —
-  // the input's remount (on an external URL change) already keeps this
-  // accurate for free.
+  // The search input is uncontrolled; reading its value straight from the
+  // DOM when a Select applies alongside a still-pending search edit avoids
+  // keeping a parallel value in sync.
   const inputRef = useRef<HTMLInputElement>(null);
+  // True for the one filters.q change this component's own debounce just
+  // caused — skipped so the sync effect below doesn't fight typing still in
+  // progress. Any other filters.q change (browser back/forward, another
+  // filter reading a stale value) still resyncs the field to match the URL.
+  const ownSearchUpdateRef = useRef(false);
+  // Captured once via useState's lazy initializer (a ref can't be read
+  // during render under this project's lint rules) — passed to Input's
+  // `defaultValue` below, which must never change after mount (React/Base UI
+  // only reads it at mount time; feeding it a new value on every re-render
+  // is what triggered the "changing the default value of an uncontrolled
+  // FieldControl" warning). Every update after mount goes through the sync
+  // effect instead, imperatively; the setter here is never called again.
+  const [initialQ] = useState(filters.q);
 
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (ownSearchUpdateRef.current) {
+      ownSearchUpdateRef.current = false;
+      return;
+    }
+    if (inputRef.current && inputRef.current.value !== (filters.q ?? "")) {
+      inputRef.current.value = filters.q ?? "";
+    }
+  }, [filters.q]);
 
   function applyFilters(next: Partial<Record<FilterKey, string | null>>) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -83,7 +104,10 @@ export function UserFilters({
     // Debounced so typing doesn't fire a navigation per keystroke — every
     // other field applies immediately since selecting one is a single,
     // deliberate action rather than a stream of them.
-    debounceRef.current = setTimeout(() => applyFilters({ q: value }), 400);
+    debounceRef.current = setTimeout(() => {
+      ownSearchUpdateRef.current = true;
+      applyFilters({ q: value });
+    }, 400);
   }
 
   function clearFilters() {
@@ -105,11 +129,7 @@ export function UserFilters({
         <Input
           id="q"
           ref={inputRef}
-          // Remounts (resetting the field to match the URL) whenever the
-          // URL's own q changes for a reason other than this input's own
-          // debounce — a browser back/forward, or Clear filters.
-          key={filters.q ?? ""}
-          defaultValue={filters.q}
+          defaultValue={initialQ}
           onChange={(event) => handleSearchChange(event.target.value)}
           placeholder={dict.searchPlaceholder}
         />
