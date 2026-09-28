@@ -67,10 +67,7 @@ function readCommon(formData: FormData) {
     address: readText(formData, "address"),
     latitude: readNumber(formData, "latitude"),
     longitude: readNumber(formData, "longitude"),
-    provinceId: readId(formData, "provinceId"),
-    villeId: readId(formData, "villeId"),
-    communeId: readId(formData, "communeId"),
-    quartierId: readId(formData, "quartierId"),
+    territoryId: readId(formData, "territoryId"),
     doctor:
       typeCode === "DOCTOR"
         ? {

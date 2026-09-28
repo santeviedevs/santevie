@@ -50,6 +50,9 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           <Button variant="outline" render={<Link href="/admin/exchange-rate" />}>
             {t.exchangeRate}
           </Button>
+          <Button variant="outline" render={<Link href="/admin/products/import" />}>
+            {t.importButton}
+          </Button>
           <Button render={<Link href="/admin/products/new" />}>{t.newProduct}</Button>
         </div>
       </div>

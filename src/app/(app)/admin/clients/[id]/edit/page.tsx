@@ -45,10 +45,7 @@ export default async function EditClientPage({ params }: EditClientPageProps) {
           address: client.address,
           latitude: client.latitude,
           longitude: client.longitude,
-          provinceId: client.province?.id ?? null,
-          villeId: client.ville?.id ?? null,
-          communeId: client.commune?.id ?? null,
-          quartierId: client.quartier?.id ?? null,
+          territoryId: client.territory?.id ?? null,
           status: client.status,
           doctor: client.doctor
             ? {

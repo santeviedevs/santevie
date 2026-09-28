@@ -3,12 +3,6 @@ import { randomUUID } from "node:crypto";
 import type { CreateUserInput, UpdateUserInput, UserFilters } from "@/lib/schemas/user";
 import { hashPassword } from "@/server/auth/password";
 import {
-  listActiveCommunes,
-  listActiveProvinces,
-  listActiveQuartiers,
-  listActiveVilles,
-} from "@/server/repositories/territory-repository";
-import {
   createUser as createUserRow,
   findManagerLinks,
   findUserById,
@@ -19,6 +13,7 @@ import {
   type UserWithRelations,
 } from "@/server/repositories/user-repository";
 import { type Scope, scopeUserIds } from "@/server/scope";
+import { listActiveTerritoryOptions } from "@/server/services/territory-service";
 
 export class DuplicateEmployeeCodeError extends Error {
   constructor() {
@@ -59,10 +54,14 @@ export type UserSummary = {
   status: "ACTIVE" | "INACTIVE";
   role: { id: string; name: string };
   manager: { id: string; name: string; role: { id: string; name: string } } | null;
-  province: { id: string; name: string } | null;
-  ville: { id: string; name: string } | null;
-  commune: { id: string; name: string } | null;
-  quartier: { id: string; name: string } | null;
+  territory: {
+    id: string;
+    code: string;
+    province: { id: string; name: string };
+    ville: { id: string; name: string } | null;
+    commune: { id: string; name: string } | null;
+    quartier: { id: string; name: string } | null;
+  } | null;
 };
 
 function toSummary(user: UserWithRelations): UserSummary {
@@ -80,10 +79,7 @@ function toSummary(user: UserWithRelations): UserSummary {
           role: { id: user.manager.role.id, name: user.manager.role.name },
         }
       : null,
-    province: user.province,
-    ville: user.ville,
-    commune: user.commune,
-    quartier: user.quartier,
+    territory: user.territory,
   };
 }
 
@@ -102,15 +98,12 @@ export async function getUser(id: string, scope: Scope): Promise<UserSummary | n
 }
 
 export async function getUserFormOptions(excludeUserId?: string) {
-  const [roles, provinces, villes, communes, quartiers, managers] = await Promise.all([
+  const [roles, territories, managers] = await Promise.all([
     listRoleOptions(),
-    listActiveProvinces(),
-    listActiveVilles(),
-    listActiveCommunes(),
-    listActiveQuartiers(),
+    listActiveTerritoryOptions(),
     listManagerOptions(excludeUserId),
   ]);
-  return { roles, provinces, villes, communes, quartiers, managers };
+  return { roles, territories, managers };
 }
 
 // Walks the manager chain in memory (one query for the whole table, see the
@@ -204,10 +197,7 @@ export async function createUser(input: CreateUserInput, actorId: string): Promi
       status: "ACTIVE",
       role: { connect: { id: input.roleId } },
       manager: input.managerId ? { connect: { id: input.managerId } } : undefined,
-      province: input.provinceId ? { connect: { id: input.provinceId } } : undefined,
-      ville: input.villeId ? { connect: { id: input.villeId } } : undefined,
-      commune: input.communeId ? { connect: { id: input.communeId } } : undefined,
-      quartier: input.quartierId ? { connect: { id: input.quartierId } } : undefined,
+      territory: input.territoryId ? { connect: { id: input.territoryId } } : undefined,
       createdBy: actorId,
       updatedBy: actorId,
     });
@@ -229,10 +219,7 @@ export async function updateUser(input: UpdateUserInput, actorId: string): Promi
       email: input.email.toLowerCase(),
       role: { connect: { id: input.roleId } },
       manager: input.managerId ? { connect: { id: input.managerId } } : { disconnect: true },
-      province: input.provinceId ? { connect: { id: input.provinceId } } : { disconnect: true },
-      ville: input.villeId ? { connect: { id: input.villeId } } : { disconnect: true },
-      commune: input.communeId ? { connect: { id: input.communeId } } : { disconnect: true },
-      quartier: input.quartierId ? { connect: { id: input.quartierId } } : { disconnect: true },
+      territory: input.territoryId ? { connect: { id: input.territoryId } } : { disconnect: true },
       ...(input.status ? { status: input.status } : {}),
       updatedBy: actorId,
     });

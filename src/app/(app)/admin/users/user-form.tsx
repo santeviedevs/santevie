@@ -25,13 +25,7 @@ import {
   updateUserSchema,
 } from "@/lib/schemas/user";
 
-import {
-  CascadingTerritoryFields,
-  type CommuneOption,
-  type QuartierOption,
-  type TerritoryOption,
-  type VilleOption,
-} from "../territories/cascading-territory-fields";
+import { TerritoryPicker, type TerritoryPickerOption } from "../territories/territory-picker";
 import { createUserAction, updateUserAction, type UserFormState } from "./actions";
 
 type Option = { id: string; name: string };
@@ -40,10 +34,7 @@ type UserFormProps = {
   mode: "create" | "edit";
   options: {
     roles: Option[];
-    provinces: TerritoryOption[];
-    villes: VilleOption[];
-    communes: CommuneOption[];
-    quartiers: QuartierOption[];
+    territories: TerritoryPickerOption[];
     managers: Option[];
   };
   defaultValues?: Partial<UpdateUserInput>;
@@ -86,10 +77,7 @@ export function UserForm({ mode, options, defaultValues, dict, territoryDict }: 
 
   const roleId = watch("roleId");
   const managerId = watch("managerId");
-  const provinceId = watch("provinceId");
-  const villeId = watch("villeId");
-  const communeId = watch("communeId");
-  const quartierId = watch("quartierId");
+  const territoryId = watch("territoryId");
   const status = watch("status");
 
   const onSubmit = (values: CreateUserInput | UpdateUserInput) => {
@@ -102,10 +90,7 @@ export function UserForm({ mode, options, defaultValues, dict, territoryDict }: 
       formData.set("email", values.email);
       formData.set("roleId", values.roleId);
       if (values.managerId) formData.set("managerId", values.managerId);
-      if (values.provinceId) formData.set("provinceId", values.provinceId);
-      if (values.villeId) formData.set("villeId", values.villeId);
-      if (values.communeId) formData.set("communeId", values.communeId);
-      if (values.quartierId) formData.set("quartierId", values.quartierId);
+      if (values.territoryId) formData.set("territoryId", values.territoryId);
       // Only meaningful for edit — the create schema has no status field,
       // and a brand-new user is always created ACTIVE server-side anyway.
       if (mode === "edit" && "status" in values && values.status) {
@@ -207,40 +192,16 @@ export function UserForm({ mode, options, defaultValues, dict, territoryDict }: 
 
       <div className="flex flex-col gap-2">
         <Label>{dict.territorySectionLabel}</Label>
-        <CascadingTerritoryFields
-          levels={["province", "ville", "commune", "quartier"]}
-          value={{
-            provinceId: provinceId ?? null,
-            villeId: villeId ?? null,
-            communeId: communeId ?? null,
-            quartierId: quartierId ?? null,
-          }}
-          onChange={(patch) => {
-            if ("provinceId" in patch) setValue("provinceId", patch.provinceId ?? null);
-            if ("villeId" in patch) setValue("villeId", patch.villeId ?? null);
-            if ("communeId" in patch) setValue("communeId", patch.communeId ?? null);
-            if ("quartierId" in patch) setValue("quartierId", patch.quartierId ?? null);
-          }}
-          data={{
-            provinces: options.provinces,
-            villes: options.villes,
-            communes: options.communes,
-            quartiers: options.quartiers,
-          }}
-          required={false}
+        <TerritoryPicker
+          id="territoryId"
+          label={territoryDict.territoryPickerLabel}
+          placeholder={territoryDict.selectTerritoryFilter}
+          clearLabel={territoryDict.anyTerritoryFilter}
+          noResultsLabel={territoryDict.noMatches}
+          options={options.territories}
+          value={territoryId ?? null}
+          onChange={(next) => setValue("territoryId", next)}
           disabled={isPending}
-          labels={{
-            province: territoryDict.province,
-            ville: territoryDict.ville,
-            commune: territoryDict.commune,
-            quartier: territoryDict.quartier,
-          }}
-          placeholders={{
-            province: territoryDict.selectProvince,
-            ville: territoryDict.selectVille,
-            commune: territoryDict.selectCommune,
-            quartier: territoryDict.selectQuartier,
-          }}
         />
       </div>
 

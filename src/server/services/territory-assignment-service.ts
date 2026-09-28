@@ -6,7 +6,7 @@ import {
   listAssignmentsForUser,
   type TerritoryAssignmentRow,
 } from "@/server/repositories/territory-assignment-repository";
-import { findTerritoryEntryById } from "@/server/repositories/territory-repository";
+import { findTerritoryById } from "@/server/repositories/territory-repository";
 
 export class TerritoryNotFoundError extends Error {
   constructor() {
@@ -50,19 +50,23 @@ function isUniqueConstraintViolation(error: unknown): error is { code: string } 
   );
 }
 
-export type AssignmentLevel = "province" | "ville" | "commune" | "quartier";
-
 export type TerritoryAssignmentSummary = {
   id: string;
-  level: AssignmentLevel;
-  name: string;
+  territoryId: string;
+  code: string;
+  label: string;
 };
 
 function toSummary(row: TerritoryAssignmentRow): TerritoryAssignmentSummary {
-  if (row.quartier) return { id: row.id, level: "quartier", name: row.quartier.name };
-  if (row.commune) return { id: row.id, level: "commune", name: row.commune.name };
-  if (row.ville) return { id: row.id, level: "ville", name: row.ville.name };
-  return { id: row.id, level: "province", name: row.province?.name ?? "" };
+  const t = row.territory;
+  return {
+    id: row.id,
+    territoryId: t.id,
+    code: t.code,
+    label: [t.province.name, t.ville?.name, t.commune?.name, t.quartier?.name]
+      .filter(Boolean)
+      .join(" › "),
+  };
 }
 
 export async function listTerritoryAssignments(
@@ -72,37 +76,18 @@ export async function listTerritoryAssignments(
   return rows.map(toSummary);
 }
 
-// The input carries every ancestor level above whichever one the admin
-// picked (CascadingTerritoryFields' natural shape — see the schema
-// comment), but only the deepest is the actual assignment target. Ancestor
-// ids are read here only to find that target; they're never persisted on
-// the created row (see the model comment in schema.prisma for why).
-function deepestTarget(input: AssignTerritoryInput): { level: AssignmentLevel; id: string } | null {
-  if (input.quartierId) return { level: "quartier", id: input.quartierId };
-  if (input.communeId) return { level: "commune", id: input.communeId };
-  if (input.villeId) return { level: "ville", id: input.villeId };
-  if (input.provinceId) return { level: "province", id: input.provinceId };
-  return null;
-}
-
 export async function assignTerritory(
   input: AssignTerritoryInput,
   actorId: string,
 ): Promise<TerritoryAssignmentSummary> {
-  const target = deepestTarget(input);
-  if (!target) throw new TerritoryNotFoundError();
-
-  const entry = await findTerritoryEntryById(target.id);
-  if (!entry || entry.level !== target.level) throw new TerritoryNotFoundError();
-  if (entry.row.status === "INACTIVE") throw new InactiveTerritoryError();
+  const territory = await findTerritoryById(input.territoryId);
+  if (!territory) throw new TerritoryNotFoundError();
+  if (territory.status === "INACTIVE") throw new InactiveTerritoryError();
 
   try {
     const row = await createAssignment({
       user: { connect: { id: input.userId } },
-      ...(target.level === "province" ? { province: { connect: { id: target.id } } } : {}),
-      ...(target.level === "ville" ? { ville: { connect: { id: target.id } } } : {}),
-      ...(target.level === "commune" ? { commune: { connect: { id: target.id } } } : {}),
-      ...(target.level === "quartier" ? { quartier: { connect: { id: target.id } } } : {}),
+      territory: { connect: { id: input.territoryId } },
       createdBy: actorId,
       updatedBy: actorId,
     });

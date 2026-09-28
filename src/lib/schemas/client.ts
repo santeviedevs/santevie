@@ -51,12 +51,10 @@ export const createClientSchema = z.object({
   address: z.string().trim().max(240).nullish(),
   latitude,
   longitude,
-  // Independent per level, same reasoning as User — a Client known only
-  // down to its Commune can be recorded there without a specific Quartier.
-  provinceId: id.nullish(),
-  villeId: id.nullish(),
-  communeId: id.nullish(),
-  quartierId: id.nullish(),
+  // The Territory this client is located in — a Territory already
+  // represents whatever depth (Province alone, down to a full Quartier
+  // path) it maps to, so one optional field is enough.
+  territoryId: id.nullish(),
   doctor: doctorDetailsSchema.optional(),
   hospital: hospitalDetailsSchema.optional(),
   // Only meaningful when `doctor` is present — the set of Hospital ids this
@@ -76,10 +74,7 @@ export type UpdateClientInput = z.infer<typeof updateClientSchema>;
 export const clientFiltersSchema = z.object({
   q: z.string().trim().optional(),
   typeId: z.string().optional(),
-  provinceId: z.string().optional(),
-  villeId: z.string().optional(),
-  communeId: z.string().optional(),
-  quartierId: z.string().optional(),
+  territoryId: z.string().optional(),
   status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
   // "Missing coordinates" — surfaces the clients proximity validation can't
   // work for yet (S2-02's "flag clients with no coordinates").

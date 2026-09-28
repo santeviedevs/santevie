@@ -3,10 +3,14 @@ import { prisma } from "@/server/db";
 import type { Prisma } from "../../../generated/prisma/client";
 
 const assignmentInclude = {
-  province: { select: { id: true, name: true } },
-  ville: { select: { id: true, name: true } },
-  commune: { select: { id: true, name: true } },
-  quartier: { select: { id: true, name: true } },
+  territory: {
+    include: {
+      province: { select: { id: true, name: true } },
+      ville: { select: { id: true, name: true } },
+      commune: { select: { id: true, name: true } },
+      quartier: { select: { id: true, name: true } },
+    },
+  },
 } satisfies Prisma.UserTerritoryAssignmentInclude;
 
 export type TerritoryAssignmentRow = Prisma.UserTerritoryAssignmentGetPayload<{

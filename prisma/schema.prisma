@@ -26,6 +26,12 @@ enum AttendanceStatus {
   NEEDS_REVIEW
 }
 
+enum ImportEntity {
+  TERRITORY
+  CLIENT
+  PRODUCT
+}
+
 // --- Identity ---
 
 model Role {
@@ -93,22 +99,13 @@ model User {
   manager       User?   @relation("UserManager", fields: [managerId], references: [id])
   directReports User[]  @relation("UserManager")
 
-  // Location assignment is independent per level — a Manager might be
-  // scoped to a whole Province with nothing below it set, while a
-  // Delegate is scoped down to one Quartier. Each is its own optional FK
-  // rather than one leaf id, since the cascading select on the Users page
-  // lets an admin stop at any level.
-  provinceId String?
-  province   Province? @relation(fields: [provinceId], references: [id])
-
-  villeId String?
-  ville   Ville?  @relation(fields: [villeId], references: [id])
-
-  communeId String?
-  commune   Commune? @relation(fields: [communeId], references: [id])
-
-  quartierId String?
-  quartier   Quartier? @relation(fields: [quartierId], references: [id])
+  // The Territory a user is scoped to — a Territory already represents
+  // whatever depth (Province alone, down to a full Quartier path) an admin
+  // picked, so one FK is enough; there's no need for four independent
+  // level fields the way there was before Territory existed as its own
+  // entity.
+  territoryId String?
+  territory   Territory? @relation(fields: [territoryId], references: [id])
 
   visits               Visit[]
   orders               Order[]
@@ -124,20 +121,21 @@ model User {
   @@map("users")
 }
 
-// --- Territory: a fixed 4-level administrative hierarchy
+// --- Geography: a fixed 4-level administrative hierarchy
 // (Province > Ville > Commune > Quartier), matching how the client's own
-// location data is structured — not a flat code+name table, and no `code`
-// field, since the real data identifies each level by name only. ---
+// location data is structured. These are pure geography lookups — no code
+// of their own. The business/assignment entity built on top of them is
+// Territory, below: a Territory is a specific selected path through this
+// hierarchy (Province alone, or down through Ville/Commune/Quartier), and
+// it alone carries the unique code. ---
 
 model Province {
   id     String @id @default(cuid())
   name   String @unique
   status Status @default(ACTIVE)
 
-  villes               Ville[]
-  users                User[]
-  clients              Client[]
-  territoryAssignments UserTerritoryAssignment[]
+  villes      Ville[]
+  territories Territory[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -155,10 +153,8 @@ model Ville {
   provinceId String
   province   Province @relation(fields: [provinceId], references: [id])
 
-  communes             Commune[]
-  users                User[]
-  clients              Client[]
-  territoryAssignments UserTerritoryAssignment[]
+  communes    Commune[]
+  territories Territory[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -177,10 +173,8 @@ model Commune {
   villeId String
   ville   Ville  @relation(fields: [villeId], references: [id])
 
-  quartiers            Quartier[]
-  users                User[]
-  clients              Client[]
-  territoryAssignments UserTerritoryAssignment[]
+  quartiers   Quartier[]
+  territories Territory[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -199,10 +193,7 @@ model Quartier {
   communeId String
   commune   Commune @relation(fields: [communeId], references: [id])
 
-  users                User[]
-  clients              Client[]
-  targets              Target[]
-  territoryAssignments UserTerritoryAssignment[]
+  territories Territory[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -213,36 +204,22 @@ model Quartier {
   @@map("quartiers")
 }
 
-// One row per (user, single territory) assignment — the set of territories
-// a delegate is allowed to work in (S2-04). Distinct from the four
-// home-territory fields on User above: those stay as a default/display
-// value, but any future work-scoping logic (e.g. restricting which clients
-// a delegate can select) must read from this table instead.
-//
-// Unlike User/Client's own four fields (which populate every ancestor level
-// together as the cascading select narrows down), each row here stores
-// only the single specific level actually being assigned — exactly one of
-// the four FKs is set, the rest stay null. This is deliberate: populating
-// ancestor levels too would make the per-level unique constraints below
-// misfire (e.g. two different Ville-level assignments under the same
-// Province would falsely collide on `provinceId` if it were also stored on
-// both rows).
-//
-// Four separate two-column unique constraints, not one across all four —
-// each blocks an exact duplicate at whichever level is actually populated
-// (Postgres never treats two NULLs as equal, so a constraint on a column
-// that's null for a given row simply doesn't apply to it). This still
-// allows a Province and a Quartier already inside it to both be assigned to
-// the same user — harmless overlap, deliberately not blocked (see the
-// project decision log for S2-04).
-model UserTerritoryAssignment {
-  id String @id @default(cuid())
+// The business/assignment entity: one specific selected path through the
+// geography hierarchy above — Province alone, Province→Ville, →Commune, or
+// →Quartier. `code` is backend-generated (sequential, e.g. TER-00001),
+// never entered through the UI. `pathKey` is an application-maintained
+// dedup key (province:ville:commune:quartier ids, "-" for an absent
+// level) — a plain composite @@unique on the four nullable FKs can't do
+// this reliably, since Postgres treats NULL as never equal to NULL, so two
+// Territories that both stop at Province (villeId/communeId/quartierId all
+// null) would never collide on a native unique index the way they need to.
+model Territory {
+  id     String @id @default(cuid())
+  code   String @unique
+  status Status @default(ACTIVE)
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
-
-  provinceId String?
-  province   Province? @relation(fields: [provinceId], references: [id])
+  provinceId String
+  province   Province @relation(fields: [provinceId], references: [id])
 
   villeId String?
   ville   Ville?  @relation(fields: [villeId], references: [id])
@@ -253,15 +230,48 @@ model UserTerritoryAssignment {
   quartierId String?
   quartier   Quartier? @relation(fields: [quartierId], references: [id])
 
+  pathKey String @unique
+
+  users                User[]
+  clients              Client[]
+  targets              Target[]
+  territoryAssignments UserTerritoryAssignment[]
+
   createdBy String?
   createdAt DateTime @default(now())
   updatedBy String?
   updatedAt DateTime @updatedAt
 
-  @@unique([userId, provinceId])
-  @@unique([userId, villeId])
-  @@unique([userId, communeId])
-  @@unique([userId, quartierId])
+  @@map("territories")
+}
+
+// One row per (user, Territory) assignment — the set of Territories a
+// delegate is allowed to work in (S2-04). Distinct from User's own
+// `territoryId` above: that stays a default/display value, but any
+// future work-scoping logic (e.g. restricting which clients a delegate can
+// select) must read from this table instead.
+//
+// A single `territoryId` (not four independent level FKs) is enough now
+// that each distinct hierarchy path is already its own Territory row — a
+// Province-level assignment and a Quartier-level assignment underneath it
+// are simply two different Territory ids, both freely assignable to the
+// same user (harmless overlap, deliberately not blocked — see the project
+// decision log for S2-04).
+model UserTerritoryAssignment {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  territoryId String
+  territory   Territory @relation(fields: [territoryId], references: [id])
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, territoryId])
   @@map("user_territory_assignments")
 }
 
@@ -295,20 +305,11 @@ model Client {
   typeId String
   type   ClientType @relation(fields: [typeId], references: [id])
 
-  // Location assignment is independent per level, same as User — a client
-  // known only down to its Commune (say) can be recorded there without a
-  // specific Quartier, rather than being forced to the most granular level.
-  provinceId String?
-  province   Province? @relation(fields: [provinceId], references: [id])
-
-  villeId String?
-  ville   Ville?  @relation(fields: [villeId], references: [id])
-
-  communeId String?
-  commune   Commune? @relation(fields: [communeId], references: [id])
-
-  quartierId String?
-  quartier   Quartier? @relation(fields: [quartierId], references: [id])
+  // Same reasoning as User.territoryId — a Territory already represents
+  // whatever depth this client is known to, so one FK replaces what used
+  // to be four independent level fields.
+  territoryId String?
+  territory   Territory? @relation(fields: [territoryId], references: [id])
 
   visits Visit[]
   orders Order[]
@@ -604,8 +605,8 @@ model Target {
   userId String?
   user   User?   @relation(fields: [userId], references: [id])
 
-  quartierId String?
-  quartier   Quartier? @relation(fields: [quartierId], references: [id])
+  territoryId String?
+  territory   Territory? @relation(fields: [territoryId], references: [id])
 
   productId String?
   product   Product? @relation(fields: [productId], references: [id])
@@ -621,4 +622,29 @@ model Target {
   updatedAt DateTime @updatedAt
 
   @@map("targets")
+}
+
+// --- Bulk import (S2-05) ---
+
+// One row per completed import run — an audit record distinct from each
+// imported row's own createdBy/updatedBy, answering "who ran this import,
+// on what file, with what outcome" without reconstructing it after the
+// fact from individual client/product/territory rows. Write-once: nothing
+// updates one of these after it's created, but it still carries the
+// standard audit columns per convention (Section 4 of the execution plan).
+model ImportBatch {
+  id            String       @id @default(cuid())
+  entity        ImportEntity
+  fileName      String
+  totalRows     Int
+  createdCount  Int
+  updatedCount  Int
+  rejectedCount Int
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("import_batches")
 }

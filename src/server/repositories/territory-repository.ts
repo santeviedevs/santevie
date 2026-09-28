@@ -3,9 +3,7 @@ import { prisma } from "@/server/db";
 
 import type { Prisma } from "../../../generated/prisma/client";
 
-type Status = "ACTIVE" | "INACTIVE";
-
-// --- Province ---
+// --- Geography: pure lookups, no code of their own (Territory owns that) ---
 
 export type ProvinceRow = Prisma.ProvinceGetPayload<Record<string, never>>;
 
@@ -17,20 +15,6 @@ export function findProvinceById(id: string) {
   return prisma.province.findUnique({ where: { id }, select: { id: true, status: true } });
 }
 
-export function setProvinceStatus(
-  id: string,
-  status: Status,
-  actorId: string,
-): Promise<ProvinceRow> {
-  return prisma.province.update({ where: { id }, data: { status, updatedBy: actorId } });
-}
-
-export function updateProvince(id: string, data: Prisma.ProvinceUpdateInput): Promise<ProvinceRow> {
-  return prisma.province.update({ where: { id }, data });
-}
-
-// --- Ville ---
-
 export type VilleRow = Prisma.VilleGetPayload<Record<string, never>>;
 
 export function createVille(data: Prisma.VilleCreateInput): Promise<VilleRow> {
@@ -38,8 +22,7 @@ export function createVille(data: Prisma.VilleCreateInput): Promise<VilleRow> {
 }
 
 // Looked up when an "existing" Ville is picked, so the service can confirm
-// it actually belongs to the selected Province before trusting it — also
-// doubles as the parent lookup for the activation guard (status).
+// it actually belongs to the selected Province before trusting it.
 export function findVilleById(id: string) {
   return prisma.ville.findUnique({
     where: { id },
@@ -47,25 +30,12 @@ export function findVilleById(id: string) {
   });
 }
 
-export function setVilleStatus(id: string, status: Status, actorId: string): Promise<VilleRow> {
-  return prisma.ville.update({ where: { id }, data: { status, updatedBy: actorId } });
-}
-
-export function updateVille(id: string, data: Prisma.VilleUpdateInput): Promise<VilleRow> {
-  return prisma.ville.update({ where: { id }, data });
-}
-
-// --- Commune ---
-
 export type CommuneRow = Prisma.CommuneGetPayload<Record<string, never>>;
 
 export function createCommune(data: Prisma.CommuneCreateInput): Promise<CommuneRow> {
   return prisma.commune.create({ data });
 }
 
-// Looked up when an "existing" Commune is picked, so the service can confirm
-// it actually belongs to the selected Ville before trusting it — also
-// doubles as the parent lookup for the activation guard (status).
 export function findCommuneById(id: string) {
   return prisma.commune.findUnique({
     where: { id },
@@ -73,325 +43,119 @@ export function findCommuneById(id: string) {
   });
 }
 
-export function setCommuneStatus(id: string, status: Status, actorId: string): Promise<CommuneRow> {
-  return prisma.commune.update({ where: { id }, data: { status, updatedBy: actorId } });
-}
-
-export function updateCommune(id: string, data: Prisma.CommuneUpdateInput): Promise<CommuneRow> {
-  return prisma.commune.update({ where: { id }, data });
-}
-
-// --- Quartier ---
-//
-// Quartier is the record the Territories admin screen actually manages —
-// one row per territory, carrying its full Province/Ville/Commune path.
-
-const quartierInclude = {
-  commune: {
-    include: {
-      ville: { include: { province: { select: { id: true, name: true, status: true } } } },
-    },
-  },
-} satisfies Prisma.QuartierInclude;
-
-export type QuartierRow = Prisma.QuartierGetPayload<{ include: typeof quartierInclude }>;
-
-function buildQuartierWhere(filters: TerritoryFilters): Prisma.QuartierWhereInput {
-  return {
-    ...(filters.communeId ? { communeId: filters.communeId } : {}),
-    ...(filters.villeId ? { commune: { villeId: filters.villeId } } : {}),
-    ...(filters.provinceId ? { commune: { ville: { provinceId: filters.provinceId } } } : {}),
-    ...(filters.status ? { status: filters.status } : {}),
-    ...(filters.q ? { name: { contains: filters.q, mode: "insensitive" } } : {}),
-  };
-}
-
-export function findQuartiers(filters: TerritoryFilters): Promise<QuartierRow[]> {
-  return prisma.quartier.findMany({
-    where: buildQuartierWhere(filters),
-    include: quartierInclude,
-    orderBy: { name: "asc" },
-  });
-}
-
-export function findQuartierById(id: string): Promise<QuartierRow | null> {
-  return prisma.quartier.findUnique({ where: { id }, include: quartierInclude });
-}
+export type QuartierRow = Prisma.QuartierGetPayload<Record<string, never>>;
 
 export function createQuartier(data: Prisma.QuartierCreateInput): Promise<QuartierRow> {
-  return prisma.quartier.create({ data, include: quartierInclude });
+  return prisma.quartier.create({ data });
 }
 
-export function updateQuartier(id: string, data: Prisma.QuartierUpdateInput): Promise<QuartierRow> {
-  return prisma.quartier.update({ where: { id }, data, include: quartierInclude });
+export function findQuartierById(id: string) {
+  return prisma.quartier.findUnique({
+    where: { id },
+    select: { id: true, communeId: true, status: true },
+  });
 }
 
-export function setQuartierStatus(
-  id: string,
-  status: Status,
+// --- By-name lookup + upsert (S2-05 territory import: resolves/creates
+// geography by name, since import files have no way to reference a
+// not-yet-created row by id). Upsert relies on each level's existing
+// unique-per-parent name constraint. ---
+
+// Case-insensitive on purpose: spreadsheet data entry is casing-inconsistent
+// ("Kinshasa" vs "KINSHASA"), and a case-sensitive match would create a
+// duplicate geography row for what is really the same place. The unique
+// index behind each of these is still case-sensitive at the database level,
+// so if a differently-cased duplicate already exists from before this
+// change, `orderBy: createdAt` makes the pick deterministic (oldest wins)
+// rather than depending on Postgres's arbitrary row order.
+export function findProvinceByName(name: string) {
+  return prisma.province.findFirst({
+    where: { name: { equals: name, mode: "insensitive" } },
+    select: { id: true, status: true },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+export function findVilleByName(provinceId: string, name: string) {
+  return prisma.ville.findFirst({
+    where: { provinceId, name: { equals: name, mode: "insensitive" } },
+    select: { id: true, status: true },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+export function findCommuneByName(villeId: string, name: string) {
+  return prisma.commune.findFirst({
+    where: { villeId, name: { equals: name, mode: "insensitive" } },
+    select: { id: true, status: true },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+export function findQuartierByName(communeId: string, name: string) {
+  return prisma.quartier.findFirst({
+    where: { communeId, name: { equals: name, mode: "insensitive" } },
+    select: { id: true, status: true },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+export function upsertProvinceByName(name: string, actorId: string): Promise<ProvinceRow> {
+  return prisma.province.upsert({
+    where: { name },
+    update: {},
+    create: { name, createdBy: actorId, updatedBy: actorId },
+  });
+}
+
+export function upsertVilleByName(
+  provinceId: string,
+  name: string,
+  actorId: string,
+): Promise<VilleRow> {
+  return prisma.ville.upsert({
+    where: { provinceId_name: { provinceId, name } },
+    update: {},
+    create: {
+      name,
+      province: { connect: { id: provinceId } },
+      createdBy: actorId,
+      updatedBy: actorId,
+    },
+  });
+}
+
+export function upsertCommuneByName(
+  villeId: string,
+  name: string,
+  actorId: string,
+): Promise<CommuneRow> {
+  return prisma.commune.upsert({
+    where: { villeId_name: { villeId, name } },
+    update: {},
+    create: { name, ville: { connect: { id: villeId } }, createdBy: actorId, updatedBy: actorId },
+  });
+}
+
+export function upsertQuartierByName(
+  communeId: string,
+  name: string,
   actorId: string,
 ): Promise<QuartierRow> {
-  return prisma.quartier.update({
-    where: { id },
-    data: { status, updatedBy: actorId },
-    include: quartierInclude,
+  return prisma.quartier.upsert({
+    where: { communeId_name: { communeId, name } },
+    update: {},
+    create: {
+      name,
+      commune: { connect: { id: communeId } },
+      createdBy: actorId,
+      updatedBy: actorId,
+    },
   });
 }
 
-export async function countQuartierDependents(
-  quartierId: string,
-): Promise<{ activeClients: number; activeUsers: number; activeAssignments: number }> {
-  const [activeClients, activeUsers, activeAssignments] = await Promise.all([
-    prisma.client.count({ where: { quartierId, status: "ACTIVE" } }),
-    prisma.user.count({ where: { quartierId, status: "ACTIVE" } }),
-    prisma.userTerritoryAssignment.count({ where: { quartierId, user: { status: "ACTIVE" } } }),
-  ]);
-  return { activeClients, activeUsers, activeAssignments };
-}
-
-// --- Combined territory entries (any level) ---
-//
-// A Territory can now be a Province, Ville, Commune, or Quartier row on its
-// own — not just the leaf Quartier. These build the same shape of filter as
-// `buildQuartierWhere` for each shallower level, and `findTerritoryEntryById`
-// looks an id up across all four tables (most-specific first, since that's
-// the common case) rather than needing the level encoded in the URL.
-
-const villeWithProvinceInclude = {
-  province: { select: { id: true, name: true } },
-} satisfies Prisma.VilleInclude;
-export type VilleWithProvinceRow = Prisma.VilleGetPayload<{
-  include: typeof villeWithProvinceInclude;
-}>;
-
-const communeWithAncestryInclude = {
-  ville: { include: { province: { select: { id: true, name: true } } } },
-} satisfies Prisma.CommuneInclude;
-export type CommuneWithAncestryRow = Prisma.CommuneGetPayload<{
-  include: typeof communeWithAncestryInclude;
-}>;
-
-function buildProvinceWhere(filters: TerritoryFilters): Prisma.ProvinceWhereInput {
-  return {
-    ...(filters.provinceId ? { id: filters.provinceId } : {}),
-    ...(filters.status ? { status: filters.status } : {}),
-    ...(filters.q ? { name: { contains: filters.q, mode: "insensitive" } } : {}),
-  };
-}
-
-function buildVilleWhere(filters: TerritoryFilters): Prisma.VilleWhereInput {
-  return {
-    ...(filters.villeId ? { id: filters.villeId } : {}),
-    ...(filters.provinceId ? { provinceId: filters.provinceId } : {}),
-    ...(filters.status ? { status: filters.status } : {}),
-    ...(filters.q ? { name: { contains: filters.q, mode: "insensitive" } } : {}),
-  };
-}
-
-function buildCommuneWhere(filters: TerritoryFilters): Prisma.CommuneWhereInput {
-  return {
-    ...(filters.communeId ? { id: filters.communeId } : {}),
-    ...(filters.villeId ? { villeId: filters.villeId } : {}),
-    ...(filters.provinceId ? { ville: { provinceId: filters.provinceId } } : {}),
-    ...(filters.status ? { status: filters.status } : {}),
-    ...(filters.q ? { name: { contains: filters.q, mode: "insensitive" } } : {}),
-  };
-}
-
-// A `villeId` or `communeId` filter narrows to a level at or below it —
-// Province-level (and, for a `communeId` filter, Ville-level) rows can
-// never match, so the caller skips querying those levels entirely rather
-// than filtering them down to nothing here.
-export function findProvinces(filters: TerritoryFilters): Promise<ProvinceRow[]> {
-  return prisma.province.findMany({ where: buildProvinceWhere(filters), orderBy: { name: "asc" } });
-}
-
-export function findVilles(filters: TerritoryFilters): Promise<VilleWithProvinceRow[]> {
-  return prisma.ville.findMany({
-    where: buildVilleWhere(filters),
-    include: villeWithProvinceInclude,
-    orderBy: { name: "asc" },
-  });
-}
-
-export function findCommunes(filters: TerritoryFilters): Promise<CommuneWithAncestryRow[]> {
-  return prisma.commune.findMany({
-    where: buildCommuneWhere(filters),
-    include: communeWithAncestryInclude,
-    orderBy: { name: "asc" },
-  });
-}
-
-export type TerritoryEntryRow =
-  | { level: "quartier"; row: QuartierRow }
-  | { level: "commune"; row: CommuneWithAncestryRow }
-  | { level: "ville"; row: VilleWithProvinceRow }
-  | { level: "province"; row: ProvinceRow };
-
-export async function findTerritoryEntryById(id: string): Promise<TerritoryEntryRow | null> {
-  const quartier = await prisma.quartier.findUnique({ where: { id }, include: quartierInclude });
-  if (quartier) return { level: "quartier", row: quartier };
-
-  const commune = await prisma.commune.findUnique({
-    where: { id },
-    include: communeWithAncestryInclude,
-  });
-  if (commune) return { level: "commune", row: commune };
-
-  const ville = await prisma.ville.findUnique({ where: { id }, include: villeWithProvinceInclude });
-  if (ville) return { level: "ville", row: ville };
-
-  const province = await prisma.province.findUnique({ where: { id } });
-  if (province) return { level: "province", row: province };
-
-  return null;
-}
-
-// --- Descendant lookups & cascade status updates ---
-//
-// Both User and Client can be assigned at any of the four levels directly
-// (see each model's four independent optional FKs). Deactivating a level
-// must therefore both (a) know every descendant id, to cascade INACTIVE
-// down to them, and (b) count active Users/Clients across the *whole*
-// affected subtree, not just the level itself, before allowing it.
-
-export async function getProvinceDescendantIds(
-  provinceId: string,
-): Promise<{ villeIds: string[]; communeIds: string[]; quartierIds: string[] }> {
-  const villes = await prisma.ville.findMany({ where: { provinceId }, select: { id: true } });
-  const villeIds = villes.map((v) => v.id);
-  const communes = await prisma.commune.findMany({
-    where: { villeId: { in: villeIds } },
-    select: { id: true },
-  });
-  const communeIds = communes.map((c) => c.id);
-  const quartiers = await prisma.quartier.findMany({
-    where: { communeId: { in: communeIds } },
-    select: { id: true },
-  });
-  return { villeIds, communeIds, quartierIds: quartiers.map((q) => q.id) };
-}
-
-export async function getVilleDescendantIds(
-  villeId: string,
-): Promise<{ communeIds: string[]; quartierIds: string[] }> {
-  const communes = await prisma.commune.findMany({ where: { villeId }, select: { id: true } });
-  const communeIds = communes.map((c) => c.id);
-  const quartiers = await prisma.quartier.findMany({
-    where: { communeId: { in: communeIds } },
-    select: { id: true },
-  });
-  return { communeIds, quartierIds: quartiers.map((q) => q.id) };
-}
-
-export async function getCommuneDescendantIds(
-  communeId: string,
-): Promise<{ quartierIds: string[] }> {
-  const quartiers = await prisma.quartier.findMany({ where: { communeId }, select: { id: true } });
-  return { quartierIds: quartiers.map((q) => q.id) };
-}
-
-export async function countActiveDependents(scope: {
-  provinceIds?: string[];
-  villeIds?: string[];
-  communeIds?: string[];
-  quartierIds?: string[];
-}): Promise<{ activeClients: number; activeUsers: number; activeAssignments: number }> {
-  const userOr: Prisma.UserWhereInput[] = [];
-  const clientOr: Prisma.ClientWhereInput[] = [];
-  const assignmentOr: Prisma.UserTerritoryAssignmentWhereInput[] = [];
-  if (scope.provinceIds?.length) {
-    userOr.push({ provinceId: { in: scope.provinceIds } });
-    clientOr.push({ provinceId: { in: scope.provinceIds } });
-    assignmentOr.push({ provinceId: { in: scope.provinceIds } });
-  }
-  if (scope.villeIds?.length) {
-    userOr.push({ villeId: { in: scope.villeIds } });
-    clientOr.push({ villeId: { in: scope.villeIds } });
-    assignmentOr.push({ villeId: { in: scope.villeIds } });
-  }
-  if (scope.communeIds?.length) {
-    userOr.push({ communeId: { in: scope.communeIds } });
-    clientOr.push({ communeId: { in: scope.communeIds } });
-    assignmentOr.push({ communeId: { in: scope.communeIds } });
-  }
-  if (scope.quartierIds?.length) {
-    userOr.push({ quartierId: { in: scope.quartierIds } });
-    clientOr.push({ quartierId: { in: scope.quartierIds } });
-    assignmentOr.push({ quartierId: { in: scope.quartierIds } });
-  }
-
-  const [activeUsers, activeClients, activeAssignments] = await Promise.all([
-    userOr.length ? prisma.user.count({ where: { status: "ACTIVE", OR: userOr } }) : 0,
-    clientOr.length ? prisma.client.count({ where: { status: "ACTIVE", OR: clientOr } }) : 0,
-    assignmentOr.length
-      ? prisma.userTerritoryAssignment.count({
-          where: { OR: assignmentOr, user: { status: "ACTIVE" } },
-        })
-      : 0,
-  ]);
-  return { activeClients, activeUsers, activeAssignments };
-}
-
-export function cascadeDeactivateProvince(
-  id: string,
-  descendants: { villeIds: string[]; communeIds: string[]; quartierIds: string[] },
-  actorId: string,
-) {
-  return prisma.$transaction([
-    prisma.province.update({ where: { id }, data: { status: "INACTIVE", updatedBy: actorId } }),
-    prisma.ville.updateMany({
-      where: { id: { in: descendants.villeIds } },
-      data: { status: "INACTIVE", updatedBy: actorId },
-    }),
-    prisma.commune.updateMany({
-      where: { id: { in: descendants.communeIds } },
-      data: { status: "INACTIVE", updatedBy: actorId },
-    }),
-    prisma.quartier.updateMany({
-      where: { id: { in: descendants.quartierIds } },
-      data: { status: "INACTIVE", updatedBy: actorId },
-    }),
-  ]);
-}
-
-export function cascadeDeactivateVille(
-  id: string,
-  descendants: { communeIds: string[]; quartierIds: string[] },
-  actorId: string,
-) {
-  return prisma.$transaction([
-    prisma.ville.update({ where: { id }, data: { status: "INACTIVE", updatedBy: actorId } }),
-    prisma.commune.updateMany({
-      where: { id: { in: descendants.communeIds } },
-      data: { status: "INACTIVE", updatedBy: actorId },
-    }),
-    prisma.quartier.updateMany({
-      where: { id: { in: descendants.quartierIds } },
-      data: { status: "INACTIVE", updatedBy: actorId },
-    }),
-  ]);
-}
-
-export function cascadeDeactivateCommune(
-  id: string,
-  descendants: { quartierIds: string[] },
-  actorId: string,
-) {
-  return prisma.$transaction([
-    prisma.commune.update({ where: { id }, data: { status: "INACTIVE", updatedBy: actorId } }),
-    prisma.quartier.updateMany({
-      where: { id: { in: descendants.quartierIds } },
-      data: { status: "INACTIVE", updatedBy: actorId },
-    }),
-  ]);
-}
-
-// --- Option lists, for cascading selects elsewhere ---
-
-// Active only — the Territories create form and the Users assignment
-// picker: you should never be attaching something new under an inactive
-// row.
+// Active only — the Territory form's pick-or-create comboboxes at every
+// level should never offer building on an inactive geography node.
 export function listActiveProvinces() {
   return prisma.province.findMany({
     where: { status: "ACTIVE" },
@@ -424,27 +188,86 @@ export function listActiveQuartiers() {
   });
 }
 
-// Every status — the Territories edit form: the territory being edited may
-// already have an inactive ancestor, which still needs to display (with its
-// own status toggle) even though it's not offered as a pick for a
-// *different* territory's ancestry.
-export function listProvinces() {
-  return prisma.province.findMany({
-    select: { id: true, name: true, status: true },
-    orderBy: { name: "asc" },
+// --- Territory: a specific selected path through the geography above ---
+
+const territoryInclude = {
+  province: { select: { id: true, name: true } },
+  ville: { select: { id: true, name: true } },
+  commune: { select: { id: true, name: true } },
+  quartier: { select: { id: true, name: true } },
+} satisfies Prisma.TerritoryInclude;
+
+export type TerritoryRow = Prisma.TerritoryGetPayload<{ include: typeof territoryInclude }>;
+
+export function findTerritoryByPathKey(pathKey: string): Promise<TerritoryRow | null> {
+  return prisma.territory.findUnique({ where: { pathKey }, include: territoryInclude });
+}
+
+export function findTerritoryById(id: string): Promise<TerritoryRow | null> {
+  return prisma.territory.findUnique({ where: { id }, include: territoryInclude });
+}
+
+export function countTerritories(): Promise<number> {
+  return prisma.territory.count();
+}
+
+export function createTerritoryRow(data: Prisma.TerritoryCreateInput): Promise<TerritoryRow> {
+  return prisma.territory.create({ data, include: territoryInclude });
+}
+
+export function updateTerritoryRow(
+  id: string,
+  data: Prisma.TerritoryUpdateInput,
+): Promise<TerritoryRow> {
+  return prisma.territory.update({ where: { id }, data, include: territoryInclude });
+}
+
+function buildTerritoryWhere(filters: TerritoryFilters): Prisma.TerritoryWhereInput {
+  return {
+    ...(filters.provinceId ? { provinceId: filters.provinceId } : {}),
+    ...(filters.villeId ? { villeId: filters.villeId } : {}),
+    ...(filters.communeId ? { communeId: filters.communeId } : {}),
+    ...(filters.status ? { status: filters.status } : {}),
+    ...(filters.q
+      ? {
+          OR: [
+            { code: { contains: filters.q, mode: "insensitive" } },
+            { province: { name: { contains: filters.q, mode: "insensitive" } } },
+            { ville: { name: { contains: filters.q, mode: "insensitive" } } },
+            { commune: { name: { contains: filters.q, mode: "insensitive" } } },
+            { quartier: { name: { contains: filters.q, mode: "insensitive" } } },
+          ],
+        }
+      : {}),
+  };
+}
+
+export function findTerritories(filters: TerritoryFilters): Promise<TerritoryRow[]> {
+  return prisma.territory.findMany({
+    where: buildTerritoryWhere(filters),
+    include: territoryInclude,
+    orderBy: { code: "asc" },
   });
 }
 
-export function listVilles() {
-  return prisma.ville.findMany({
-    select: { id: true, name: true, provinceId: true, status: true },
-    orderBy: { name: "asc" },
+// Active only — for the flat Territory picker used by User/Client forms
+// and the assignment screen: you should never be assigning someone to a
+// Territory that's been deactivated.
+export function listActiveTerritories(): Promise<TerritoryRow[]> {
+  return prisma.territory.findMany({
+    where: { status: "ACTIVE" },
+    include: territoryInclude,
+    orderBy: { code: "asc" },
   });
 }
 
-export function listCommunes() {
-  return prisma.commune.findMany({
-    select: { id: true, name: true, villeId: true, status: true },
-    orderBy: { name: "asc" },
-  });
+export async function countTerritoryDependents(
+  territoryId: string,
+): Promise<{ activeClients: number; activeUsers: number; activeAssignments: number }> {
+  const [activeClients, activeUsers, activeAssignments] = await Promise.all([
+    prisma.client.count({ where: { territoryId, status: "ACTIVE" } }),
+    prisma.user.count({ where: { territoryId, status: "ACTIVE" } }),
+    prisma.userTerritoryAssignment.count({ where: { territoryId, user: { status: "ACTIVE" } } }),
+  ]);
+  return { activeClients, activeUsers, activeAssignments };
 }

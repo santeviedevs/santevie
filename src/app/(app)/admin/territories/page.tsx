@@ -18,7 +18,7 @@ import {
   listActiveProvinces,
   listActiveVilles,
 } from "@/server/repositories/territory-repository";
-import { listTerritoryEntries } from "@/server/services/territory-service";
+import { listTerritories } from "@/server/services/territory-service";
 
 import { TerritoryFilters } from "./territory-filters";
 
@@ -55,7 +55,7 @@ export default async function TerritoriesPage({ searchParams }: TerritoriesPageP
   });
 
   const [territories, provinces, villes, communes, dict] = await Promise.all([
-    listTerritoryEntries(filters),
+    listTerritories(filters),
     listActiveProvinces(),
     listActiveVilles(),
     listActiveCommunes(),
@@ -67,7 +67,12 @@ export default async function TerritoriesPage({ searchParams }: TerritoriesPageP
     <div className="flex flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t.title}</h1>
-        <Button render={<Link href="/admin/territories/new" />}>{t.newTerritory}</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" render={<Link href="/admin/territories/import" />}>
+            {t.importButton}
+          </Button>
+          <Button render={<Link href="/admin/territories/new" />}>{t.newTerritory}</Button>
+        </div>
       </div>
 
       <TerritoryFilters
@@ -83,6 +88,7 @@ export default async function TerritoriesPage({ searchParams }: TerritoriesPageP
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>{t.columnCode}</TableHead>
               <TableHead>{t.provinceLabel}</TableHead>
               <TableHead>{t.villeLabel}</TableHead>
               <TableHead>{t.communeLabel}</TableHead>
@@ -94,20 +100,11 @@ export default async function TerritoriesPage({ searchParams }: TerritoriesPageP
           <TableBody>
             {territories.map((territory) => (
               <TableRow key={territory.id}>
-                <TableCell>
-                  {territory.level === "province"
-                    ? territory.name
-                    : (territory.province?.name ?? "—")}
-                </TableCell>
-                <TableCell>
-                  {territory.level === "ville" ? territory.name : (territory.ville?.name ?? "—")}
-                </TableCell>
-                <TableCell>
-                  {territory.level === "commune"
-                    ? territory.name
-                    : (territory.commune?.name ?? "—")}
-                </TableCell>
-                <TableCell>{territory.level === "quartier" ? territory.name : "—"}</TableCell>
+                <TableCell className="font-mono text-xs">{territory.code}</TableCell>
+                <TableCell>{territory.province.name}</TableCell>
+                <TableCell>{territory.ville?.name ?? "—"}</TableCell>
+                <TableCell>{territory.commune?.name ?? "—"}</TableCell>
+                <TableCell>{territory.quartier?.name ?? "—"}</TableCell>
                 <TableCell>
                   <Badge variant={territory.status === "ACTIVE" ? "default" : "secondary"}>
                     {territory.status === "ACTIVE" ? t.statusActive : t.statusInactive}
@@ -126,7 +123,7 @@ export default async function TerritoriesPage({ searchParams }: TerritoriesPageP
             ))}
             {territories.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground">
+                <TableCell colSpan={7} className="text-center text-muted-foreground">
                   {t.noResults}
                 </TableCell>
               </TableRow>

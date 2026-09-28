@@ -13,15 +13,9 @@ import {
 import { getServerDictionary } from "@/lib/i18n/server";
 import { userFiltersSchema } from "@/lib/schemas/user";
 import { requirePermission } from "@/server/auth/require-permission";
-import {
-  listActiveCommunes,
-  listActiveProvinces,
-  listActiveQuartiers,
-  listActiveVilles,
-} from "@/server/repositories/territory-repository";
 import { listRoleOptions } from "@/server/repositories/user-repository";
 import { getUserScope } from "@/server/scope";
-import type { UserSummary } from "@/server/services/user-service";
+import { listActiveTerritoryOptions } from "@/server/services/territory-service";
 import { listUsers } from "@/server/services/user-service";
 
 import { UserFilters } from "./user-filters";
@@ -47,15 +41,6 @@ function firstValue(value: string | string[] | undefined): string | undefined {
   return single === "" ? undefined : single;
 }
 
-// A user's assignment can stop at any level, so the list shows whichever
-// is deepest — matching what the cascading select on the form actually let
-// the admin pick.
-function territoryLabel(user: UserSummary): string {
-  return (
-    user.quartier?.name ?? user.commune?.name ?? user.ville?.name ?? user.province?.name ?? "—"
-  );
-}
-
 export default async function UsersPage({ searchParams }: UsersPageProps) {
   const session = await requirePermission("users:manage");
 
@@ -63,21 +48,15 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
   const filters = userFiltersSchema.parse({
     q: firstValue(params.q),
     roleId: firstValue(params.roleId),
-    provinceId: firstValue(params.provinceId),
-    villeId: firstValue(params.villeId),
-    communeId: firstValue(params.communeId),
-    quartierId: firstValue(params.quartierId),
+    territoryId: firstValue(params.territoryId),
     status: firstValue(params.status),
   });
 
   const scope = await getUserScope(session);
-  const [users, roles, provinces, villes, communes, quartiers, dict] = await Promise.all([
+  const [users, roles, territories, dict] = await Promise.all([
     listUsers(filters, scope),
     listRoleOptions(),
-    listActiveProvinces(),
-    listActiveVilles(),
-    listActiveCommunes(),
-    listActiveQuartiers(),
+    listActiveTerritoryOptions(),
     getServerDictionary(),
   ]);
   const t = dict.usersPage;
@@ -91,10 +70,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
 
       <UserFilters
         roles={roles}
-        provinces={provinces}
-        villes={villes}
-        communes={communes}
-        quartiers={quartiers}
+        territories={territories}
         filters={filters}
         dict={dict.filters}
         territoryDict={dict.territory}
@@ -122,7 +98,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
                 <TableCell>{user.email}</TableCell>
                 <TableCell>{user.role.name}</TableCell>
                 <TableCell>{user.manager?.name ?? "—"}</TableCell>
-                <TableCell>{territoryLabel(user)}</TableCell>
+                <TableCell>{user.territory?.code ?? "—"}</TableCell>
                 <TableCell>
                   <Badge variant={user.status === "ACTIVE" ? "default" : "secondary"}>
                     {user.status === "ACTIVE" ? t.statusActive : t.statusInactive}

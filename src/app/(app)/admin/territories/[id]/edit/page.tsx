@@ -3,11 +3,12 @@ import { notFound } from "next/navigation";
 import { getServerDictionary } from "@/lib/i18n/server";
 import { requirePermission } from "@/server/auth/require-permission";
 import {
-  listCommunes,
-  listProvinces,
-  listVilles,
+  listActiveCommunes,
+  listActiveProvinces,
+  listActiveQuartiers,
+  listActiveVilles,
 } from "@/server/repositories/territory-repository";
-import { getTerritoryEntry } from "@/server/services/territory-service";
+import { getTerritory, type TerritorySummary } from "@/server/services/territory-service";
 
 import { TerritoryForm } from "../../territory-form";
 
@@ -17,15 +18,27 @@ type EditTerritoryPageProps = {
   params: Promise<{ id: string }>;
 };
 
+function territoryPath(territory: TerritorySummary): string {
+  return [
+    territory.province.name,
+    territory.ville?.name,
+    territory.commune?.name,
+    territory.quartier?.name,
+  ]
+    .filter(Boolean)
+    .join(" › ");
+}
+
 export default async function EditTerritoryPage({ params }: EditTerritoryPageProps) {
   await requirePermission("territories:manage");
 
   const { id } = await params;
-  const [territory, provinces, villes, communes, dict] = await Promise.all([
-    getTerritoryEntry(id),
-    listProvinces(),
-    listVilles(),
-    listCommunes(),
+  const [territory, provinces, villes, communes, quartiers, dict] = await Promise.all([
+    getTerritory(id),
+    listActiveProvinces(),
+    listActiveVilles(),
+    listActiveCommunes(),
+    listActiveQuartiers(),
     getServerDictionary(),
   ]);
 
@@ -35,19 +48,19 @@ export default async function EditTerritoryPage({ params }: EditTerritoryPagePro
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <h1 className="text-xl font-semibold">{dict.editTerritoryTitle(territory.name)}</h1>
+      <h1 className="text-xl font-semibold">{dict.editTerritoryTitle(territoryPath(territory))}</h1>
       <TerritoryForm
         mode="edit"
-        options={{ provinces, villes, communes }}
+        options={{ provinces, villes, communes, quartiers }}
         dict={dict.territoriesPage}
         hierarchyDict={dict.territory}
         defaultValues={{
           id: territory.id,
-          level: territory.level,
-          provinceId: territory.province?.id,
+          code: territory.code,
+          provinceId: territory.province.id,
           villeId: territory.ville?.id,
           communeId: territory.commune?.id,
-          name: territory.name,
+          quartierId: territory.quartier?.id,
           status: territory.status,
         }}
       />

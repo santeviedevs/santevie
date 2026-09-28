@@ -14,14 +14,8 @@ import { getServerDictionary } from "@/lib/i18n/server";
 import { clientFiltersSchema } from "@/lib/schemas/client";
 import { requirePermission } from "@/server/auth/require-permission";
 import { listClientTypes } from "@/server/repositories/client-repository";
-import {
-  listActiveCommunes,
-  listActiveProvinces,
-  listActiveQuartiers,
-  listActiveVilles,
-} from "@/server/repositories/territory-repository";
-import type { ClientSummary } from "@/server/services/client-service";
 import { listClients } from "@/server/services/client-service";
+import { listActiveTerritoryOptions } from "@/server/services/territory-service";
 
 import { ClientFilters } from "./client-filters";
 
@@ -38,16 +32,6 @@ function firstValue(value: string | string[] | undefined): string | undefined {
   return single === "" ? undefined : single;
 }
 
-function territoryLabel(client: ClientSummary): string {
-  return (
-    client.quartier?.name ??
-    client.commune?.name ??
-    client.ville?.name ??
-    client.province?.name ??
-    "—"
-  );
-}
-
 export default async function ClientsPage({ searchParams }: ClientsPageProps) {
   await requirePermission("clients:manage");
 
@@ -55,21 +39,15 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
   const filters = clientFiltersSchema.parse({
     q: firstValue(params.q),
     typeId: firstValue(params.typeId),
-    provinceId: firstValue(params.provinceId),
-    villeId: firstValue(params.villeId),
-    communeId: firstValue(params.communeId),
-    quartierId: firstValue(params.quartierId),
+    territoryId: firstValue(params.territoryId),
     status: firstValue(params.status),
     missingCoordinates: firstValue(params.missingCoordinates),
   });
 
-  const [clients, types, provinces, villes, communes, quartiers, dict] = await Promise.all([
+  const [clients, types, territories, dict] = await Promise.all([
     listClients(filters),
     listClientTypes(),
-    listActiveProvinces(),
-    listActiveVilles(),
-    listActiveCommunes(),
-    listActiveQuartiers(),
+    listActiveTerritoryOptions(),
     getServerDictionary(),
   ]);
   const t = dict.clientsPage;
@@ -78,15 +56,17 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
     <div className="flex flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t.title}</h1>
-        <Button render={<Link href="/admin/clients/new" />}>{t.newClient}</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" render={<Link href="/admin/clients/import" />}>
+            {t.importButton}
+          </Button>
+          <Button render={<Link href="/admin/clients/new" />}>{t.newClient}</Button>
+        </div>
       </div>
 
       <ClientFilters
         types={types}
-        provinces={provinces}
-        villes={villes}
-        communes={communes}
-        quartiers={quartiers}
+        territories={territories}
         filters={filters}
         dict={dict.clientFilters}
         territoryDict={dict.territory}
@@ -111,7 +91,7 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
                 <TableCell>{client.code}</TableCell>
                 <TableCell>{client.name}</TableCell>
                 <TableCell>{client.type.name}</TableCell>
-                <TableCell>{territoryLabel(client)}</TableCell>
+                <TableCell>{client.territory?.code ?? "—"}</TableCell>
                 <TableCell>
                   {client.hasCoordinates ? (
                     `${client.latitude?.toFixed(4)}, ${client.longitude?.toFixed(4)}`

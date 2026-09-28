@@ -46,10 +46,7 @@ function readId(formData: FormData, key: string): string | null {
 function readManagerAndTerritory(formData: FormData) {
   return {
     managerId: readId(formData, "managerId"),
-    provinceId: readId(formData, "provinceId"),
-    villeId: readId(formData, "villeId"),
-    communeId: readId(formData, "communeId"),
-    quartierId: readId(formData, "quartierId"),
+    territoryId: readId(formData, "territoryId"),
   };
 }
 

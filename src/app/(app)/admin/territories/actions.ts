@@ -7,6 +7,7 @@ import { requirePermission, SessionExpiredError } from "@/server/auth/require-pe
 import {
   createTerritory,
   DuplicateTerritoryNameError,
+  DuplicateTerritoryPathError,
   InactiveParentError,
   InvalidTerritoryHierarchyError,
   TerritoryInUseError,
@@ -29,6 +30,7 @@ async function requireTerritoriesManage() {
 function messageFor(error: unknown): string {
   if (
     error instanceof DuplicateTerritoryNameError ||
+    error instanceof DuplicateTerritoryPathError ||
     error instanceof TerritoryInUseError ||
     error instanceof InvalidTerritoryHierarchyError ||
     error instanceof InactiveParentError
@@ -38,15 +40,11 @@ function messageFor(error: unknown): string {
   throw error;
 }
 
-// Each ancestor level arrives as two fields: "<prefix>Mode" ("existing" or
-// "new") plus either "<prefix>Id" or "<prefix>Name" depending on the mode —
-// matching what TerritoryForm's combo fields hold client-side. Also used
-// for the "add a new X below this row" fields on edit ("newVille",
-// "newCommune"), same wire shape. A level left untouched (blank "existing"
-// pick, or a blank typed name) reads as undefined — the level wasn't
-// provided at all, which is valid once a level is optional (Territory can
-// now stop at any point in the chain, and editing can grow a new one below
-// it).
+// Each level arrives as two fields: "<prefix>Mode" ("existing" or "new")
+// plus either "<prefix>Id" or "<prefix>Name" depending on the mode —
+// matching what TerritoryForm's combo fields hold client-side. A level
+// left untouched (blank "existing" pick, or a blank typed name) reads as
+// undefined — the level wasn't provided at all.
 function readAncestorLevel(formData: FormData, prefix: string) {
   const mode = formData.get(`${prefix}Mode`);
   if (mode === "new") {
@@ -75,7 +73,7 @@ export async function createTerritoryAction(
     province: readAncestorLevel(formData, "province"),
     ville: readAncestorLevel(formData, "ville"),
     commune: readAncestorLevel(formData, "commune"),
-    quartierName: formData.get("quartierName") || undefined,
+    quartier: readAncestorLevel(formData, "quartier"),
   });
 
   if (!parsed.success) {
@@ -101,18 +99,11 @@ export async function updateTerritoryAction(
 
   const parsed = updateTerritorySchema.safeParse({
     id: formData.get("id"),
-    level: formData.get("level"),
     province: readAncestorLevel(formData, "province"),
     ville: readAncestorLevel(formData, "ville"),
     commune: readAncestorLevel(formData, "commune"),
-    name: formData.get("name"),
+    quartier: readAncestorLevel(formData, "quartier"),
     status: readStatus(formData, "status"),
-    provinceStatus: readStatus(formData, "provinceStatus"),
-    villeStatus: readStatus(formData, "villeStatus"),
-    communeStatus: readStatus(formData, "communeStatus"),
-    newVille: readAncestorLevel(formData, "newVille"),
-    newCommune: readAncestorLevel(formData, "newCommune"),
-    newQuartierName: formData.get("newQuartierName") || undefined,
   });
 
   if (!parsed.success) {
