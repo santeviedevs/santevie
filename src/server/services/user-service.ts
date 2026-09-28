@@ -89,11 +89,12 @@ function toSummary(user: UserWithRelations): UserSummary {
 export async function listUsers(
   filters: UserFilters,
   scope: Scope,
+  options?: { matchTerritoryAssignments?: boolean },
 ): Promise<PagedResult<UserSummary>> {
   const scopedIds = scopeUserIds(scope);
   const [users, total] = await Promise.all([
-    findUsers(filters, scopedIds),
-    countUsers(filters, scopedIds),
+    findUsers(filters, scopedIds, options),
+    countUsers(filters, scopedIds, options),
   ]);
   return { items: users.map(toSummary), total, page: filters.page, pageSize: filters.pageSize };
 }

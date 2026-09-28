@@ -25,22 +25,47 @@ const listInclude = {
 
 export type UserWithRelations = Prisma.UserGetPayload<{ include: typeof listInclude }>;
 
-function buildWhere(filters: UserFilters): Prisma.UserWhereInput {
-  return {
-    ...(filters.roleId ? { roleId: filters.roleId } : {}),
-    ...(filters.managerId ? { managerId: filters.managerId } : {}),
-    ...(filters.territoryId ? { territoryId: filters.territoryId } : {}),
-    ...(filters.status ? { status: filters.status } : {}),
-    ...(filters.q
-      ? {
-          OR: [
-            { name: { contains: filters.q, mode: "insensitive" } },
-            { email: { contains: filters.q, mode: "insensitive" } },
-            { employeeCode: { contains: filters.q, mode: "insensitive" } },
-          ],
-        }
-      : {}),
-  };
+// `matchTerritoryAssignments`: the Team screen's territory filter means
+// "who covers this territory" — true for a user whose *home* territoryId is
+// it, or who merely holds an assignment there (S2-04's multi-territory
+// join table). The admin Users screen keeps the narrower home-territory-only
+// meaning, so this only widens the clause when the caller opts in.
+// Built as an `AND` of independent conditions rather than spreading each
+// into one object: the territory-assignment clause and the search clause
+// are each their own `OR`, and spreading two objects that each have a
+// top-level `OR` key would silently let the second overwrite the first.
+function buildWhere(
+  filters: UserFilters,
+  options?: { matchTerritoryAssignments?: boolean },
+): Prisma.UserWhereInput {
+  const conditions: Prisma.UserWhereInput[] = [];
+
+  if (filters.roleId) conditions.push({ roleId: filters.roleId });
+  if (filters.managerId) conditions.push({ managerId: filters.managerId });
+  if (filters.territoryId) {
+    conditions.push(
+      options?.matchTerritoryAssignments
+        ? {
+            OR: [
+              { territoryId: filters.territoryId },
+              { territoryAssignments: { some: { territoryId: filters.territoryId } } },
+            ],
+          }
+        : { territoryId: filters.territoryId },
+    );
+  }
+  if (filters.status) conditions.push({ status: filters.status });
+  if (filters.q) {
+    conditions.push({
+      OR: [
+        { name: { contains: filters.q, mode: "insensitive" } },
+        { email: { contains: filters.q, mode: "insensitive" } },
+        { employeeCode: { contains: filters.q, mode: "insensitive" } },
+      ],
+    });
+  }
+
+  return conditions.length > 0 ? { AND: conditions } : {};
 }
 
 // `scopedIds`, when present, restricts results to that id set — this is
@@ -49,18 +74,29 @@ function buildWhere(filters: UserFilters): Prisma.UserWhereInput {
 export function findUsers(
   filters: UserFilters,
   scopedIds?: string[],
+  options?: { matchTerritoryAssignments?: boolean },
 ): Promise<UserWithRelations[]> {
   return prisma.user.findMany({
-    where: { ...buildWhere(filters), ...(scopedIds ? { id: { in: scopedIds } } : {}) },
+    where: {
+      ...buildWhere(filters, options),
+      ...(scopedIds ? { id: { in: scopedIds } } : {}),
+    },
     include: listInclude,
     orderBy: { name: "asc" },
     ...toSkipTake(filters),
   });
 }
 
-export function countUsers(filters: UserFilters, scopedIds?: string[]): Promise<number> {
+export function countUsers(
+  filters: UserFilters,
+  scopedIds?: string[],
+  options?: { matchTerritoryAssignments?: boolean },
+): Promise<number> {
   return prisma.user.count({
-    where: { ...buildWhere(filters), ...(scopedIds ? { id: { in: scopedIds } } : {}) },
+    where: {
+      ...buildWhere(filters, options),
+      ...(scopedIds ? { id: { in: scopedIds } } : {}),
+    },
   });
 }
 

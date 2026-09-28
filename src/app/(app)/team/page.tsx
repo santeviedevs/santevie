@@ -58,7 +58,7 @@ export default async function TeamPage({ searchParams }: TeamPageProps) {
   const scope = { kind: "ids", userIds: downstream } as const;
 
   const [{ items: members, total }, allDownstream, roles, territories, dict] = await Promise.all([
-    listUsers(filters, scope),
+    listUsers(filters, scope, { matchTerritoryAssignments: true }),
     listAllUsersInScope(scope),
     listRoleOptions(),
     listActiveTerritoryOptions(),
