@@ -180,6 +180,10 @@ export type Dictionary = {
     noManager: string;
     columnTerritories: string;
     noAssignments: string;
+    columnContractStartDate: string;
+    columnContractDuration: string;
+    columnContractExpiry: string;
+    noContract: string;
     noResults: string;
   };
   userForm: {
@@ -192,6 +196,12 @@ export type Dictionary = {
     manager: string;
     noManager: string;
     territorySectionLabel: string;
+    contractStartDate: string;
+    contractDuration: string;
+    contractExpiry: string;
+    durationUnitDays: string;
+    durationUnitMonths: string;
+    durationUnitYears: string;
     activate: string;
     activeDescription: string;
     inactiveDescription: string;
@@ -520,6 +530,10 @@ const en: Dictionary = {
     noManager: "—",
     columnTerritories: "Territories",
     noAssignments: "No territories assigned",
+    columnContractStartDate: "Contract start",
+    columnContractDuration: "Duration",
+    columnContractExpiry: "Contract expiry",
+    noContract: "—",
     noResults: "No one reports to you yet.",
   },
   userForm: {
@@ -532,6 +546,12 @@ const en: Dictionary = {
     manager: "Manager",
     noManager: "No manager",
     territorySectionLabel: "Territory",
+    contractStartDate: "Contract start date",
+    contractDuration: "Contract duration",
+    contractExpiry: "Contract expiry (calculated)",
+    durationUnitDays: "Days",
+    durationUnitMonths: "Months",
+    durationUnitYears: "Years",
     activate: "Activate",
     activeDescription: "Can sign in and appears in active lists.",
     inactiveDescription: "Deactivated — can't sign in. Save changes to reactivate.",
@@ -840,6 +860,10 @@ const fr: Dictionary = {
     noManager: "—",
     columnTerritories: "Territoires",
     noAssignments: "Aucun territoire affecté",
+    columnContractStartDate: "Début du contrat",
+    columnContractDuration: "Durée",
+    columnContractExpiry: "Expiration du contrat",
+    noContract: "—",
     noResults: "Personne ne vous est rattaché pour le moment.",
   },
   userForm: {
@@ -852,6 +876,12 @@ const fr: Dictionary = {
     manager: "Responsable",
     noManager: "Aucun responsable",
     territorySectionLabel: "Territoire",
+    contractStartDate: "Date de début du contrat",
+    contractDuration: "Durée du contrat",
+    contractExpiry: "Expiration du contrat (calculée)",
+    durationUnitDays: "Jours",
+    durationUnitMonths: "Mois",
+    durationUnitYears: "Années",
     activate: "Activer",
     activeDescription: "Peut se connecter et apparaît dans les listes actives.",
     inactiveDescription: "Désactivé — ne peut pas se connecter. Enregistrez pour réactiver.",

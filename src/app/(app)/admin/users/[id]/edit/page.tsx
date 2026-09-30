@@ -44,6 +44,11 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
           roleId: user.role.id,
           managerId: user.manager?.id ?? null,
           territoryId: user.territory?.id ?? null,
+          contractStartDate: user.contractStartDate
+            ? user.contractStartDate.toISOString().slice(0, 10)
+            : null,
+          contractDurationValue: user.contractDurationValue,
+          contractDurationUnit: user.contractDurationUnit,
           status: user.status,
         }}
       />

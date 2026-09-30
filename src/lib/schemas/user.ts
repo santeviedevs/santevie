@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { CONTRACT_DURATION_UNITS } from "@/lib/contract-duration";
 import { paginationParamsSchema } from "@/lib/pagination";
 
 const employeeCode = z
@@ -15,27 +16,77 @@ const email = z.email("Enter a valid email address");
 // cuid — matches the id format Prisma generates for Role/User/Territory.
 const id = z.string().min(1);
 
-export const createUserSchema = z.object({
-  employeeCode,
-  name,
-  email,
-  roleId: id,
-  managerId: id.nullish(),
-  // The Territory this user is scoped to — a Territory already represents
-  // whatever depth (Province alone, down to a full Quartier path) it maps
-  // to, so one optional field is enough.
-  territoryId: id.nullish(),
-});
+const contractStartDate = z.iso.date("Enter a valid start date").nullish();
+const contractDurationValue = z
+  .number()
+  .int("Duration must be a whole number")
+  .positive("Duration must be greater than zero")
+  .nullish();
+const contractDurationUnit = z.enum(CONTRACT_DURATION_UNITS).nullish();
+
+// contractExpiryDate is deliberately absent here — it's never accepted from
+// the client, only computed server-side (see user-service.ts), same as
+// order totals never being trusted from the browser.
+const contractFields = {
+  contractStartDate,
+  contractDurationValue,
+  contractDurationUnit,
+};
+
+// All three contract fields are set together or all left empty — a start
+// date with no duration (or vice versa) can't produce an expiry date.
+function checkContractFieldsComplete(
+  data: {
+    contractStartDate?: string | null;
+    contractDurationValue?: number | null;
+    contractDurationUnit?: string | null;
+  },
+  ctx: z.RefinementCtx,
+) {
+  const present = [data.contractStartDate, data.contractDurationValue, data.contractDurationUnit];
+  const filledCount = present.filter((value) => value !== null && value !== undefined).length;
+  if (filledCount !== 0 && filledCount !== 3) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["contractStartDate"],
+      message: "Enter a start date and duration together, or leave both empty.",
+    });
+  }
+}
+
+export const createUserSchema = z
+  .object({
+    employeeCode,
+    name,
+    email,
+    roleId: id,
+    managerId: id.nullish(),
+    // The Territory this user is scoped to — a Territory already represents
+    // whatever depth (Province alone, down to a full Quartier path) it maps
+    // to, so one optional field is enough.
+    territoryId: id.nullish(),
+    ...contractFields,
+  })
+  .superRefine(checkContractFieldsComplete);
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 
-export const updateUserSchema = createUserSchema.extend({
-  id,
-  // Absent means "leave as-is" (e.g. the create form never sends it);
-  // present is an explicit set, which is how the edit form's active/
-  // inactive toggle applies alongside the rest of a save.
-  status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
-});
+export const updateUserSchema = z
+  .object({
+    id,
+    employeeCode,
+    name,
+    email,
+    roleId: id,
+    managerId: id.nullish(),
+    territoryId: id.nullish(),
+    ...contractFields,
+    // Absent means "leave as-is" (e.g. the create form never sends it);
+    // present is an explicit set, which is how the edit form's active/
+    // inactive toggle applies alongside the rest of a save.
+    status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+  })
+  .superRefine(checkContractFieldsComplete);
 
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 

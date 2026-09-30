@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { computeContractExpiry, type ContractDurationUnit } from "@/lib/contract-duration";
 import type { PagedResult } from "@/lib/pagination";
 import type { CreateUserInput, UpdateUserInput, UserFilters } from "@/lib/schemas/user";
 import { hashPassword } from "@/server/auth/password";
@@ -65,6 +66,10 @@ export type UserSummary = {
     commune: { id: string; name: string } | null;
     quartier: { id: string; name: string } | null;
   } | null;
+  contractStartDate: Date | null;
+  contractDurationValue: number | null;
+  contractDurationUnit: ContractDurationUnit | null;
+  contractExpiryDate: Date | null;
 };
 
 function toSummary(user: UserWithRelations): UserSummary {
@@ -83,6 +88,41 @@ function toSummary(user: UserWithRelations): UserSummary {
         }
       : null,
     territory: user.territory,
+    contractStartDate: user.contractStartDate,
+    contractDurationValue: user.contractDurationValue,
+    contractDurationUnit: user.contractDurationUnit,
+    contractExpiryDate: user.contractExpiryDate,
+  };
+}
+
+// contractExpiryDate is never accepted from the client (see the schema
+// comment) — always derived here from the other two, or left null when
+// either is absent. The all-or-nothing invariant itself is enforced by the
+// Zod schema's superRefine before input ever reaches this function.
+function resolveContractFields(input: {
+  contractStartDate?: string | null;
+  contractDurationValue?: number | null;
+  contractDurationUnit?: ContractDurationUnit | null;
+}) {
+  if (!input.contractStartDate || !input.contractDurationValue || !input.contractDurationUnit) {
+    return {
+      contractStartDate: null,
+      contractDurationValue: null,
+      contractDurationUnit: null,
+      contractExpiryDate: null,
+    };
+  }
+
+  const contractStartDate = new Date(input.contractStartDate);
+  return {
+    contractStartDate,
+    contractDurationValue: input.contractDurationValue,
+    contractDurationUnit: input.contractDurationUnit,
+    contractExpiryDate: computeContractExpiry(
+      contractStartDate,
+      input.contractDurationValue,
+      input.contractDurationUnit,
+    ),
   };
 }
 
@@ -217,6 +257,7 @@ export async function createUser(input: CreateUserInput, actorId: string): Promi
       role: { connect: { id: input.roleId } },
       manager: input.managerId ? { connect: { id: input.managerId } } : undefined,
       territory: input.territoryId ? { connect: { id: input.territoryId } } : undefined,
+      ...resolveContractFields(input),
       createdBy: actorId,
       updatedBy: actorId,
     });
@@ -239,6 +280,7 @@ export async function updateUser(input: UpdateUserInput, actorId: string): Promi
       role: { connect: { id: input.roleId } },
       manager: input.managerId ? { connect: { id: input.managerId } } : { disconnect: true },
       territory: input.territoryId ? { connect: { id: input.territoryId } } : { disconnect: true },
+      ...resolveContractFields(input),
       ...(input.status ? { status: input.status } : {}),
       updatedBy: actorId,
     });

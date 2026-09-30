@@ -32,6 +32,12 @@ enum ImportEntity {
   PRODUCT
 }
 
+enum ContractDurationUnit {
+  DAYS
+  MONTHS
+  YEARS
+}
+
 // --- Identity ---
 
 model Role {
@@ -106,6 +112,16 @@ model User {
   // entity.
   territoryId String?
   territory   Territory? @relation(fields: [territoryId], references: [id])
+
+  // Contract tracking. All three are set together or not at all (enforced
+  // in the Zod schema, not here) — contractExpiryDate is never accepted
+  // from the client; it's computed server-side from the other two whenever
+  // either changes, same reasoning as order totals never being trusted from
+  // the browser.
+  contractStartDate     DateTime?             @db.Date
+  contractDurationValue Int?
+  contractDurationUnit  ContractDurationUnit?
+  contractExpiryDate    DateTime?             @db.Date
 
   visits               Visit[]
   orders               Order[]

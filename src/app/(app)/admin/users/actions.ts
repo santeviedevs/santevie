@@ -50,6 +50,16 @@ function readManagerAndTerritory(formData: FormData) {
   };
 }
 
+function readContractFields(formData: FormData) {
+  const durationValue = formData.get("contractDurationValue");
+  return {
+    contractStartDate: readId(formData, "contractStartDate"),
+    contractDurationValue:
+      typeof durationValue === "string" && durationValue.length > 0 ? Number(durationValue) : null,
+    contractDurationUnit: readId(formData, "contractDurationUnit"),
+  };
+}
+
 export async function createUserAction(
   _prevState: UserFormState,
   formData: FormData,
@@ -65,6 +75,7 @@ export async function createUserAction(
     email: formData.get("email"),
     roleId: formData.get("roleId"),
     ...readManagerAndTerritory(formData),
+    ...readContractFields(formData),
   });
 
   if (!parsed.success) {
@@ -100,6 +111,7 @@ export async function updateUserAction(
     roleId: formData.get("roleId"),
     status: status === "ACTIVE" || status === "INACTIVE" ? status : undefined,
     ...readManagerAndTerritory(formData),
+    ...readContractFields(formData),
   });
 
   if (!parsed.success) {

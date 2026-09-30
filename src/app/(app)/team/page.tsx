@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatDate } from "@/lib/format-date";
 import { getServerDictionary } from "@/lib/i18n/server";
 import { totalPages } from "@/lib/pagination";
 import { userFiltersSchema } from "@/lib/schemas/user";
@@ -113,6 +114,12 @@ export default async function TeamPage({ searchParams }: TeamPageProps) {
     members.map((member) => listTerritoryAssignments(member.id)),
   );
 
+  const durationUnitLabel: Record<"DAYS" | "MONTHS" | "YEARS", string> = {
+    DAYS: dict.userForm.durationUnitDays,
+    MONTHS: dict.userForm.durationUnitMonths,
+    YEARS: dict.userForm.durationUnitYears,
+  };
+
   return (
     <div className="flex flex-col gap-6 p-6">
       <h1 className="text-xl font-semibold">{t.title}</h1>
@@ -136,6 +143,9 @@ export default async function TeamPage({ searchParams }: TeamPageProps) {
               <TableHead>{t.columnRole}</TableHead>
               <TableHead>{t.columnReportsTo}</TableHead>
               <TableHead>{t.columnTerritories}</TableHead>
+              <TableHead>{t.columnContractStartDate}</TableHead>
+              <TableHead>{t.columnContractDuration}</TableHead>
+              <TableHead>{t.columnContractExpiry}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -162,11 +172,22 @@ export default async function TeamPage({ searchParams }: TeamPageProps) {
                     )}
                   </div>
                 </TableCell>
+                <TableCell>
+                  {member.contractStartDate ? formatDate(member.contractStartDate) : t.noContract}
+                </TableCell>
+                <TableCell>
+                  {member.contractDurationValue && member.contractDurationUnit
+                    ? `${member.contractDurationValue} ${durationUnitLabel[member.contractDurationUnit]}`
+                    : t.noContract}
+                </TableCell>
+                <TableCell>
+                  {member.contractExpiryDate ? formatDate(member.contractExpiryDate) : t.noContract}
+                </TableCell>
               </TableRow>
             ))}
             {members.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
+                <TableCell colSpan={8} className="text-center text-muted-foreground">
                   {t.noResults}
                 </TableCell>
               </TableRow>
