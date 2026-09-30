@@ -66,6 +66,7 @@ export type ClientSummary = {
   id: string;
   code: string;
   name: string;
+  responsiblePerson: string | null;
   contact: string | null;
   address: string | null;
   latitude: number | null;
@@ -99,6 +100,7 @@ function toSummary(client: ClientWithRelations): ClientSummary {
     id: client.id,
     code: client.code,
     name: client.name,
+    responsiblePerson: client.responsiblePerson,
     contact: client.contact,
     address: client.address,
     latitude,
@@ -180,6 +182,7 @@ export async function createClient(
       client: {
         code: input.code,
         name: input.name,
+        responsiblePerson: input.responsiblePerson ?? null,
         contact: input.contact ?? null,
         address: input.address ?? null,
         latitude: input.latitude ?? null,
@@ -234,6 +237,7 @@ export async function updateClient(
       client: {
         code: input.code,
         name: input.name,
+        responsiblePerson: input.responsiblePerson ?? null,
         contact: input.contact ?? null,
         address: input.address ?? null,
         latitude: input.latitude ?? null,

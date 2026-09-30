@@ -18,6 +18,7 @@ export const CLIENT_IMPORT_COLUMNS = [
   "code",
   "name",
   "clientType",
+  "responsiblePerson",
   "contact",
   "address",
   "latitude",
@@ -40,6 +41,7 @@ type ResolvedClientInput = {
   code: string;
   name: string;
   typeId: string;
+  responsiblePerson: string | null;
   contact: string | null;
   address: string | null;
   latitude: number | null;
@@ -148,6 +150,7 @@ async function resolveRow(
     code,
     name,
     typeId,
+    responsiblePerson: toStringOrNull(row.responsiblePerson),
     contact: toStringOrNull(row.contact),
     address: toStringOrNull(row.address),
     latitude,
@@ -170,6 +173,7 @@ async function resolveRow(
     code,
     name,
     typeId,
+    responsiblePerson: candidate.responsiblePerson,
     contact: candidate.contact,
     address: candidate.address,
     latitude,
@@ -235,6 +239,7 @@ export async function commitClientImport(
           code: outcome.data.code,
           name: outcome.data.name,
           typeId: outcome.data.typeId,
+          responsiblePerson: outcome.data.responsiblePerson,
           contact: outcome.data.contact,
           address: outcome.data.address,
           latitude: outcome.data.latitude,
@@ -260,6 +265,7 @@ export async function commitClientImport(
           code: outcome.data.code,
           name: outcome.data.name,
           typeId: outcome.data.typeId,
+          responsiblePerson: outcome.data.responsiblePerson,
           contact: outcome.data.contact,
           address: outcome.data.address,
           latitude: outcome.data.latitude,

@@ -220,6 +220,8 @@ export type Dictionary = {
     columnCode: string;
     columnName: string;
     columnType: string;
+    columnResponsiblePerson: string;
+    columnContact: string;
     columnTerritory: string;
     columnCoordinates: string;
     columnStatus: string;
@@ -248,6 +250,7 @@ export type Dictionary = {
     name: string;
     type: string;
     selectType: string;
+    responsiblePerson: string;
     contact: string;
     address: string;
     territorySectionLabel: string;
@@ -281,6 +284,7 @@ export type Dictionary = {
     backToList: string;
     editClient: string;
     detailsSectionLabel: string;
+    responsiblePerson: string;
     contact: string;
     address: string;
     notProvided: string;
@@ -568,6 +572,8 @@ const en: Dictionary = {
     columnCode: "Code",
     columnName: "Name",
     columnType: "Type",
+    columnResponsiblePerson: "Responsible person",
+    columnContact: "Contact",
     columnTerritory: "Territory",
     columnCoordinates: "Coordinates",
     columnStatus: "Status",
@@ -596,6 +602,7 @@ const en: Dictionary = {
     name: "Name",
     type: "Type",
     selectType: "Select a type",
+    responsiblePerson: "Responsible person",
     contact: "Contact",
     address: "Address",
     territorySectionLabel: "Territory",
@@ -625,6 +632,7 @@ const en: Dictionary = {
     backToList: "Back to clients",
     editClient: "Edit client",
     detailsSectionLabel: "Details",
+    responsiblePerson: "Responsible person",
     contact: "Contact",
     address: "Address",
     notProvided: "Not provided",
@@ -898,6 +906,8 @@ const fr: Dictionary = {
     columnCode: "Code",
     columnName: "Nom",
     columnType: "Type",
+    columnResponsiblePerson: "Responsable",
+    columnContact: "Contact",
     columnTerritory: "Territoire",
     columnCoordinates: "Coordonnées",
     columnStatus: "Statut",
@@ -926,6 +936,7 @@ const fr: Dictionary = {
     name: "Nom",
     type: "Type",
     selectType: "Sélectionner un type",
+    responsiblePerson: "Responsable",
     contact: "Contact",
     address: "Adresse",
     territorySectionLabel: "Territoire",
@@ -956,6 +967,7 @@ const fr: Dictionary = {
     backToList: "Retour aux clients",
     editClient: "Modifier le client",
     detailsSectionLabel: "Détails",
+    responsiblePerson: "Responsable",
     contact: "Contact",
     address: "Adresse",
     notProvided: "Non renseigné",

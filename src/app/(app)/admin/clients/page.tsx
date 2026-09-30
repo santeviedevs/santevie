@@ -81,8 +81,10 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
           <TableHeader>
             <TableRow>
               <TableHead>{t.columnCode}</TableHead>
-              <TableHead>{t.columnName}</TableHead>
               <TableHead>{t.columnType}</TableHead>
+              <TableHead>{t.columnName}</TableHead>
+              <TableHead>{t.columnResponsiblePerson}</TableHead>
+              <TableHead>{t.columnContact}</TableHead>
               <TableHead>{t.columnTerritory}</TableHead>
               <TableHead>{t.columnCoordinates}</TableHead>
               <TableHead>{t.columnStatus}</TableHead>
@@ -93,8 +95,10 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
             {clients.map((client) => (
               <TableRow key={client.id}>
                 <TableCell>{client.code}</TableCell>
-                <TableCell>{client.name}</TableCell>
                 <TableCell>{client.type.name}</TableCell>
+                <TableCell>{client.name}</TableCell>
+                <TableCell>{client.responsiblePerson ?? "—"}</TableCell>
+                <TableCell>{client.contact ?? "—"}</TableCell>
                 <TableCell>{client.territory?.code ?? "—"}</TableCell>
                 <TableCell>
                   {client.hasCoordinates ? (
@@ -128,7 +132,7 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
             ))}
             {clients.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground">
+                <TableCell colSpan={9} className="text-center text-muted-foreground">
                   {t.noResults}
                 </TableCell>
               </TableRow>

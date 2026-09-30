@@ -82,6 +82,9 @@ export function ClientForm({ mode, options, defaultValues, dict, territoryDict }
       formData.set("name", values.name);
       formData.set("typeId", values.typeId);
       if (typeCode) formData.set("typeCode", typeCode);
+      if (values.responsiblePerson) {
+        formData.set("responsiblePerson", values.responsiblePerson);
+      }
       if (values.contact) formData.set("contact", values.contact);
       if (values.address) formData.set("address", values.address);
       if (values.latitude !== null && values.latitude !== undefined) {
@@ -211,6 +214,11 @@ export function ClientForm({ mode, options, defaultValues, dict, territoryDict }
           </div>
         </div>
       ) : null}
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="responsiblePerson">{dict.responsiblePerson}</Label>
+        <Input id="responsiblePerson" disabled={isPending} {...register("responsiblePerson")} />
+      </div>
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="contact">{dict.contact}</Label>

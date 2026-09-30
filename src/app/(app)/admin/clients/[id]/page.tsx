@@ -78,6 +78,7 @@ export default async function ClientDetailPage({ params }: ClientDetailPageProps
         <div className="grid grid-cols-2 gap-4">
           <Field label={formDict.code} value={client.code} />
           <Field label={formDict.name} value={client.name} />
+          <Field label={t.responsiblePerson} value={client.responsiblePerson ?? notProvided} />
           <Field label={t.contact} value={client.contact ?? notProvided} />
           <Field label={t.address} value={client.address ?? notProvided} />
           <Field
