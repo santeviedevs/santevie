@@ -63,6 +63,7 @@ function readCommon(formData: FormData) {
     code: formData.get("code"),
     name: formData.get("name"),
     typeId: formData.get("typeId"),
+    responsiblePerson: readText(formData, "responsiblePerson"),
     contact: readText(formData, "contact"),
     address: readText(formData, "address"),
     latitude: readNumber(formData, "latitude"),

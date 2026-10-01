@@ -17,6 +17,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { computeContractExpiry } from "@/lib/contract-duration";
+import { formatDate } from "@/lib/format-date";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import {
   type CreateUserInput,
@@ -79,6 +81,22 @@ export function UserForm({ mode, options, defaultValues, dict, territoryDict }: 
   const managerId = watch("managerId");
   const territoryId = watch("territoryId");
   const status = watch("status");
+  const contractStartDate = watch("contractStartDate");
+  const contractDurationValue = watch("contractDurationValue");
+  const contractDurationUnit = watch("contractDurationUnit");
+
+  // Preview only — the server recomputes and owns the stored expiry date
+  // (see the comment on contractExpiryDate in user-service.ts).
+  const contractExpiryPreview =
+    contractStartDate && contractDurationValue && contractDurationUnit
+      ? formatDate(
+          computeContractExpiry(
+            new Date(contractStartDate),
+            contractDurationValue,
+            contractDurationUnit,
+          ),
+        )
+      : null;
 
   const onSubmit = (values: CreateUserInput | UpdateUserInput) => {
     setFormError(null);
@@ -91,6 +109,13 @@ export function UserForm({ mode, options, defaultValues, dict, territoryDict }: 
       formData.set("roleId", values.roleId);
       if (values.managerId) formData.set("managerId", values.managerId);
       if (values.territoryId) formData.set("territoryId", values.territoryId);
+      if (values.contractStartDate) formData.set("contractStartDate", values.contractStartDate);
+      if (values.contractDurationValue) {
+        formData.set("contractDurationValue", String(values.contractDurationValue));
+      }
+      if (values.contractDurationUnit) {
+        formData.set("contractDurationUnit", values.contractDurationUnit);
+      }
       // Only meaningful for edit — the create schema has no status field,
       // and a brand-new user is always created ACTIVE server-side anyway.
       if (mode === "edit" && "status" in values && values.status) {
@@ -204,6 +229,69 @@ export function UserForm({ mode, options, defaultValues, dict, territoryDict }: 
           disabled={isPending}
         />
       </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="contractStartDate">{dict.contractStartDate}</Label>
+        <Input
+          id="contractStartDate"
+          type="date"
+          disabled={isPending}
+          {...register("contractStartDate")}
+        />
+        {errors.contractStartDate ? (
+          <p className="text-sm text-destructive">{errors.contractStartDate.message}</p>
+        ) : null}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="contractDurationValue">{dict.contractDuration}</Label>
+        <div className="flex gap-2">
+          <Input
+            id="contractDurationValue"
+            type="number"
+            step="1"
+            min="1"
+            className="flex-1"
+            disabled={isPending}
+            {...register("contractDurationValue", { valueAsNumber: true })}
+          />
+          <Select
+            items={[
+              { value: "DAYS", label: dict.durationUnitDays },
+              { value: "MONTHS", label: dict.durationUnitMonths },
+              { value: "YEARS", label: dict.durationUnitYears },
+            ]}
+            value={contractDurationUnit ?? ""}
+            onValueChange={(value) => {
+              if (value) {
+                setValue("contractDurationUnit", value as "DAYS" | "MONTHS" | "YEARS", {
+                  shouldValidate: true,
+                });
+              }
+            }}
+            disabled={isPending}
+          >
+            <SelectTrigger id="contractDurationUnit" className="w-36">
+              <SelectValue placeholder={dict.durationUnitMonths} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="DAYS">{dict.durationUnitDays}</SelectItem>
+              <SelectItem value="MONTHS">{dict.durationUnitMonths}</SelectItem>
+              <SelectItem value="YEARS">{dict.durationUnitYears}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {errors.contractDurationValue ? (
+          <p className="text-sm text-destructive">{errors.contractDurationValue.message}</p>
+        ) : null}
+      </div>
+
+      {contractExpiryPreview ? (
+        <div className="flex flex-col gap-2">
+          <Label>{dict.contractExpiry}</Label>
+          <p className="text-sm text-muted-foreground">{contractExpiryPreview}</p>
+        </div>
+      ) : null}
 
       {mode === "edit" ? (
         <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">

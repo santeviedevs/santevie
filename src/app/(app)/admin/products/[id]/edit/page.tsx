@@ -43,6 +43,7 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
           categoryId: product.category?.id ?? null,
           grossPrice: product.grossPrice,
           netPrice: product.netPrice,
+          quantityPerCarton: product.quantityPerCarton,
           status: product.status,
         }}
       />

@@ -49,6 +49,7 @@ export const createClientSchema = z.object({
   code,
   name,
   typeId: id,
+  responsiblePerson: z.string().trim().max(160).nullish(),
   contact: z.string().trim().max(80).nullish(),
   address: z.string().trim().max(240).nullish(),
   latitude,

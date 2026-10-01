@@ -41,6 +41,7 @@ export default async function EditClientPage({ params }: EditClientPageProps) {
           code: client.code,
           name: client.name,
           typeId: client.type.id,
+          responsiblePerson: client.responsiblePerson,
           contact: client.contact,
           address: client.address,
           latitude: client.latitude,

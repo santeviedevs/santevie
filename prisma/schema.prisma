@@ -32,6 +32,12 @@ enum ImportEntity {
   PRODUCT
 }
 
+enum ContractDurationUnit {
+  DAYS
+  MONTHS
+  YEARS
+}
+
 // --- Identity ---
 
 model Role {
@@ -106,6 +112,16 @@ model User {
   // entity.
   territoryId String?
   territory   Territory? @relation(fields: [territoryId], references: [id])
+
+  // Contract tracking. All three are set together or not at all (enforced
+  // in the Zod schema, not here) — contractExpiryDate is never accepted
+  // from the client; it's computed server-side from the other two whenever
+  // either changes, same reasoning as order totals never being trusted from
+  // the browser.
+  contractStartDate     DateTime?             @db.Date
+  contractDurationValue Int?
+  contractDurationUnit  ContractDurationUnit?
+  contractExpiryDate    DateTime?             @db.Date
 
   visits               Visit[]
   orders               Order[]
@@ -299,14 +315,18 @@ model ClientType {
 }
 
 model Client {
-  id        String   @id @default(cuid())
-  code      String   @unique
-  name      String
-  contact   String?
-  address   String?
-  latitude  Decimal? @db.Decimal(9, 6)
-  longitude Decimal? @db.Decimal(9, 6)
-  status    Status   @default(ACTIVE)
+  id                String   @id @default(cuid())
+  code              String   @unique
+  name              String
+  // The name of the on-site point of contact — distinct from `contact`,
+  // which is free text (phone/email/whatever) and doesn't identify who it
+  // belongs to.
+  responsiblePerson String?
+  contact           String?
+  address           String?
+  latitude          Decimal? @db.Decimal(9, 6)
+  longitude         Decimal? @db.Decimal(9, 6)
+  status            Status   @default(ACTIVE)
 
   typeId String
   type   ClientType @relation(fields: [typeId], references: [id])
@@ -434,12 +454,14 @@ model ProductCategory {
 // stored as-is rather than netPrice being derived from a percentage,
 // since the discount isn't confirmed to be a fixed, permanent rule.
 model Product {
-  id         String  @id @default(cuid())
-  code       String  @unique
-  name       String
-  grossPrice Decimal @db.Decimal(12, 2)
-  netPrice   Decimal @db.Decimal(12, 2)
-  status     Status  @default(ACTIVE)
+  id                String  @id @default(cuid())
+  code              String  @unique
+  name              String
+  grossPrice        Decimal @db.Decimal(12, 2)
+  netPrice          Decimal @db.Decimal(12, 2)
+  // Units per carton for bulk ordering/logistics — not used in pricing math.
+  quantityPerCarton Int     @default(1)
+  status            Status  @default(ACTIVE)
 
   categoryId String?
   category   ProductCategory? @relation(fields: [categoryId], references: [id])

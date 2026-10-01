@@ -180,6 +180,10 @@ export type Dictionary = {
     noManager: string;
     columnTerritories: string;
     noAssignments: string;
+    columnContractStartDate: string;
+    columnContractDuration: string;
+    columnContractExpiry: string;
+    noContract: string;
     noResults: string;
   };
   userForm: {
@@ -192,6 +196,12 @@ export type Dictionary = {
     manager: string;
     noManager: string;
     territorySectionLabel: string;
+    contractStartDate: string;
+    contractDuration: string;
+    contractExpiry: string;
+    durationUnitDays: string;
+    durationUnitMonths: string;
+    durationUnitYears: string;
     activate: string;
     activeDescription: string;
     inactiveDescription: string;
@@ -210,6 +220,8 @@ export type Dictionary = {
     columnCode: string;
     columnName: string;
     columnType: string;
+    columnResponsiblePerson: string;
+    columnContact: string;
     columnTerritory: string;
     columnCoordinates: string;
     columnStatus: string;
@@ -238,6 +250,7 @@ export type Dictionary = {
     name: string;
     type: string;
     selectType: string;
+    responsiblePerson: string;
     contact: string;
     address: string;
     territorySectionLabel: string;
@@ -271,6 +284,7 @@ export type Dictionary = {
     backToList: string;
     editClient: string;
     detailsSectionLabel: string;
+    responsiblePerson: string;
     contact: string;
     address: string;
     notProvided: string;
@@ -290,6 +304,7 @@ export type Dictionary = {
     columnCategory: string;
     columnGrossPrice: string;
     columnNetPrice: string;
+    columnQuantityPerCarton: string;
     columnStatus: string;
     edit: string;
     noResults: string;
@@ -317,12 +332,14 @@ export type Dictionary = {
     name: string;
     category: string;
     noCategory: string;
+    quantityPerCarton: string;
     grossPrice: string;
     netPrice: string;
     // A convenience-only calculator, not a stored field — see the
     // comment in product-form.tsx.
     discountPercentHelper: string;
     discountPercentPlaceholder: string;
+    discountPercentMaxError: string;
     cdfPreviewLabel: string;
     activate: string;
     activeDescription: string;
@@ -517,6 +534,10 @@ const en: Dictionary = {
     noManager: "—",
     columnTerritories: "Territories",
     noAssignments: "No territories assigned",
+    columnContractStartDate: "Contract start",
+    columnContractDuration: "Duration",
+    columnContractExpiry: "Contract expiry",
+    noContract: "—",
     noResults: "No one reports to you yet.",
   },
   userForm: {
@@ -529,6 +550,12 @@ const en: Dictionary = {
     manager: "Manager",
     noManager: "No manager",
     territorySectionLabel: "Territory",
+    contractStartDate: "Contract start date",
+    contractDuration: "Contract duration",
+    contractExpiry: "Contract expiry (calculated)",
+    durationUnitDays: "Days",
+    durationUnitMonths: "Months",
+    durationUnitYears: "Years",
     activate: "Activate",
     activeDescription: "Can sign in and appears in active lists.",
     inactiveDescription: "Deactivated — can't sign in. Save changes to reactivate.",
@@ -545,6 +572,8 @@ const en: Dictionary = {
     columnCode: "Code",
     columnName: "Name",
     columnType: "Type",
+    columnResponsiblePerson: "Responsible person",
+    columnContact: "Contact",
     columnTerritory: "Territory",
     columnCoordinates: "Coordinates",
     columnStatus: "Status",
@@ -573,6 +602,7 @@ const en: Dictionary = {
     name: "Name",
     type: "Type",
     selectType: "Select a type",
+    responsiblePerson: "Responsible person",
     contact: "Contact",
     address: "Address",
     territorySectionLabel: "Territory",
@@ -602,6 +632,7 @@ const en: Dictionary = {
     backToList: "Back to clients",
     editClient: "Edit client",
     detailsSectionLabel: "Details",
+    responsiblePerson: "Responsible person",
     contact: "Contact",
     address: "Address",
     notProvided: "Not provided",
@@ -617,6 +648,7 @@ const en: Dictionary = {
     columnCategory: "Category",
     columnGrossPrice: "Gross price",
     columnNetPrice: "Net price",
+    columnQuantityPerCarton: "Qty/carton",
     columnStatus: "Status",
     edit: "Edit",
     noResults: "No products match these filters.",
@@ -644,10 +676,12 @@ const en: Dictionary = {
     name: "Name",
     category: "Category",
     noCategory: "No category",
+    quantityPerCarton: "Quantity per carton",
     grossPrice: "Gross price (USD)",
     netPrice: "Net price (USD)",
     discountPercentHelper: "Discount % (optional)",
     discountPercentPlaceholder: "e.g. 10",
+    discountPercentMaxError: "Can't enter discount more than 10%.",
     cdfPreviewLabel: "≈",
     activate: "Activate",
     activeDescription: "Selectable for new orders.",
@@ -834,6 +868,10 @@ const fr: Dictionary = {
     noManager: "—",
     columnTerritories: "Territoires",
     noAssignments: "Aucun territoire affecté",
+    columnContractStartDate: "Début du contrat",
+    columnContractDuration: "Durée",
+    columnContractExpiry: "Expiration du contrat",
+    noContract: "—",
     noResults: "Personne ne vous est rattaché pour le moment.",
   },
   userForm: {
@@ -846,6 +884,12 @@ const fr: Dictionary = {
     manager: "Responsable",
     noManager: "Aucun responsable",
     territorySectionLabel: "Territoire",
+    contractStartDate: "Date de début du contrat",
+    contractDuration: "Durée du contrat",
+    contractExpiry: "Expiration du contrat (calculée)",
+    durationUnitDays: "Jours",
+    durationUnitMonths: "Mois",
+    durationUnitYears: "Années",
     activate: "Activer",
     activeDescription: "Peut se connecter et apparaît dans les listes actives.",
     inactiveDescription: "Désactivé — ne peut pas se connecter. Enregistrez pour réactiver.",
@@ -862,6 +906,8 @@ const fr: Dictionary = {
     columnCode: "Code",
     columnName: "Nom",
     columnType: "Type",
+    columnResponsiblePerson: "Responsable",
+    columnContact: "Contact",
     columnTerritory: "Territoire",
     columnCoordinates: "Coordonnées",
     columnStatus: "Statut",
@@ -890,6 +936,7 @@ const fr: Dictionary = {
     name: "Nom",
     type: "Type",
     selectType: "Sélectionner un type",
+    responsiblePerson: "Responsable",
     contact: "Contact",
     address: "Adresse",
     territorySectionLabel: "Territoire",
@@ -920,6 +967,7 @@ const fr: Dictionary = {
     backToList: "Retour aux clients",
     editClient: "Modifier le client",
     detailsSectionLabel: "Détails",
+    responsiblePerson: "Responsable",
     contact: "Contact",
     address: "Adresse",
     notProvided: "Non renseigné",
@@ -935,6 +983,7 @@ const fr: Dictionary = {
     columnCategory: "Catégorie",
     columnGrossPrice: "Prix brut",
     columnNetPrice: "Prix net",
+    columnQuantityPerCarton: "Qté/carton",
     columnStatus: "Statut",
     edit: "Modifier",
     noResults: "Aucun produit ne correspond à ces filtres.",
@@ -962,10 +1011,12 @@ const fr: Dictionary = {
     name: "Nom",
     category: "Catégorie",
     noCategory: "Aucune catégorie",
+    quantityPerCarton: "Quantité par carton",
     grossPrice: "Prix brut (USD)",
     netPrice: "Prix net (USD)",
     discountPercentHelper: "Remise % (facultatif)",
     discountPercentPlaceholder: "ex. 10",
+    discountPercentMaxError: "Impossible de saisir une remise supérieure à 10 %.",
     cdfPreviewLabel: "≈",
     activate: "Activer",
     activeDescription: "Sélectionnable pour de nouvelles commandes.",
