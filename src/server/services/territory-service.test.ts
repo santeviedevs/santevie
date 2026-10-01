@@ -38,6 +38,12 @@ vi.mock("@/server/repositories/territory-repository", () => ({
   countFilteredTerritories,
 }));
 
+// findOrCreateTerritory seeds this territory's 7 working-day rows (S3-01)
+// right after creating it — mocked here so createTerritory tests stay a
+// pure unit test rather than reaching a real database.
+const createDefaultWorkingDays = vi.fn();
+vi.mock("@/server/repositories/working-day-repository", () => ({ createDefaultWorkingDays }));
+
 const {
   createTerritory,
   updateTerritoryEntry,
@@ -82,6 +88,7 @@ beforeEach(() => {
     activeUsers: 0,
     activeAssignments: 0,
   });
+  createDefaultWorkingDays.mockResolvedValue({ count: 7 });
 });
 
 describe("createTerritory", () => {

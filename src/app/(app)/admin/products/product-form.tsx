@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -64,17 +64,17 @@ export function ProductForm({
     register,
     handleSubmit,
     setValue,
-    watch,
+    control,
     formState: { errors },
   } = useForm<CreateProductInput | UpdateProductInput>({
     resolver: zodResolver(schema),
     defaultValues,
   });
 
-  const categoryId = watch("categoryId");
-  const grossPrice = watch("grossPrice");
-  const netPrice = watch("netPrice");
-  const status = watch("status");
+  const categoryId = useWatch({ control, name: "categoryId" });
+  const grossPrice = useWatch({ control, name: "grossPrice" });
+  const netPrice = useWatch({ control, name: "netPrice" });
+  const status = useWatch({ control, name: "status" });
 
   function applyDiscountPercent(percentText: string) {
     setDiscountPercent(percentText);

@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -58,7 +58,7 @@ export function UserForm({ mode, options, defaultValues, dict, territoryDict }: 
     register,
     handleSubmit,
     setValue,
-    watch,
+    control,
     reset,
     formState: { errors },
   } = useForm<CreateUserInput | UpdateUserInput>({
@@ -77,13 +77,13 @@ export function UserForm({ mode, options, defaultValues, dict, territoryDict }: 
     }
   }, [draftKey, reset]);
 
-  const roleId = watch("roleId");
-  const managerId = watch("managerId");
-  const territoryId = watch("territoryId");
-  const status = watch("status");
-  const contractStartDate = watch("contractStartDate");
-  const contractDurationValue = watch("contractDurationValue");
-  const contractDurationUnit = watch("contractDurationUnit");
+  const roleId = useWatch({ control, name: "roleId" });
+  const managerId = useWatch({ control, name: "managerId" });
+  const territoryId = useWatch({ control, name: "territoryId" });
+  const status = useWatch({ control, name: "status" });
+  const contractStartDate = useWatch({ control, name: "contractStartDate" });
+  const contractDurationValue = useWatch({ control, name: "contractDurationValue" });
+  const contractDurationUnit = useWatch({ control, name: "contractDurationUnit" });
 
   // Preview only — the server recomputes and owns the stored expiry date
   // (see the comment on contractExpiryDate in user-service.ts).

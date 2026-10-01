@@ -24,6 +24,10 @@ export type Dictionary = {
     clients: string;
     products: string;
     installGuide: string;
+    leavesGroup: string;
+    myLeaves: string;
+    teamLeaves: string;
+    calendar: string;
   };
   header: {
     signOut: string;
@@ -210,6 +214,110 @@ export type Dictionary = {
     saving: string;
     userCreated: string;
     userUpdated: string;
+  };
+  // Shared by both My Leaves (S3-01: own requests, every role) and Team
+  // Leaves (downstream requests, approve/reject) — same table shape, only
+  // the Actions column and the scope differ between the two pages.
+  leavesPage: {
+    myTitle: string;
+    teamTitle: string;
+    applyLeave: string;
+    columnEmployee: string;
+    columnType: string;
+    columnDates: string;
+    columnStatus: string;
+    columnReason: string;
+    columnActions: string;
+    statusPending: string;
+    statusApproved: string;
+    statusRejected: string;
+    approve: string;
+    reject: string;
+    view: string;
+    noResults: string;
+    approveConfirmTitle: string;
+    approveConfirmButton: string;
+    rejectConfirmTitle: string;
+    rejectRemarkLabel: string;
+    rejectConfirmButton: string;
+    cancel: string;
+    leaveApplied: string;
+    leaveDecided: string;
+    filterLeaveType: string;
+    filterAnyLeaveType: string;
+    filterStatus: string;
+    filterAnyStatus: string;
+    filterFrom: string;
+    filterTo: string;
+    filterEmployee: string;
+    filterAnyEmployee: string;
+    clearFilters: string;
+  };
+  leaveForm: {
+    title: string;
+    leaveType: string;
+    selectLeaveType: string;
+    startDate: string;
+    endDate: string;
+    reason: string;
+    submit: string;
+    saving: string;
+  };
+  // The Holidays admin screen (S3-01) — mirrors territoriesPage/
+  // territoryForm in shape: one list with filters, one create/edit form.
+  holidaysPage: {
+    title: string;
+    newHoliday: string;
+    territoryLabel: string;
+    anyTerritory: string;
+    yearLabel: string;
+    anyYear: string;
+    clearFilters: string;
+    columnDates: string;
+    columnName: string;
+    columnTerritory: string;
+    allTerritories: string;
+    columnStatus: string;
+    edit: string;
+    noResults: string;
+    statusActive: string;
+    statusInactive: string;
+  };
+  holidayForm: {
+    newTitle: string;
+    name: string;
+    startDate: string;
+    endDate: string;
+    territory: string;
+    allTerritories: string;
+    save: string;
+    saving: string;
+    created: string;
+    updated: string;
+    activate: string;
+  };
+  // Per-territory working-week configuration (S3-01, D4 placeholder) —
+  // reached from the Territory admin screen, not a standalone list.
+  workingDaysPage: {
+    title: string;
+    dayLabels: [string, string, string, string, string, string, string];
+    save: string;
+    saving: string;
+    updated: string;
+  };
+  // The Calendar screen: a month-grid view of the viewer's own holidays,
+  // weekly-offs and leave status, plus a Holidays tab (the same
+  // holidaysPage list, now reachable by every role instead of admin-only).
+  calendarPage: {
+    tabCalendar: string;
+    tabHolidays: string;
+    subtitle: string;
+    today: string;
+    legendPublicHoliday: string;
+    legendWeeklyOff: string;
+    legendApprovedLeave: string;
+    legendPendingLeave: string;
+    legendRejectedLeave: string;
   };
   // The Client master admin screen (S2-02: Doctor/Hospital/Chemist/
   // Pharmacy) — mirrors usersPage/userForm/filters in shape.
@@ -413,6 +521,10 @@ const en: Dictionary = {
     clients: "Clients",
     products: "Products",
     installGuide: "Install guide",
+    leavesGroup: "Leaves",
+    myLeaves: "My Leaves",
+    teamLeaves: "Team Leaves",
+    calendar: "Calendar",
   },
   header: {
     signOut: "Sign out",
@@ -564,6 +676,100 @@ const en: Dictionary = {
     saving: "Saving...",
     userCreated: "User created",
     userUpdated: "User updated",
+  },
+  leavesPage: {
+    myTitle: "My Leaves",
+    teamTitle: "Team Leaves",
+    applyLeave: "Apply Leave",
+    columnEmployee: "Employee",
+    columnType: "Leave type",
+    columnDates: "Dates",
+    columnStatus: "Status",
+    columnReason: "Reason",
+    columnActions: "Actions",
+    statusPending: "Pending",
+    statusApproved: "Approved",
+    statusRejected: "Rejected",
+    approve: "Approve",
+    reject: "Reject",
+    view: "View",
+    noResults: "No leave requests found.",
+    approveConfirmTitle: "Approve this leave request?",
+    approveConfirmButton: "Approve leave",
+    rejectConfirmTitle: "Reject this leave request?",
+    rejectRemarkLabel: "Reason for rejection (optional)",
+    rejectConfirmButton: "Reject leave",
+    cancel: "Cancel",
+    leaveApplied: "Leave request submitted",
+    leaveDecided: "Leave request updated",
+    filterLeaveType: "Leave type",
+    filterAnyLeaveType: "Any leave type",
+    filterStatus: "Status",
+    filterAnyStatus: "Any status",
+    filterFrom: "From",
+    filterTo: "To",
+    filterEmployee: "Employee",
+    filterAnyEmployee: "Any employee",
+    clearFilters: "Clear filters",
+  },
+  leaveForm: {
+    title: "Apply Leave",
+    leaveType: "Leave type",
+    selectLeaveType: "Select a leave type",
+    startDate: "Start date",
+    endDate: "End date",
+    reason: "Reason",
+    submit: "Submit leave request",
+    saving: "Submitting...",
+  },
+  holidaysPage: {
+    title: "Holidays",
+    newHoliday: "Add Holiday",
+    territoryLabel: "Territory",
+    anyTerritory: "All territories",
+    yearLabel: "Year",
+    anyYear: "Any year",
+    clearFilters: "Clear filters",
+    columnDates: "Date / Range",
+    columnName: "Holiday name",
+    columnTerritory: "Territory",
+    allTerritories: "All territories",
+    columnStatus: "Status",
+    edit: "Edit",
+    noResults: "No holidays found.",
+    statusActive: "Active",
+    statusInactive: "Inactive",
+  },
+  holidayForm: {
+    newTitle: "Create Holiday",
+    name: "Holiday name",
+    startDate: "Start date",
+    endDate: "End date",
+    territory: "Territory",
+    allTerritories: "All territories",
+    save: "Save holiday",
+    saving: "Saving...",
+    created: "Holiday created",
+    updated: "Holiday updated",
+    activate: "Active",
+  },
+  workingDaysPage: {
+    title: "Territory Working Days",
+    dayLabels: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+    save: "Save",
+    saving: "Saving...",
+    updated: "Working days updated",
+  },
+  calendarPage: {
+    tabCalendar: "Calendar",
+    tabHolidays: "Holidays",
+    subtitle: "Holidays, your weekly offs and approved leaves.",
+    today: "Today",
+    legendPublicHoliday: "Public holiday",
+    legendWeeklyOff: "Weekly off",
+    legendApprovedLeave: "Approved leave",
+    legendPendingLeave: "Pending leave",
+    legendRejectedLeave: "Rejected leave",
   },
   clientsPage: {
     title: "Clients",
@@ -747,6 +953,10 @@ const fr: Dictionary = {
     clients: "Clients",
     products: "Produits",
     installGuide: "Guide d'installation",
+    leavesGroup: "Congés",
+    myLeaves: "Mes congés",
+    teamLeaves: "Congés de l'équipe",
+    calendar: "Calendrier",
   },
   header: {
     signOut: "Se déconnecter",
@@ -898,6 +1108,100 @@ const fr: Dictionary = {
     saving: "Enregistrement...",
     userCreated: "Utilisateur créé",
     userUpdated: "Utilisateur mis à jour",
+  },
+  leavesPage: {
+    myTitle: "Mes congés",
+    teamTitle: "Congés de l'équipe",
+    applyLeave: "Demander un congé",
+    columnEmployee: "Employé",
+    columnType: "Type de congé",
+    columnDates: "Dates",
+    columnStatus: "Statut",
+    columnReason: "Motif",
+    columnActions: "Actions",
+    statusPending: "En attente",
+    statusApproved: "Approuvé",
+    statusRejected: "Rejeté",
+    approve: "Approuver",
+    reject: "Rejeter",
+    view: "Voir",
+    noResults: "Aucune demande de congé trouvée.",
+    approveConfirmTitle: "Approuver cette demande de congé ?",
+    approveConfirmButton: "Approuver le congé",
+    rejectConfirmTitle: "Rejeter cette demande de congé ?",
+    rejectRemarkLabel: "Motif du rejet (facultatif)",
+    rejectConfirmButton: "Rejeter le congé",
+    cancel: "Annuler",
+    leaveApplied: "Demande de congé envoyée",
+    leaveDecided: "Demande de congé mise à jour",
+    filterLeaveType: "Type de congé",
+    filterAnyLeaveType: "Tous les types",
+    filterStatus: "Statut",
+    filterAnyStatus: "Tous les statuts",
+    filterFrom: "Du",
+    filterTo: "Au",
+    filterEmployee: "Employé",
+    filterAnyEmployee: "Tous les employés",
+    clearFilters: "Effacer les filtres",
+  },
+  leaveForm: {
+    title: "Demander un congé",
+    leaveType: "Type de congé",
+    selectLeaveType: "Sélectionner un type de congé",
+    startDate: "Date de début",
+    endDate: "Date de fin",
+    reason: "Motif",
+    submit: "Envoyer la demande",
+    saving: "Envoi en cours...",
+  },
+  holidaysPage: {
+    title: "Jours fériés",
+    newHoliday: "Ajouter un jour férié",
+    territoryLabel: "Territoire",
+    anyTerritory: "Tous les territoires",
+    yearLabel: "Année",
+    anyYear: "Toutes les années",
+    clearFilters: "Effacer les filtres",
+    columnDates: "Date / Période",
+    columnName: "Nom du jour férié",
+    columnTerritory: "Territoire",
+    allTerritories: "Tous les territoires",
+    columnStatus: "Statut",
+    edit: "Modifier",
+    noResults: "Aucun jour férié trouvé.",
+    statusActive: "Actif",
+    statusInactive: "Inactif",
+  },
+  holidayForm: {
+    newTitle: "Créer un jour férié",
+    name: "Nom du jour férié",
+    startDate: "Date de début",
+    endDate: "Date de fin",
+    territory: "Territoire",
+    allTerritories: "Tous les territoires",
+    save: "Enregistrer",
+    saving: "Enregistrement...",
+    created: "Jour férié créé",
+    updated: "Jour férié mis à jour",
+    activate: "Actif",
+  },
+  workingDaysPage: {
+    title: "Jours ouvrés du territoire",
+    dayLabels: ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"],
+    save: "Enregistrer",
+    saving: "Enregistrement...",
+    updated: "Jours ouvrés mis à jour",
+  },
+  calendarPage: {
+    tabCalendar: "Calendrier",
+    tabHolidays: "Jours fériés",
+    subtitle: "Jours fériés, vos jours de repos et congés approuvés.",
+    today: "Aujourd'hui",
+    legendPublicHoliday: "Jour férié",
+    legendWeeklyOff: "Repos hebdomadaire",
+    legendApprovedLeave: "Congé approuvé",
+    legendPendingLeave: "Congé en attente",
+    legendRejectedLeave: "Congé rejeté",
   },
   clientsPage: {
     title: "Clients",

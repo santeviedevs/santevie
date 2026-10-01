@@ -114,7 +114,14 @@ export default async function TerritoriesPage({ searchParams }: TerritoriesPageP
                     {territory.status === "ACTIVE" ? t.statusActive : t.statusInactive}
                   </Badge>
                 </TableCell>
-                <TableCell className="flex justify-end">
+                <TableCell className="flex justify-end gap-2">
+                  <Button
+                    render={<Link href={`/admin/territories/${territory.id}/working-days`} />}
+                    variant="outline"
+                    size="sm"
+                  >
+                    {dict.workingDaysPage.title}
+                  </Button>
                   <Button
                     render={<Link href={`/admin/territories/${territory.id}/edit`} />}
                     variant="outline"

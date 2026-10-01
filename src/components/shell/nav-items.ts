@@ -1,4 +1,13 @@
-import { HelpCircle, Home, Map, Package, Stethoscope, Users } from "lucide-react";
+import {
+  Calendar,
+  CalendarDays,
+  HelpCircle,
+  Home,
+  Map,
+  Package,
+  Stethoscope,
+  Users,
+} from "lucide-react";
 
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import type { Permission } from "@/server/auth/permissions";
@@ -9,7 +18,11 @@ type NavKey =
   | "territoriesGroup"
   | "manageTerritories"
   | "territoryAssignment"
+  | "calendar"
   | "team"
+  | "leavesGroup"
+  | "myLeaves"
+  | "teamLeaves"
   | "clients"
   | "products"
   | "installGuide";
@@ -63,11 +76,23 @@ export const NAV_ITEM_DEFS: NavItemDef[] = [
       },
     ],
   },
+  // Visible to everyone — the page itself gates on leave:view-own, which
+  // every role holds. Holidays (holidays:view, also universal) lives inside
+  // it as a tab, not a separate nav entry.
+  { href: "/calendar", key: "calendar", icon: Calendar },
   {
     href: "/team",
     key: "team",
     icon: Users,
     anyPermission: ["reports:view-team", "reports:view-all"],
+  },
+  {
+    key: "leavesGroup",
+    icon: CalendarDays,
+    children: [
+      { href: "/leaves/my", key: "myLeaves", permission: "leave:view-own" },
+      { href: "/leaves/team", key: "teamLeaves", permission: "leave:view-team" },
+    ],
   },
   { href: "/admin/clients", key: "clients", icon: Stethoscope, permission: "clients:manage" },
   { href: "/admin/products", key: "products", icon: Package, permission: "products:manage" },
