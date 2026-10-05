@@ -32,8 +32,8 @@ async function main() {
   for (const name of ROLES) {
     const role = await prisma.role.upsert({
       where: { name },
-      update: { requiresLocationOnCheckIn: ROLE_LOCATION_DEFAULTS[name] },
-      create: { name, requiresLocationOnCheckIn: ROLE_LOCATION_DEFAULTS[name] },
+      update: { requiresLocation: ROLE_LOCATION_DEFAULTS[name] },
+      create: { name, requiresLocation: ROLE_LOCATION_DEFAULTS[name] },
     });
     roles.set(name, role.id);
 

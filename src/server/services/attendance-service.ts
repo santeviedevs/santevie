@@ -42,13 +42,13 @@ export class LocationAccuracyTooLowError extends Error {
   }
 }
 
-// null = inherit Role.requiresLocationOnCheckIn; true/false explicitly
-// overrides it for this one user, in either direction.
+// null = inherit Role.requiresLocation; true/false explicitly overrides it
+// for this one user, in either direction.
 function resolveRequiresLocation(user: {
-  requiresLocationOnCheckIn: boolean | null;
-  role: { requiresLocationOnCheckIn: boolean };
+  requiresLocation: boolean | null;
+  role: { requiresLocation: boolean };
 }): boolean {
-  return user.requiresLocationOnCheckIn ?? user.role.requiresLocationOnCheckIn;
+  return user.requiresLocation ?? user.role.requiresLocation;
 }
 
 // Exposed separately from checkIn() so the check-in screen can decide,

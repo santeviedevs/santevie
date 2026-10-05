@@ -33,7 +33,7 @@ import { createUserAction, updateUserAction, type UserFormState } from "./action
 
 type Option = { id: string; name: string };
 
-type RoleOption = Option & { requiresLocationOnCheckIn: boolean };
+type RoleOption = Option & { requiresLocation: boolean };
 
 type UserFormProps = {
   mode: "create" | "edit";
@@ -87,7 +87,7 @@ export function UserForm({ mode, options, defaultValues, dict, territoryDict }: 
   function locationRequirementLabel(value: (typeof LOCATION_REQUIREMENT_OPTIONS)[number]) {
     if (value === "REQUIRED") return dict.locationRequirementRequired;
     if (value === "NOT_REQUIRED") return dict.locationRequirementNotRequired;
-    return selectedRole?.requiresLocationOnCheckIn
+    return selectedRole?.requiresLocation
       ? dict.locationRequirementInheritRequired
       : dict.locationRequirementInheritNotRequired;
   }

@@ -16,7 +16,7 @@ const email = z.email("Enter a valid email address");
 // cuid — matches the id format Prisma generates for Role/User/Territory.
 const id = z.string().min(1);
 
-// Tri-state form representation of User.requiresLocationOnCheckIn (DB column
+// Tri-state form representation of User.requiresLocation (DB column
 // stays Boolean? — this enum maps to null/true/false at the service
 // boundary): INHERIT -> null (use the role's default), REQUIRED -> true,
 // NOT_REQUIRED -> false. Keeps "inherit" explicit in the UI rather than

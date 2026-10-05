@@ -78,8 +78,8 @@ export type UserSummary = {
   // The user's own override (null = inheriting the role's default) and the
   // role's default itself, so a form can show "use role default (currently:
   // required)" without a second lookup.
-  requiresLocationOnCheckIn: boolean | null;
-  roleRequiresLocationOnCheckIn: boolean;
+  requiresLocation: boolean | null;
+  roleRequiresLocation: boolean;
 };
 
 function toSummary(user: UserWithRelations): UserSummary {
@@ -90,8 +90,8 @@ function toSummary(user: UserWithRelations): UserSummary {
     email: user.email,
     status: user.status,
     role: { id: user.role.id, name: user.role.name },
-    requiresLocationOnCheckIn: user.requiresLocationOnCheckIn,
-    roleRequiresLocationOnCheckIn: user.role.requiresLocationOnCheckIn,
+    requiresLocation: user.requiresLocation,
+    roleRequiresLocation: user.role.requiresLocation,
     manager: user.manager
       ? {
           id: user.manager.id,
@@ -139,9 +139,9 @@ function resolveContractFields(input: {
 }
 
 // Maps the form's tri-state enum to the DB column's actual representation:
-// INHERIT -> null (defer to Role.requiresLocationOnCheckIn at check-in time),
-// REQUIRED -> true, NOT_REQUIRED -> false.
-function toRequiresLocationOnCheckIn(value: LocationRequirement): boolean | null {
+// INHERIT -> null (defer to Role.requiresLocation at check-in/check-out
+// time), REQUIRED -> true, NOT_REQUIRED -> false.
+function toRequiresLocation(value: LocationRequirement): boolean | null {
   if (value === "REQUIRED") return true;
   if (value === "NOT_REQUIRED") return false;
   return null;
@@ -278,7 +278,7 @@ export async function createUser(input: CreateUserInput, actorId: string): Promi
       role: { connect: { id: input.roleId } },
       manager: input.managerId ? { connect: { id: input.managerId } } : undefined,
       territory: input.territoryId ? { connect: { id: input.territoryId } } : undefined,
-      requiresLocationOnCheckIn: toRequiresLocationOnCheckIn(input.locationRequirement),
+      requiresLocation: toRequiresLocation(input.locationRequirement),
       ...resolveContractFields(input),
       createdBy: actorId,
       updatedBy: actorId,
@@ -302,7 +302,7 @@ export async function updateUser(input: UpdateUserInput, actorId: string): Promi
       role: { connect: { id: input.roleId } },
       manager: input.managerId ? { connect: { id: input.managerId } } : { disconnect: true },
       territory: input.territoryId ? { connect: { id: input.territoryId } } : { disconnect: true },
-      requiresLocationOnCheckIn: toRequiresLocationOnCheckIn(input.locationRequirement),
+      requiresLocation: toRequiresLocation(input.locationRequirement),
       ...resolveContractFields(input),
       ...(input.status ? { status: input.status } : {}),
       updatedBy: actorId,

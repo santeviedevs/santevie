@@ -81,9 +81,10 @@ export const ROLE_PERMISSIONS: Record<RoleName, readonly Permission[]> = {
   ],
 };
 
-// Role-level default for whether attendance check-in requires a GPS fix.
-// Seed-time constant, no Role management UI — overridable per user via
-// User.requiresLocationOnCheckIn (null = inherit this default).
+// Role-level default for whether attendance (check-in and check-out)
+// requires a GPS fix. Seed-time constant, no Role management UI —
+// overridable per user via User.requiresLocation (null = inherit this
+// default).
 export const ROLE_LOCATION_DEFAULTS: Record<RoleName, boolean> = {
   ADMIN: false,
   MANAGER: false,

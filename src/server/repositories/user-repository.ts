@@ -137,7 +137,7 @@ export function updateUser(id: string, data: Prisma.UserUpdateInput): Promise<Us
 
 export function listRoleOptions() {
   return prisma.role.findMany({
-    select: { id: true, name: true, requiresLocationOnCheckIn: true },
+    select: { id: true, name: true, requiresLocation: true },
     orderBy: { name: "asc" },
   });
 }

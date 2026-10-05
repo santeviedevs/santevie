@@ -19,7 +19,7 @@ const deviceTimestamp = z.iso.datetime({ offset: true });
 // absent (no-location check-in) — never partial. Whether location is
 // actually *required* for this particular check-in is a server-side
 // decision (attendance-service.ts resolves it from the user's/role's
-// requiresLocationOnCheckIn), not something this schema enforces: a
+// requiresLocation), not something this schema enforces: a
 // location-not-required user may still send one, and that's fine.
 export const checkInSchema = z
   .object({

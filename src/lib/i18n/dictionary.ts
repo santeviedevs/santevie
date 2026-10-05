@@ -271,7 +271,7 @@ export type Dictionary = {
     saving: string;
   };
   // S3-02 GPS check-in. Location UI strings only appear when the resolved
-  // requiresLocationOnCheckIn flag is true for the signed-in user — a
+  // requiresLocation flag is true for the signed-in user — a
   // location-not-required user only ever sees title/checkInButton/success*.
   checkInPage: {
     title: string;

@@ -51,7 +51,7 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
           contractDurationValue: user.contractDurationValue,
           contractDurationUnit: user.contractDurationUnit,
           status: user.status,
-          locationRequirement: toLocationRequirement(user.requiresLocationOnCheckIn),
+          locationRequirement: toLocationRequirement(user.requiresLocation),
         }}
       />
     </div>

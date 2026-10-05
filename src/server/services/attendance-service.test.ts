@@ -26,8 +26,8 @@ const {
 const baseUser = (overrides: Record<string, unknown> = {}) => ({
   id: "user-1",
   territoryId: "territory-1",
-  requiresLocationOnCheckIn: null as boolean | null,
-  role: { requiresLocationOnCheckIn: true },
+  requiresLocation: null as boolean | null,
+  role: { requiresLocation: true },
   ...overrides,
 });
 
@@ -59,7 +59,7 @@ beforeEach(() => {
 describe("checkIn — location requirement resolution", () => {
   it("requires location for a user whose role defaults to requiring it (override absent)", async () => {
     findUserById.mockResolvedValueOnce(
-      baseUser({ requiresLocationOnCheckIn: null, role: { requiresLocationOnCheckIn: true } }),
+      baseUser({ requiresLocation: null, role: { requiresLocation: true } }),
     );
 
     await expect(checkIn("user-1", {})).rejects.toThrow(LocationRequiredError);
@@ -67,7 +67,7 @@ describe("checkIn — location requirement resolution", () => {
 
   it("does not require location for a user whose role defaults to not requiring it", async () => {
     findUserById.mockResolvedValueOnce(
-      baseUser({ requiresLocationOnCheckIn: null, role: { requiresLocationOnCheckIn: false } }),
+      baseUser({ requiresLocation: null, role: { requiresLocation: false } }),
     );
 
     await expect(checkIn("user-1", {})).resolves.toBeDefined();
@@ -76,7 +76,7 @@ describe("checkIn — location requirement resolution", () => {
 
   it("a user-level override of true wins even when the role default is false", async () => {
     findUserById.mockResolvedValueOnce(
-      baseUser({ requiresLocationOnCheckIn: true, role: { requiresLocationOnCheckIn: false } }),
+      baseUser({ requiresLocation: true, role: { requiresLocation: false } }),
     );
 
     await expect(checkIn("user-1", {})).rejects.toThrow(LocationRequiredError);
@@ -84,7 +84,7 @@ describe("checkIn — location requirement resolution", () => {
 
   it("a user-level override of false wins even when the role default is true", async () => {
     findUserById.mockResolvedValueOnce(
-      baseUser({ requiresLocationOnCheckIn: false, role: { requiresLocationOnCheckIn: true } }),
+      baseUser({ requiresLocation: false, role: { requiresLocation: true } }),
     );
 
     await expect(checkIn("user-1", {})).resolves.toBeDefined();
@@ -113,7 +113,7 @@ describe("checkIn — location quality", () => {
 
   it("does not evaluate accuracy at all when no location was sent and none is required", async () => {
     findUserById.mockResolvedValueOnce(
-      baseUser({ requiresLocationOnCheckIn: false, role: { requiresLocationOnCheckIn: false } }),
+      baseUser({ requiresLocation: false, role: { requiresLocation: false } }),
     );
 
     await expect(checkIn("user-1", {})).resolves.toBeDefined();
@@ -126,7 +126,7 @@ describe("checkIn — location quality", () => {
 describe("checkIn — guards", () => {
   it("rejects when the user has already checked in today", async () => {
     findUserById.mockResolvedValueOnce(
-      baseUser({ requiresLocationOnCheckIn: false, role: { requiresLocationOnCheckIn: false } }),
+      baseUser({ requiresLocation: false, role: { requiresLocation: false } }),
     );
     findAttendanceForDate.mockResolvedValueOnce(baseAttendanceRow());
 
@@ -136,7 +136,7 @@ describe("checkIn — guards", () => {
 
   it("rejects check-in on a non-working day", async () => {
     findUserById.mockResolvedValueOnce(
-      baseUser({ requiresLocationOnCheckIn: false, role: { requiresLocationOnCheckIn: false } }),
+      baseUser({ requiresLocation: false, role: { requiresLocation: false } }),
     );
     isWorkingDay.mockResolvedValueOnce(false);
 
@@ -148,8 +148,8 @@ describe("checkIn — guards", () => {
     findUserById.mockResolvedValueOnce(
       baseUser({
         territoryId: null,
-        requiresLocationOnCheckIn: false,
-        role: { requiresLocationOnCheckIn: false },
+        requiresLocation: false,
+        role: { requiresLocation: false },
       }),
     );
 
@@ -167,7 +167,7 @@ describe("checkIn — guards", () => {
 describe("getEffectiveRequiresLocation", () => {
   it("resolves the user override when present", async () => {
     findUserById.mockResolvedValueOnce(
-      baseUser({ requiresLocationOnCheckIn: false, role: { requiresLocationOnCheckIn: true } }),
+      baseUser({ requiresLocation: false, role: { requiresLocation: true } }),
     );
 
     await expect(getEffectiveRequiresLocation("user-1")).resolves.toBe(false);
@@ -175,7 +175,7 @@ describe("getEffectiveRequiresLocation", () => {
 
   it("falls back to the role default when there is no override", async () => {
     findUserById.mockResolvedValueOnce(
-      baseUser({ requiresLocationOnCheckIn: null, role: { requiresLocationOnCheckIn: true } }),
+      baseUser({ requiresLocation: null, role: { requiresLocation: true } }),
     );
 
     await expect(getEffectiveRequiresLocation("user-1")).resolves.toBe(true);
