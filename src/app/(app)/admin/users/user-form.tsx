@@ -23,6 +23,7 @@ import type { Dictionary } from "@/lib/i18n/dictionary";
 import {
   type CreateUserInput,
   createUserSchema,
+  LOCATION_REQUIREMENT_OPTIONS,
   type UpdateUserInput,
   updateUserSchema,
 } from "@/lib/schemas/user";
@@ -32,10 +33,12 @@ import { createUserAction, updateUserAction, type UserFormState } from "./action
 
 type Option = { id: string; name: string };
 
+type RoleOption = Option & { requiresLocationOnCheckIn: boolean };
+
 type UserFormProps = {
   mode: "create" | "edit";
   options: {
-    roles: Option[];
+    roles: RoleOption[];
     territories: TerritoryPickerOption[];
     managers: Option[];
   };
@@ -63,7 +66,7 @@ export function UserForm({ mode, options, defaultValues, dict, territoryDict }: 
     formState: { errors },
   } = useForm<CreateUserInput | UpdateUserInput>({
     resolver: zodResolver(schema),
-    defaultValues: { status: "ACTIVE", ...defaultValues },
+    defaultValues: { status: "ACTIVE", locationRequirement: "INHERIT", ...defaultValues },
   });
 
   // If a session-expiry redirect left a draft behind for this exact page,
@@ -78,6 +81,16 @@ export function UserForm({ mode, options, defaultValues, dict, territoryDict }: 
   }, [draftKey, reset]);
 
   const roleId = useWatch({ control, name: "roleId" });
+  const locationRequirement = useWatch({ control, name: "locationRequirement" });
+  const selectedRole = options.roles.find((role) => role.id === roleId);
+
+  function locationRequirementLabel(value: (typeof LOCATION_REQUIREMENT_OPTIONS)[number]) {
+    if (value === "REQUIRED") return dict.locationRequirementRequired;
+    if (value === "NOT_REQUIRED") return dict.locationRequirementNotRequired;
+    return selectedRole?.requiresLocationOnCheckIn
+      ? dict.locationRequirementInheritRequired
+      : dict.locationRequirementInheritNotRequired;
+  }
   const managerId = useWatch({ control, name: "managerId" });
   const territoryId = useWatch({ control, name: "territoryId" });
   const status = useWatch({ control, name: "status" });
@@ -109,6 +122,7 @@ export function UserForm({ mode, options, defaultValues, dict, territoryDict }: 
       formData.set("roleId", values.roleId);
       if (values.managerId) formData.set("managerId", values.managerId);
       if (values.territoryId) formData.set("territoryId", values.territoryId);
+      formData.set("locationRequirement", values.locationRequirement);
       if (values.contractStartDate) formData.set("contractStartDate", values.contractStartDate);
       if (values.contractDurationValue) {
         formData.set("contractDurationValue", String(values.contractDurationValue));
@@ -292,6 +306,36 @@ export function UserForm({ mode, options, defaultValues, dict, territoryDict }: 
           <p className="text-sm text-muted-foreground">{contractExpiryPreview}</p>
         </div>
       ) : null}
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="locationRequirement">{dict.locationRequirement}</Label>
+        <Select
+          items={LOCATION_REQUIREMENT_OPTIONS.map((value) => ({
+            value,
+            label: locationRequirementLabel(value),
+          }))}
+          value={locationRequirement ?? "INHERIT"}
+          onValueChange={(value) => {
+            if (value) {
+              setValue("locationRequirement", value as "INHERIT" | "REQUIRED" | "NOT_REQUIRED", {
+                shouldValidate: true,
+              });
+            }
+          }}
+          disabled={isPending}
+        >
+          <SelectTrigger id="locationRequirement" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {LOCATION_REQUIREMENT_OPTIONS.map((value) => (
+              <SelectItem key={value} value={value}>
+                {locationRequirementLabel(value)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       {mode === "edit" ? (
         <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">

@@ -136,7 +136,10 @@ export function updateUser(id: string, data: Prisma.UserUpdateInput): Promise<Us
 }
 
 export function listRoleOptions() {
-  return prisma.role.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } });
+  return prisma.role.findMany({
+    select: { id: true, name: true, requiresLocationOnCheckIn: true },
+    orderBy: { name: "asc" },
+  });
 }
 
 // Candidate managers: active users other than the one being edited.

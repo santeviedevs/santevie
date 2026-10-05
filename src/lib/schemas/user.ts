@@ -16,6 +16,23 @@ const email = z.email("Enter a valid email address");
 // cuid — matches the id format Prisma generates for Role/User/Territory.
 const id = z.string().min(1);
 
+// Tri-state form representation of User.requiresLocationOnCheckIn (DB column
+// stays Boolean? — this enum maps to null/true/false at the service
+// boundary): INHERIT -> null (use the role's default), REQUIRED -> true,
+// NOT_REQUIRED -> false. Keeps "inherit" explicit in the UI rather than
+// conflating it with an unset/false checkbox.
+export const LOCATION_REQUIREMENT_OPTIONS = ["INHERIT", "REQUIRED", "NOT_REQUIRED"] as const;
+export type LocationRequirement = (typeof LOCATION_REQUIREMENT_OPTIONS)[number];
+const locationRequirement = z.enum(LOCATION_REQUIREMENT_OPTIONS);
+
+// Inverse of the service-layer mapping — used when loading an existing
+// user's stored Boolean? into the form's tri-state field.
+export function toLocationRequirement(value: boolean | null): LocationRequirement {
+  if (value === true) return "REQUIRED";
+  if (value === false) return "NOT_REQUIRED";
+  return "INHERIT";
+}
+
 const contractStartDate = z.iso.date("Enter a valid start date").nullish();
 const contractDurationValue = z
   .number()
@@ -65,6 +82,7 @@ export const createUserSchema = z
     // whatever depth (Province alone, down to a full Quartier path) it maps
     // to, so one optional field is enough.
     territoryId: id.nullish(),
+    locationRequirement,
     ...contractFields,
   })
   .superRefine(checkContractFieldsComplete);
@@ -80,6 +98,7 @@ export const updateUserSchema = z
     roleId: id,
     managerId: id.nullish(),
     territoryId: id.nullish(),
+    locationRequirement,
     ...contractFields,
     // Absent means "leave as-is" (e.g. the create form never sends it);
     // present is an explicit set, which is how the edit form's active/

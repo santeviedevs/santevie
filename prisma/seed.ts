@@ -3,7 +3,12 @@ import { config as loadEnv } from "dotenv";
 
 import { PrismaClient } from "../generated/prisma/client";
 import { hashPassword } from "../src/server/auth/password";
-import { PERMISSIONS, ROLE_PERMISSIONS, ROLES } from "../src/server/auth/permissions";
+import {
+  PERMISSIONS,
+  ROLE_LOCATION_DEFAULTS,
+  ROLE_PERMISSIONS,
+  ROLES,
+} from "../src/server/auth/permissions";
 
 loadEnv({ path: ".env.local" });
 
@@ -27,8 +32,8 @@ async function main() {
   for (const name of ROLES) {
     const role = await prisma.role.upsert({
       where: { name },
-      update: {},
-      create: { name },
+      update: { requiresLocationOnCheckIn: ROLE_LOCATION_DEFAULTS[name] },
+      create: { name, requiresLocationOnCheckIn: ROLE_LOCATION_DEFAULTS[name] },
     });
     roles.set(name, role.id);
 

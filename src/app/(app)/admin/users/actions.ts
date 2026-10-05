@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 
-import { createUserSchema, updateUserSchema } from "@/lib/schemas/user";
+import {
+  createUserSchema,
+  LOCATION_REQUIREMENT_OPTIONS,
+  updateUserSchema,
+} from "@/lib/schemas/user";
 import { requirePermission, SessionExpiredError } from "@/server/auth/require-permission";
 import {
   createUser,
@@ -50,6 +54,17 @@ function readManagerAndTerritory(formData: FormData) {
   };
 }
 
+function readLocationRequirement(formData: FormData) {
+  const value = formData.get("locationRequirement");
+  return {
+    locationRequirement: LOCATION_REQUIREMENT_OPTIONS.includes(
+      value as (typeof LOCATION_REQUIREMENT_OPTIONS)[number],
+    )
+      ? (value as (typeof LOCATION_REQUIREMENT_OPTIONS)[number])
+      : "INHERIT",
+  };
+}
+
 function readContractFields(formData: FormData) {
   const durationValue = formData.get("contractDurationValue");
   return {
@@ -76,6 +91,7 @@ export async function createUserAction(
     roleId: formData.get("roleId"),
     ...readManagerAndTerritory(formData),
     ...readContractFields(formData),
+    ...readLocationRequirement(formData),
   });
 
   if (!parsed.success) {
@@ -112,6 +128,7 @@ export async function updateUserAction(
     status: status === "ACTIVE" || status === "INACTIVE" ? status : undefined,
     ...readManagerAndTerritory(formData),
     ...readContractFields(formData),
+    ...readLocationRequirement(formData),
   });
 
   if (!parsed.success) {

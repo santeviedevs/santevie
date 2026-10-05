@@ -30,6 +30,7 @@ export const PERMISSIONS = [
   "holidays:view",
   "holidays:manage",
   "working-days:manage",
+  "attendance:check-in",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -57,6 +58,7 @@ export const ROLE_PERMISSIONS: Record<RoleName, readonly Permission[]> = {
     "holidays:view",
     "holidays:manage",
     "working-days:manage",
+    "attendance:check-in",
   ],
   SUPERVISOR: [
     "orders:view-team",
@@ -67,6 +69,7 @@ export const ROLE_PERMISSIONS: Record<RoleName, readonly Permission[]> = {
     "leave:view-team",
     "leave:approve",
     "holidays:view",
+    "attendance:check-in",
   ],
   DELEGATE: [
     "orders:view-own",
@@ -74,7 +77,18 @@ export const ROLE_PERMISSIONS: Record<RoleName, readonly Permission[]> = {
     "leave:apply",
     "leave:view-own",
     "holidays:view",
+    "attendance:check-in",
   ],
+};
+
+// Role-level default for whether attendance check-in requires a GPS fix.
+// Seed-time constant, no Role management UI — overridable per user via
+// User.requiresLocationOnCheckIn (null = inherit this default).
+export const ROLE_LOCATION_DEFAULTS: Record<RoleName, boolean> = {
+  ADMIN: false,
+  MANAGER: false,
+  SUPERVISOR: false,
+  DELEGATE: true,
 };
 
 export function hasPermission(

@@ -2,7 +2,12 @@ import { randomUUID } from "node:crypto";
 
 import { computeContractExpiry, type ContractDurationUnit } from "@/lib/contract-duration";
 import type { PagedResult } from "@/lib/pagination";
-import type { CreateUserInput, UpdateUserInput, UserFilters } from "@/lib/schemas/user";
+import type {
+  CreateUserInput,
+  LocationRequirement,
+  UpdateUserInput,
+  UserFilters,
+} from "@/lib/schemas/user";
 import { hashPassword } from "@/server/auth/password";
 import {
   countUsers,
@@ -70,6 +75,11 @@ export type UserSummary = {
   contractDurationValue: number | null;
   contractDurationUnit: ContractDurationUnit | null;
   contractExpiryDate: Date | null;
+  // The user's own override (null = inheriting the role's default) and the
+  // role's default itself, so a form can show "use role default (currently:
+  // required)" without a second lookup.
+  requiresLocationOnCheckIn: boolean | null;
+  roleRequiresLocationOnCheckIn: boolean;
 };
 
 function toSummary(user: UserWithRelations): UserSummary {
@@ -80,6 +90,8 @@ function toSummary(user: UserWithRelations): UserSummary {
     email: user.email,
     status: user.status,
     role: { id: user.role.id, name: user.role.name },
+    requiresLocationOnCheckIn: user.requiresLocationOnCheckIn,
+    roleRequiresLocationOnCheckIn: user.role.requiresLocationOnCheckIn,
     manager: user.manager
       ? {
           id: user.manager.id,
@@ -124,6 +136,15 @@ function resolveContractFields(input: {
       input.contractDurationUnit,
     ),
   };
+}
+
+// Maps the form's tri-state enum to the DB column's actual representation:
+// INHERIT -> null (defer to Role.requiresLocationOnCheckIn at check-in time),
+// REQUIRED -> true, NOT_REQUIRED -> false.
+function toRequiresLocationOnCheckIn(value: LocationRequirement): boolean | null {
+  if (value === "REQUIRED") return true;
+  if (value === "NOT_REQUIRED") return false;
+  return null;
 }
 
 export async function listUsers(
@@ -257,6 +278,7 @@ export async function createUser(input: CreateUserInput, actorId: string): Promi
       role: { connect: { id: input.roleId } },
       manager: input.managerId ? { connect: { id: input.managerId } } : undefined,
       territory: input.territoryId ? { connect: { id: input.territoryId } } : undefined,
+      requiresLocationOnCheckIn: toRequiresLocationOnCheckIn(input.locationRequirement),
       ...resolveContractFields(input),
       createdBy: actorId,
       updatedBy: actorId,
@@ -280,6 +302,7 @@ export async function updateUser(input: UpdateUserInput, actorId: string): Promi
       role: { connect: { id: input.roleId } },
       manager: input.managerId ? { connect: { id: input.managerId } } : { disconnect: true },
       territory: input.territoryId ? { connect: { id: input.territoryId } } : { disconnect: true },
+      requiresLocationOnCheckIn: toRequiresLocationOnCheckIn(input.locationRequirement),
       ...resolveContractFields(input),
       ...(input.status ? { status: input.status } : {}),
       updatedBy: actorId,
