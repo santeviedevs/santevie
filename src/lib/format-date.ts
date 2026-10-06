@@ -30,3 +30,31 @@ const dateTimeFormatter = new Intl.DateTimeFormat("fr-FR", {
 export function formatDateTime(date: Date | string): string {
   return dateTimeFormatter.format(typeof date === "string" ? new Date(date) : date);
 }
+
+// Time-of-day only, same Africa/Kinshasa rendering rule as formatDateTime —
+// for columns like a history table's Check-In/Check-Out cells where the
+// date is already shown in its own column.
+const timeFormatter = new Intl.DateTimeFormat("fr-FR", {
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "Africa/Kinshasa",
+});
+
+export function formatTime(date: Date | string): string {
+  return timeFormatter.format(typeof date === "string" ? new Date(date) : date);
+}
+
+// The calendar-date portion of a real timestamp (e.g. a session's
+// checkInAt), rendered in Africa/Kinshasa — distinct from formatDate above,
+// which is for @db.Date columns that have no time-of-day or timezone to
+// convert in the first place.
+const timestampDateFormatter = new Intl.DateTimeFormat("fr-FR", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  timeZone: "Africa/Kinshasa",
+});
+
+export function formatTimestampDate(date: Date | string): string {
+  return timestampDateFormatter.format(typeof date === "string" ? new Date(date) : date);
+}

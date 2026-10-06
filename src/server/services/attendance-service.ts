@@ -1,8 +1,16 @@
-import { type CheckInInput, MAX_ACCEPTABLE_ACCURACY_METERS } from "@/lib/schemas/attendance";
+import { DEFAULT_PAGE_SIZE, type PagedResult, toSkipTake } from "@/lib/pagination";
 import {
-  type AttendanceRow,
-  createCheckIn,
-  findAttendanceForDate,
+  type CheckInInput,
+  type CheckOutInput,
+  MAX_ACCEPTABLE_ACCURACY_METERS,
+} from "@/lib/schemas/attendance";
+import {
+  type AttendanceSessionRow,
+  createSession,
+  findAttendanceWithSessions,
+  findSessionsForUser,
+  updateSession,
+  upsertAttendanceDay,
 } from "@/server/repositories/attendance-repository";
 import { findUserById } from "@/server/repositories/user-repository";
 import { isWorkingDay } from "@/server/services/working-day-service";
@@ -23,14 +31,21 @@ export class NotAWorkingDayError extends Error {
 
 export class AlreadyCheckedInError extends Error {
   constructor() {
-    super("You've already checked in today.");
+    super("You're already checked in — check out before starting a new session.");
     this.name = "AlreadyCheckedInError";
+  }
+}
+
+export class NoCheckInFoundError extends Error {
+  constructor() {
+    super("There's no active check-in to check out from.");
+    this.name = "NoCheckInFoundError";
   }
 }
 
 export class LocationRequiredError extends Error {
   constructor() {
-    super("Your check-in requires a GPS location.");
+    super("This requires a GPS location.");
     this.name = "LocationRequiredError";
   }
 }
@@ -51,7 +66,7 @@ function resolveRequiresLocation(user: {
   return user.requiresLocation ?? user.role.requiresLocation;
 }
 
-// Exposed separately from checkIn() so the check-in screen can decide,
+// Exposed separately from checkIn()/checkOut() so the screen can decide,
 // server-side, whether to render the geolocation UI at all before the user
 // has submitted anything.
 export async function getEffectiveRequiresLocation(userId: string): Promise<boolean> {
@@ -68,32 +83,83 @@ function startOfUtcDay(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
-export type CheckInSummary = {
+export type AttendanceSessionSummary = {
   id: string;
-  userId: string;
-  date: Date;
   checkInAt: Date;
   checkInLat: number | null;
   checkInLng: number | null;
   checkInAccuracy: number | null;
+  checkOutAt: Date | null;
+  checkOutLat: number | null;
+  checkOutLng: number | null;
+  checkOutAccuracy: number | null;
+  // null while the session is still open (checkOutAt not set yet) — see the
+  // schema decision: a closed session's duration is derived from its own
+  // two timestamps here rather than stored, so it can never drift from
+  // them. The one open session's "time so far" is a client-side live
+  // ticker against checkInAt, not something this value ever represents.
+  durationMinutes: number | null;
 };
 
-function toSummary(row: AttendanceRow): CheckInSummary {
+function toSessionSummary(row: AttendanceSessionRow): AttendanceSessionSummary {
   return {
     id: row.id,
-    userId: row.userId,
-    date: row.date,
-    // checkInAt is always set immediately after createCheckIn below, so this
-    // narrows the nullable column to the non-null value this function always
-    // actually returns.
-    checkInAt: row.checkInAt as Date,
+    checkInAt: row.checkInAt,
     checkInLat: row.checkInLat === null ? null : Number(row.checkInLat),
     checkInLng: row.checkInLng === null ? null : Number(row.checkInLng),
     checkInAccuracy: row.checkInAccuracy === null ? null : Number(row.checkInAccuracy),
+    checkOutAt: row.checkOutAt,
+    checkOutLat: row.checkOutLat === null ? null : Number(row.checkOutLat),
+    checkOutLng: row.checkOutLng === null ? null : Number(row.checkOutLng),
+    checkOutAccuracy: row.checkOutAccuracy === null ? null : Number(row.checkOutAccuracy),
+    durationMinutes: row.checkOutAt
+      ? Math.round((row.checkOutAt.getTime() - row.checkInAt.getTime()) / 60000)
+      : null,
   };
 }
 
-export async function checkIn(userId: string, input: CheckInInput): Promise<CheckInSummary> {
+// Drives the Check-In/Out card's two states (plus the always-available
+// session list for the history table below it), resolved server-side so a
+// page reload always lands on the correct state rather than relying on
+// client-held transition state.
+export type TodayAttendanceState = {
+  status: "not-checked-in" | "checked-in";
+  latestSession: AttendanceSessionSummary | null;
+  sessions: AttendanceSessionSummary[];
+};
+
+export async function getTodayAttendanceState(userId: string): Promise<TodayAttendanceState> {
+  const today = startOfUtcDay(new Date());
+  const attendance = await findAttendanceWithSessions(userId, today);
+  const sessions = (attendance?.sessions ?? []).map(toSessionSummary);
+
+  return {
+    status: sessions.some((session) => session.checkOutAt === null)
+      ? "checked-in"
+      : "not-checked-in",
+    latestSession: sessions[0] ?? null,
+    sessions,
+  };
+}
+
+// The delegate's own session history across all days, newest first —
+// paginated the same way every other list screen is (S2-06). Deliberately
+// scoped to one user: cross-team filtering/export belongs to S3-05's
+// attendance administration screen, not this personal action screen.
+export async function listMySessions(
+  userId: string,
+  page: number,
+  pageSize: number = DEFAULT_PAGE_SIZE,
+): Promise<PagedResult<AttendanceSessionSummary>> {
+  const { skip, take } = toSkipTake({ page, pageSize });
+  const { items, total } = await findSessionsForUser(userId, skip, take);
+  return { items: items.map(toSessionSummary), total, page, pageSize };
+}
+
+export async function checkIn(
+  userId: string,
+  input: CheckInInput,
+): Promise<AttendanceSessionSummary> {
   const user = await findUserById(userId);
   if (!user) throw new UserNotFoundError();
 
@@ -108,8 +174,9 @@ export async function checkIn(userId: string, input: CheckInInput): Promise<Chec
     : true;
   if (!workingToday) throw new NotAWorkingDayError();
 
-  const existing = await findAttendanceForDate(user.id, today);
-  if (existing?.checkInAt) throw new AlreadyCheckedInError();
+  const existing = await findAttendanceWithSessions(user.id, today);
+  const openSession = existing?.sessions.find((session) => session.checkOutAt === null);
+  if (openSession) throw new AlreadyCheckedInError();
 
   const requiresLocation = resolveRequiresLocation(user);
   const hasLocation = input.lat !== undefined;
@@ -121,9 +188,12 @@ export async function checkIn(userId: string, input: CheckInInput): Promise<Chec
     throw new LocationAccuracyTooLowError();
   }
 
-  const created = await createCheckIn({
-    user: { connect: { id: user.id } },
-    date: today,
+  // Reuses the day row across multiple sessions — only actually inserts on
+  // this user's first check-in of the day, see upsertAttendanceDay.
+  const attendance = existing ?? (await upsertAttendanceDay(user.id, today, user.id));
+
+  const created = await createSession({
+    attendance: { connect: { id: attendance.id } },
     checkInAt: now,
     checkInLat: hasLocation ? input.lat : undefined,
     checkInLng: hasLocation ? input.lng : undefined,
@@ -134,5 +204,49 @@ export async function checkIn(userId: string, input: CheckInInput): Promise<Chec
     updatedBy: user.id,
   });
 
-  return toSummary(created);
+  return toSessionSummary(created);
+}
+
+export async function checkOut(
+  userId: string,
+  input: CheckOutInput,
+): Promise<AttendanceSessionSummary> {
+  const user = await findUserById(userId);
+  if (!user) throw new UserNotFoundError();
+
+  const now = new Date();
+  const today = startOfUtcDay(now);
+
+  const existing = await findAttendanceWithSessions(user.id, today);
+  const openSession = existing?.sessions.find((session) => session.checkOutAt === null);
+  // Deliberately returns an explicit error rather than falling through to
+  // creating a new session — a check-out with nothing open would be an
+  // orphan record with no start time, which corrupts duration and status
+  // derivation downstream. Covers both "never checked in today" and
+  // "already checked out, nothing open right now" with one message.
+  if (!openSession) throw new NoCheckInFoundError();
+
+  // Same accuracy threshold and requiresLocation resolution as check-in —
+  // a low-accuracy or missing fix is just as unreliable on the way out.
+  const requiresLocation = resolveRequiresLocation(user);
+  const hasLocation = input.lat !== undefined;
+
+  if (requiresLocation && !hasLocation) {
+    throw new LocationRequiredError();
+  }
+  if (hasLocation && input.accuracy! > MAX_ACCEPTABLE_ACCURACY_METERS) {
+    throw new LocationAccuracyTooLowError();
+  }
+
+  const updated = await updateSession(openSession.id, {
+    checkOutAt: now,
+    checkOutLat: hasLocation ? input.lat : undefined,
+    checkOutLng: hasLocation ? input.lng : undefined,
+    checkOutAccuracy: hasLocation ? input.accuracy : undefined,
+    checkOutDeviceAt:
+      hasLocation && input.deviceTimestamp ? new Date(input.deviceTimestamp) : undefined,
+    updatedBy: user.id,
+  });
+
+  return toSessionSummary(updated);
 }

@@ -619,6 +619,9 @@ model OrderItem {
 
 // --- Attendance ---
 
+// Day-level row: one per user per calendar day, holding the derived status
+// (S3-04) and owning any number of check-in/check-out cycles for that day.
+// Created lazily on a user's first check-in of the day.
 model Attendance {
   id String @id @default(cuid())
 
@@ -628,7 +631,30 @@ model Attendance {
   date   DateTime
   status AttendanceStatus @default(NEEDS_REVIEW)
 
-  checkInAt  DateTime?
+  sessions AttendanceSession[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@map("attendances")
+}
+
+// One check-in/check-out cycle. A day can hold several — a delegate may
+// check in and out multiple times on the same working day. checkOutAt null
+// means the session is still open; the partial unique index in the
+// migration (one open session per Attendance) enforces at the database
+// level that a day never has more than one cycle running at once, the same
+// way S4-01 constrains one active visit per delegate.
+model AttendanceSession {
+  id String @id @default(cuid())
+
+  attendanceId String
+  attendance   Attendance @relation(fields: [attendanceId], references: [id])
+
+  checkInAt  DateTime
   checkInLat Decimal?  @db.Decimal(9, 6)
   checkInLng Decimal?  @db.Decimal(9, 6)
   // Device's own clock at check-in — reference only, never authoritative;
@@ -641,14 +667,20 @@ model Attendance {
   checkOutAt  DateTime?
   checkOutLat Decimal?  @db.Decimal(9, 6)
   checkOutLng Decimal?  @db.Decimal(9, 6)
+  // Device's own clock at check-out — reference only, never authoritative;
+  // checkOutAt (server time) is the business-event timestamp.
+  checkOutDeviceAt DateTime?
+  // The GPS fix's own confidence radius in meters — same quality gate
+  // (MAX_ACCEPTABLE_ACCURACY_METERS) applied at check-out as at check-in.
+  checkOutAccuracy Decimal? @db.Decimal(10, 2)
 
   createdBy String?
   createdAt DateTime @default(now())
   updatedBy String?
   updatedAt DateTime @updatedAt
 
-  @@unique([userId, date])
-  @@map("attendances")
+  @@index([attendanceId])
+  @@map("attendance_sessions")
 }
 
 // --- Targets ---
