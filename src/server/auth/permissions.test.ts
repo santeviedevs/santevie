@@ -31,6 +31,7 @@ const EXPECTED: Record<(typeof ROLES)[number], Permission[]> = {
     "holidays:view",
     "holidays:manage",
     "working-days:manage",
+    "attendance:check-in",
   ],
   SUPERVISOR: [
     "orders:view-team",
@@ -41,6 +42,7 @@ const EXPECTED: Record<(typeof ROLES)[number], Permission[]> = {
     "leave:view-team",
     "leave:approve",
     "holidays:view",
+    "attendance:check-in",
   ],
   DELEGATE: [
     "orders:view-own",
@@ -48,6 +50,7 @@ const EXPECTED: Record<(typeof ROLES)[number], Permission[]> = {
     "leave:apply",
     "leave:view-own",
     "holidays:view",
+    "attendance:check-in",
   ],
 };
 

@@ -50,6 +50,10 @@ model Role {
   id          String           @id @default(cuid())
   name        String           @unique
   description String?
+  // Seed-time constant, no Role management UI — default GPS requirement for
+  // attendance (check-in and check-out), overridable per user via
+  // User.requiresLocation.
+  requiresLocation Boolean @default(false)
   users       User[]
   permissions RolePermission[]
 
@@ -106,6 +110,10 @@ model User {
 
   roleId String
   role   Role   @relation(fields: [roleId], references: [id])
+
+  // null = inherit Role.requiresLocation; true/false explicitly overrides
+  // the role default for this user only.
+  requiresLocation Boolean?
 
   managerId     String?
   manager       User?   @relation("UserManager", fields: [managerId], references: [id])
@@ -623,6 +631,12 @@ model Attendance {
   checkInAt  DateTime?
   checkInLat Decimal?  @db.Decimal(9, 6)
   checkInLng Decimal?  @db.Decimal(9, 6)
+  // Device's own clock at check-in — reference only, never authoritative;
+  // checkInAt (server time) is the business-event timestamp.
+  checkInDeviceAt DateTime?
+  // The GPS fix's own confidence radius in meters, not a distance to
+  // anything else — the quality gate used at check-in time.
+  checkInAccuracy Decimal? @db.Decimal(10, 2)
 
   checkOutAt  DateTime?
   checkOutLat Decimal?  @db.Decimal(9, 6)

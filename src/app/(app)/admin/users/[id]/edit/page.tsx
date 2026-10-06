@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { getServerDictionary } from "@/lib/i18n/server";
+import { toLocationRequirement } from "@/lib/schemas/user";
 import { requirePermission } from "@/server/auth/require-permission";
 import { getUserScope } from "@/server/scope";
 import { getUser, getUserFormOptions } from "@/server/services/user-service";
@@ -50,6 +51,7 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
           contractDurationValue: user.contractDurationValue,
           contractDurationUnit: user.contractDurationUnit,
           status: user.status,
+          locationRequirement: toLocationRequirement(user.requiresLocation),
         }}
       />
     </div>

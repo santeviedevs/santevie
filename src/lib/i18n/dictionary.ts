@@ -28,6 +28,8 @@ export type Dictionary = {
     myLeaves: string;
     teamLeaves: string;
     calendar: string;
+    attendanceGroup: string;
+    checkIn: string;
   };
   header: {
     signOut: string;
@@ -209,6 +211,11 @@ export type Dictionary = {
     activate: string;
     activeDescription: string;
     inactiveDescription: string;
+    locationRequirement: string;
+    locationRequirementInheritRequired: string;
+    locationRequirementInheritNotRequired: string;
+    locationRequirementRequired: string;
+    locationRequirementNotRequired: string;
     createUser: string;
     saveChanges: string;
     saving: string;
@@ -262,6 +269,34 @@ export type Dictionary = {
     reason: string;
     submit: string;
     saving: string;
+  };
+  // S3-02 GPS check-in. Location UI strings only appear when the resolved
+  // requiresLocation flag is true for the signed-in user — a
+  // location-not-required user only ever sees title/checkInButton/success*.
+  checkInPage: {
+    title: string;
+    permissionGuidance: string;
+    checkInButton: string;
+    requesting: string;
+    deniedTitle: string;
+    deniedBody: string;
+    unavailableTitle: string;
+    unavailableBody: string;
+    timeoutTitle: string;
+    timeoutBody: string;
+    lowAccuracyTitle: string;
+    lowAccuracyBody: string;
+    tryAgain: string;
+    successTitle: string;
+    // Plain string, not a function: this whole object is passed as a prop
+    // into CheckInForm, a Client Component — a function anywhere in that
+    // props object breaks RSC serialization even if never called client-side
+    // (see pagination-controls.tsx for the same constraint elsewhere). The
+    // formatted time is appended by the client, not interpolated here.
+    successBodyPrefix: string;
+    backToHome: string;
+    alreadyCheckedIn: string;
+    notAWorkingDay: string;
   };
   // The Holidays admin screen (S3-01) — mirrors territoriesPage/
   // territoryForm in shape: one list with filters, one create/edit form.
@@ -525,6 +560,8 @@ const en: Dictionary = {
     myLeaves: "My Leaves",
     teamLeaves: "Team Leaves",
     calendar: "Calendar",
+    attendanceGroup: "Attendance",
+    checkIn: "Check In",
   },
   header: {
     signOut: "Sign out",
@@ -671,6 +708,11 @@ const en: Dictionary = {
     activate: "Activate",
     activeDescription: "Can sign in and appears in active lists.",
     inactiveDescription: "Deactivated — can't sign in. Save changes to reactivate.",
+    locationRequirement: "GPS for check-in",
+    locationRequirementInheritRequired: "Use role default (currently: required)",
+    locationRequirementInheritNotRequired: "Use role default (currently: not required)",
+    locationRequirementRequired: "Always require GPS",
+    locationRequirementNotRequired: "Never require GPS",
     createUser: "Create user",
     saveChanges: "Save changes",
     saving: "Saving...",
@@ -721,6 +763,26 @@ const en: Dictionary = {
     reason: "Reason",
     submit: "Submit leave request",
     saving: "Submitting...",
+  },
+  checkInPage: {
+    title: "Check In",
+    permissionGuidance: "We need your location to confirm your check-in.",
+    checkInButton: "Check In",
+    requesting: "Getting your location...",
+    deniedTitle: "Location access denied",
+    deniedBody: "Enable location for this site in your browser settings, then try again.",
+    unavailableTitle: "Location unavailable",
+    unavailableBody: "Make sure location services are turned on for this device, then try again.",
+    timeoutTitle: "Couldn't get your location in time",
+    timeoutBody: "Move to an area with a clearer view of the sky and try again.",
+    lowAccuracyTitle: "Location isn't precise enough",
+    lowAccuracyBody: "Move outdoors or away from buildings, then try again.",
+    tryAgain: "Try again",
+    successTitle: "You're checked in",
+    successBodyPrefix: "Recorded at",
+    backToHome: "Back to home",
+    alreadyCheckedIn: "You've already checked in today.",
+    notAWorkingDay: "Today isn't a working day, so check-in isn't available.",
   },
   holidaysPage: {
     title: "Holidays",
@@ -957,6 +1019,8 @@ const fr: Dictionary = {
     myLeaves: "Mes congés",
     teamLeaves: "Congés de l'équipe",
     calendar: "Calendrier",
+    attendanceGroup: "Présence",
+    checkIn: "Pointage",
   },
   header: {
     signOut: "Se déconnecter",
@@ -1103,6 +1167,11 @@ const fr: Dictionary = {
     activate: "Activer",
     activeDescription: "Peut se connecter et apparaît dans les listes actives.",
     inactiveDescription: "Désactivé — ne peut pas se connecter. Enregistrez pour réactiver.",
+    locationRequirement: "GPS pour le pointage",
+    locationRequirementInheritRequired: "Utiliser le défaut du rôle (actuellement : requis)",
+    locationRequirementInheritNotRequired: "Utiliser le défaut du rôle (actuellement : non requis)",
+    locationRequirementRequired: "Toujours exiger le GPS",
+    locationRequirementNotRequired: "Ne jamais exiger le GPS",
     createUser: "Créer l'utilisateur",
     saveChanges: "Enregistrer",
     saving: "Enregistrement...",
@@ -1153,6 +1222,27 @@ const fr: Dictionary = {
     reason: "Motif",
     submit: "Envoyer la demande",
     saving: "Envoi en cours...",
+  },
+  checkInPage: {
+    title: "Pointage",
+    permissionGuidance: "Nous avons besoin de votre position pour confirmer votre pointage.",
+    checkInButton: "Pointer",
+    requesting: "Récupération de votre position...",
+    deniedTitle: "Accès à la position refusé",
+    deniedBody:
+      "Activez la localisation pour ce site dans les paramètres de votre navigateur, puis réessayez.",
+    unavailableTitle: "Position indisponible",
+    unavailableBody: "Vérifiez que la localisation est activée sur cet appareil, puis réessayez.",
+    timeoutTitle: "Impossible d'obtenir votre position à temps",
+    timeoutBody: "Déplacez-vous vers un endroit avec une meilleure vue du ciel, puis réessayez.",
+    lowAccuracyTitle: "La position n'est pas assez précise",
+    lowAccuracyBody: "Déplacez-vous à l'extérieur ou loin des bâtiments, puis réessayez.",
+    tryAgain: "Réessayer",
+    successTitle: "Vous êtes pointé",
+    successBodyPrefix: "Enregistré à",
+    backToHome: "Retour à l'accueil",
+    alreadyCheckedIn: "Vous avez déjà pointé aujourd'hui.",
+    notAWorkingDay: "Aujourd'hui n'est pas un jour travaillé, le pointage n'est pas disponible.",
   },
   holidaysPage: {
     title: "Jours fériés",

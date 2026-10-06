@@ -4,6 +4,7 @@ import {
   HelpCircle,
   Home,
   Map,
+  MapPin,
   Package,
   Stethoscope,
   Users,
@@ -19,6 +20,8 @@ type NavKey =
   | "manageTerritories"
   | "territoryAssignment"
   | "calendar"
+  | "attendanceGroup"
+  | "checkIn"
   | "team"
   | "leavesGroup"
   | "myLeaves"
@@ -80,6 +83,21 @@ export const NAV_ITEM_DEFS: NavItemDef[] = [
   // every role holds. Holidays (holidays:view, also universal) lives inside
   // it as a tab, not a separate nav entry.
   { href: "/calendar", key: "calendar", icon: Calendar },
+  // Grouped like territoriesGroup/leavesGroup, even though Check In is the
+  // only child today — Check Out (S3-03) and the attendance admin/report
+  // screen (S3-05) land in this same sprint, so the group shape is already
+  // correct rather than something to flatten and later regroup.
+  {
+    key: "attendanceGroup",
+    icon: MapPin,
+    children: [
+      // All four roles currently hold attendance:check-in (S3-02) — kept as
+      // an explicit permission gate anyway, defense-in-depth against a
+      // future role that doesn't, rather than relying on it being universal
+      // today.
+      { href: "/attendance/check-in", key: "checkIn", permission: "attendance:check-in" },
+    ],
+  },
   {
     href: "/team",
     key: "team",
