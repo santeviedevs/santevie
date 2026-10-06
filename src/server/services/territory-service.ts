@@ -25,6 +25,7 @@ import {
   type TerritoryRow,
   updateTerritoryRow,
 } from "@/server/repositories/territory-repository";
+import { createDefaultWorkingDays } from "@/server/repositories/working-day-repository";
 
 export class DuplicateTerritoryNameError extends Error {
   constructor(level: string) {
@@ -331,6 +332,10 @@ export async function findOrCreateTerritory(
         createdBy: actorId,
         updatedBy: actorId,
       });
+      // So isWorkingDay (S3-01) always has a full week to read for this
+      // territory — Mon-Sat working, Sunday off, editable later via the
+      // working-days admin screen.
+      await createDefaultWorkingDays(created.id, actorId);
       return { territory: created, created: true };
     } catch (error) {
       if (isUniqueConstraintViolation(error) && constraintTargets(error, "code")) {

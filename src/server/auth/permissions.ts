@@ -23,6 +23,13 @@ export const PERMISSIONS = [
   "reports:view-all",
   "dashboard:view",
   "audit:view",
+  "leave:apply",
+  "leave:view-own",
+  "leave:view-team",
+  "leave:approve",
+  "holidays:view",
+  "holidays:manage",
+  "working-days:manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -43,9 +50,31 @@ export const ROLE_PERMISSIONS: Record<RoleName, readonly Permission[]> = {
     "reports:view-all",
     "dashboard:view",
     "audit:view",
+    "leave:apply",
+    "leave:view-own",
+    "leave:view-team",
+    "leave:approve",
+    "holidays:view",
+    "holidays:manage",
+    "working-days:manage",
   ],
-  SUPERVISOR: ["orders:view-team", "orders:approve", "reports:view-team"],
-  DELEGATE: ["orders:view-own", "reports:view-own"],
+  SUPERVISOR: [
+    "orders:view-team",
+    "orders:approve",
+    "reports:view-team",
+    "leave:apply",
+    "leave:view-own",
+    "leave:view-team",
+    "leave:approve",
+    "holidays:view",
+  ],
+  DELEGATE: [
+    "orders:view-own",
+    "reports:view-own",
+    "leave:apply",
+    "leave:view-own",
+    "holidays:view",
+  ],
 };
 
 export function hasPermission(

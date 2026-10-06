@@ -24,9 +24,31 @@ const EXPECTED: Record<(typeof ROLES)[number], Permission[]> = {
     "reports:view-all",
     "dashboard:view",
     "audit:view",
+    "leave:apply",
+    "leave:view-own",
+    "leave:view-team",
+    "leave:approve",
+    "holidays:view",
+    "holidays:manage",
+    "working-days:manage",
   ],
-  SUPERVISOR: ["orders:view-team", "orders:approve", "reports:view-team"],
-  DELEGATE: ["orders:view-own", "reports:view-own"],
+  SUPERVISOR: [
+    "orders:view-team",
+    "orders:approve",
+    "reports:view-team",
+    "leave:apply",
+    "leave:view-own",
+    "leave:view-team",
+    "leave:approve",
+    "holidays:view",
+  ],
+  DELEGATE: [
+    "orders:view-own",
+    "reports:view-own",
+    "leave:apply",
+    "leave:view-own",
+    "holidays:view",
+  ],
 };
 
 describe("role permission matrix", () => {

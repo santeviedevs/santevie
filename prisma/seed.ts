@@ -90,6 +90,38 @@ async function main() {
     },
   });
 
+  // Mon-Sat working, Sunday off — an editable placeholder (D4 in the
+  // execution plan is still open with the client), seeded directly here
+  // since this territory is created via upsert above, bypassing the
+  // territory-service.ts create flow that auto-seeds these rows for every
+  // territory created through the application from here on.
+  for (let dayOfWeek = 0; dayOfWeek <= 6; dayOfWeek++) {
+    await prisma.territoryWorkingDay.upsert({
+      where: { territoryId_dayOfWeek: { territoryId: territory.id, dayOfWeek } },
+      update: {},
+      create: { territoryId: territory.id, dayOfWeek, isWorking: dayOfWeek !== 0 },
+    });
+  }
+
+  // Initial leave-type catalogue requested for the application.
+  for (const [code, name] of [
+    ["ANNUAL", "Annual Leave"],
+    ["SICK", "Sick Leave"],
+    ["MATERNITY", "Maternity Leave"],
+    ["PATERNITY", "Paternity / Childbirth Leave"],
+    ["MARRIAGE", "Marriage Leave"],
+    ["CHILD_MARRIAGE", "Child's Marriage Leave"],
+    ["BEREAVEMENT_CLOSE", "Bereavement Leave – Spouse/Close Family"],
+    ["BEREAVEMENT_EXTENDED", "Bereavement Leave – Extended Family"],
+    ["OTHER", "Other / Exceptional Leave"],
+  ]) {
+    await prisma.leaveType.upsert({
+      where: { code },
+      update: {},
+      create: { code, name },
+    });
+  }
+
   const admin = await prisma.user.upsert({
     where: { email: "admin@santevie.test" },
     update: {},

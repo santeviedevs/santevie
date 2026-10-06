@@ -38,6 +38,12 @@ enum ContractDurationUnit {
   YEARS
 }
 
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 // --- Identity ---
 
 model Role {
@@ -128,6 +134,7 @@ model User {
   attendances          Attendance[]
   targets              Target[]
   territoryAssignments UserTerritoryAssignment[]
+  leaves               Leave[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -255,6 +262,8 @@ model Territory {
   clients              Client[]
   targets              Target[]
   territoryAssignments UserTerritoryAssignment[]
+  holidays             Holiday[]
+  workingDays          TerritoryWorkingDay[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -678,4 +687,106 @@ model ImportBatch {
   updatedAt DateTime @updatedAt
 
   @@map("import_batches")
+}
+
+// --- Working calendar (S3-01) ---
+
+// Lookup table, same pattern as ClientType/ProductCategory — no status
+// field, since deactivating a leave type mid-use isn't a requirement here.
+model LeaveType {
+  id   String @id @default(cuid())
+  code String @unique
+  name String
+
+  leaves Leave[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("leave_types")
+}
+
+// Admin-maintained calendar fact, distinct from Leave (which is a
+// per-employee request with an approval workflow). A single date is
+// startDate == endDate; territoryId null means the holiday applies to every
+// territory. `isWorkingDay` treats every date within [startDate, endDate] on
+// an ACTIVE row as non-working.
+model Holiday {
+  id        String   @id @default(cuid())
+  name      String
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  status    Status   @default(ACTIVE)
+
+  territoryId String?
+  territory   Territory? @relation(fields: [territoryId], references: [id])
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@index([territoryId, startDate])
+  @@map("holidays")
+}
+
+// One row per employee leave request. Starts PENDING; the only permitted
+// transitions are PENDING -> APPROVED and PENDING -> REJECTED (enforced in
+// leave-service.ts, not here) — there is no reopen/correction workflow for
+// this story. decidedBy/decidedAt record who made that decision and when,
+// distinct from the generic updatedBy/updatedAt, which just say who last
+// touched the row. Authorization for who may decide a given request is
+// resolved via the existing reporting-hierarchy scope helper
+// (src/server/scope.ts), not a separate approver relation on this model.
+model Leave {
+  id        String      @id @default(cuid())
+  startDate DateTime    @db.Date
+  endDate   DateTime    @db.Date
+  reason    String?
+  status    LeaveStatus @default(PENDING)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  leaveTypeId String
+  leaveType   LeaveType @relation(fields: [leaveTypeId], references: [id])
+
+  decidedBy      String?
+  decidedAt      DateTime?
+  // The approver's own remark on their decision — optional on both approve
+  // and reject, kept separate from the requester's own `reason` above.
+  decisionRemark String?
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@map("leaves")
+}
+
+// One row per (territory, day-of-week), 7 per territory. dayOfWeek follows
+// JS Date#getUTCDay() (0 = Sunday .. 6 = Saturday) so working-day-service.ts
+// needs no translation layer. Auto-created (Mon-Sat working, Sunday off) by
+// territory-service.ts whenever a Territory is created — see D4 in the
+// execution plan, still formally open with the client; this is an editable
+// placeholder, never a hard-coded assumption in attendance logic.
+model TerritoryWorkingDay {
+  id        String  @id @default(cuid())
+  dayOfWeek Int
+  isWorking Boolean
+
+  territoryId String
+  territory   Territory @relation(fields: [territoryId], references: [id])
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([territoryId, dayOfWeek])
+  @@map("territory_working_days")
 }

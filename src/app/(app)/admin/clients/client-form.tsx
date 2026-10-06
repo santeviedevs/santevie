@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -56,19 +56,19 @@ export function ClientForm({ mode, options, defaultValues, dict, territoryDict }
     register,
     handleSubmit,
     setValue,
-    watch,
+    control,
     formState: { errors },
   } = useForm<CreateClientInput | UpdateClientInput>({
     resolver: zodResolver(schema),
     defaultValues: { hospitalIds: [], ...defaultValues },
   });
 
-  const typeId = watch("typeId");
-  const territoryId = watch("territoryId");
-  const latitude = watch("latitude");
-  const longitude = watch("longitude");
-  const status = watch("status");
-  const hospitalIds = watch("hospitalIds") ?? [];
+  const typeId = useWatch({ control, name: "typeId" });
+  const territoryId = useWatch({ control, name: "territoryId" });
+  const latitude = useWatch({ control, name: "latitude" });
+  const longitude = useWatch({ control, name: "longitude" });
+  const status = useWatch({ control, name: "status" });
+  const hospitalIds = useWatch({ control, name: "hospitalIds" }) ?? [];
 
   const selectedType = options.types.find((t) => t.id === typeId);
   const typeCode = selectedType?.code;
