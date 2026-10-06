@@ -31,6 +31,7 @@ export const PERMISSIONS = [
   "holidays:manage",
   "working-days:manage",
   "attendance:check-in",
+  "attendance:check-out",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -59,6 +60,7 @@ export const ROLE_PERMISSIONS: Record<RoleName, readonly Permission[]> = {
     "holidays:manage",
     "working-days:manage",
     "attendance:check-in",
+    "attendance:check-out",
   ],
   SUPERVISOR: [
     "orders:view-team",
@@ -70,6 +72,7 @@ export const ROLE_PERMISSIONS: Record<RoleName, readonly Permission[]> = {
     "leave:approve",
     "holidays:view",
     "attendance:check-in",
+    "attendance:check-out",
   ],
   DELEGATE: [
     "orders:view-own",
@@ -78,6 +81,7 @@ export const ROLE_PERMISSIONS: Record<RoleName, readonly Permission[]> = {
     "leave:view-own",
     "holidays:view",
     "attendance:check-in",
+    "attendance:check-out",
   ],
 };
 

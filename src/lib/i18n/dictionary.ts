@@ -29,7 +29,7 @@ export type Dictionary = {
     teamLeaves: string;
     calendar: string;
     attendanceGroup: string;
-    checkIn: string;
+    checkInOut: string;
   };
   header: {
     signOut: string;
@@ -270,14 +270,28 @@ export type Dictionary = {
     submit: string;
     saving: string;
   };
-  // S3-02 GPS check-in. Location UI strings only appear when the resolved
-  // requiresLocation flag is true for the signed-in user — a
-  // location-not-required user only ever sees title/checkInButton/success*.
-  checkInPage: {
+  // S3-02/S3-03 combined GPS check-in/check-out screen — a repeatable
+  // check-in/check-out card (multiple cycles allowed per working day) plus
+  // a paginated history table of every session. Location UI strings only
+  // appear when the resolved requiresLocation flag is true for the
+  // signed-in user — a location-not-required user only ever sees the
+  // title/button/status strings.
+  checkInOutPage: {
     title: string;
+    // Status line shown on the card — which one depends on today's state:
+    // never checked in today (readyStatus), currently checked in
+    // (checkedInStatusPrefix + time), or checked out and free to start
+    // another session (lastCheckedOutStatusPrefix + time).
+    readyStatus: string;
+    checkedInStatusPrefix: string;
+    lastCheckedOutStatusPrefix: string;
     permissionGuidance: string;
     checkInButton: string;
+    checkOutPermissionGuidance: string;
+    checkOutButton: string;
     requesting: string;
+    checkingIn: string;
+    checkingOut: string;
     deniedTitle: string;
     deniedBody: string;
     unavailableTitle: string;
@@ -287,16 +301,24 @@ export type Dictionary = {
     lowAccuracyTitle: string;
     lowAccuracyBody: string;
     tryAgain: string;
-    successTitle: string;
-    // Plain string, not a function: this whole object is passed as a prop
-    // into CheckInForm, a Client Component — a function anywhere in that
-    // props object breaks RSC serialization even if never called client-side
-    // (see pagination-controls.tsx for the same constraint elsewhere). The
-    // formatted time is appended by the client, not interpolated here.
-    successBodyPrefix: string;
-    backToHome: string;
+    // Plain strings, not functions: this whole object is passed as a prop
+    // into CheckInOutCard, a Client Component — a function anywhere in
+    // that props object breaks RSC serialization even if never called
+    // client-side (see pagination-controls.tsx for the same constraint
+    // elsewhere).
+    checkedInToast: string;
+    checkedOutToast: string;
     alreadyCheckedIn: string;
     notAWorkingDay: string;
+    historyTitle: string;
+    historyColumnDate: string;
+    historyColumnCheckIn: string;
+    historyColumnCheckOut: string;
+    historyColumnDuration: string;
+    historyColumnStatus: string;
+    historyStatusActive: string;
+    historyStatusCompleted: string;
+    historyNoResults: string;
   };
   // The Holidays admin screen (S3-01) — mirrors territoriesPage/
   // territoryForm in shape: one list with filters, one create/edit form.
@@ -561,7 +583,7 @@ const en: Dictionary = {
     teamLeaves: "Team Leaves",
     calendar: "Calendar",
     attendanceGroup: "Attendance",
-    checkIn: "Check In",
+    checkInOut: "Check-In/Out",
   },
   header: {
     signOut: "Sign out",
@@ -764,11 +786,18 @@ const en: Dictionary = {
     submit: "Submit leave request",
     saving: "Submitting...",
   },
-  checkInPage: {
-    title: "Check In",
+  checkInOutPage: {
+    title: "Check-In / Check-Out",
+    readyStatus: "Ready to start your attendance",
+    checkedInStatusPrefix: "Checked in at",
+    lastCheckedOutStatusPrefix: "Last checked out at",
     permissionGuidance: "We need your location to confirm your check-in.",
     checkInButton: "Check In",
+    checkOutPermissionGuidance: "We need your location to confirm your check-out.",
+    checkOutButton: "Check Out",
     requesting: "Getting your location...",
+    checkingIn: "Checking in...",
+    checkingOut: "Checking out...",
     deniedTitle: "Location access denied",
     deniedBody: "Enable location for this site in your browser settings, then try again.",
     unavailableTitle: "Location unavailable",
@@ -778,11 +807,19 @@ const en: Dictionary = {
     lowAccuracyTitle: "Location isn't precise enough",
     lowAccuracyBody: "Move outdoors or away from buildings, then try again.",
     tryAgain: "Try again",
-    successTitle: "You're checked in",
-    successBodyPrefix: "Recorded at",
-    backToHome: "Back to home",
-    alreadyCheckedIn: "You've already checked in today.",
+    checkedInToast: "Checked in successfully.",
+    checkedOutToast: "Checked out successfully.",
+    alreadyCheckedIn: "You're already checked in — check out before starting a new session.",
     notAWorkingDay: "Today isn't a working day, so check-in isn't available.",
+    historyTitle: "Check-In/Out History",
+    historyColumnDate: "Date",
+    historyColumnCheckIn: "Check-In",
+    historyColumnCheckOut: "Check-Out",
+    historyColumnDuration: "Duration",
+    historyColumnStatus: "Status",
+    historyStatusActive: "Active",
+    historyStatusCompleted: "Completed",
+    historyNoResults: "No sessions recorded yet.",
   },
   holidaysPage: {
     title: "Holidays",
@@ -1020,7 +1057,7 @@ const fr: Dictionary = {
     teamLeaves: "Congés de l'équipe",
     calendar: "Calendrier",
     attendanceGroup: "Présence",
-    checkIn: "Pointage",
+    checkInOut: "Pointage",
   },
   header: {
     signOut: "Se déconnecter",
@@ -1223,11 +1260,18 @@ const fr: Dictionary = {
     submit: "Envoyer la demande",
     saving: "Envoi en cours...",
   },
-  checkInPage: {
+  checkInOutPage: {
     title: "Pointage",
-    permissionGuidance: "Nous avons besoin de votre position pour confirmer votre pointage.",
-    checkInButton: "Pointer",
+    readyStatus: "Prêt à commencer votre présence",
+    checkedInStatusPrefix: "Arrivée pointée à",
+    lastCheckedOutStatusPrefix: "Dernier départ pointé à",
+    permissionGuidance: "Nous avons besoin de votre position pour confirmer votre arrivée.",
+    checkInButton: "Pointer l'arrivée",
+    checkOutPermissionGuidance: "Nous avons besoin de votre position pour confirmer votre départ.",
+    checkOutButton: "Pointer le départ",
     requesting: "Récupération de votre position...",
+    checkingIn: "Pointage de l'arrivée...",
+    checkingOut: "Pointage du départ...",
     deniedTitle: "Accès à la position refusé",
     deniedBody:
       "Activez la localisation pour ce site dans les paramètres de votre navigateur, puis réessayez.",
@@ -1238,11 +1282,19 @@ const fr: Dictionary = {
     lowAccuracyTitle: "La position n'est pas assez précise",
     lowAccuracyBody: "Déplacez-vous à l'extérieur ou loin des bâtiments, puis réessayez.",
     tryAgain: "Réessayer",
-    successTitle: "Vous êtes pointé",
-    successBodyPrefix: "Enregistré à",
-    backToHome: "Retour à l'accueil",
-    alreadyCheckedIn: "Vous avez déjà pointé aujourd'hui.",
+    checkedInToast: "Arrivée pointée avec succès.",
+    checkedOutToast: "Départ pointé avec succès.",
+    alreadyCheckedIn: "Vous êtes déjà pointé — pointez votre départ avant d'en recommencer un.",
     notAWorkingDay: "Aujourd'hui n'est pas un jour travaillé, le pointage n'est pas disponible.",
+    historyTitle: "Historique des pointages",
+    historyColumnDate: "Date",
+    historyColumnCheckIn: "Arrivée",
+    historyColumnCheckOut: "Départ",
+    historyColumnDuration: "Durée",
+    historyColumnStatus: "Statut",
+    historyStatusActive: "En cours",
+    historyStatusCompleted: "Terminé",
+    historyNoResults: "Aucune session enregistrée pour le moment.",
   },
   holidaysPage: {
     title: "Jours fériés",
