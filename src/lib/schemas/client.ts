@@ -26,18 +26,6 @@ const name = z.string().trim().min(1, "Name is required").max(160);
 const latitude = z.number().min(-90).max(90).nullish();
 const longitude = z.number().min(-180).max(180).nullish();
 
-// Doctor-specific fields, only meaningful when the selected ClientType code
-// is DOCTOR — the service layer checks that match independently of this
-// shape, since a tampered request could send doctor fields under a
-// different type.
-export const doctorDetailsSchema = z.object({
-  doctorType: z.string().trim().max(80).nullish(),
-  gender: z.string().trim().max(20).nullish(),
-  department: z.string().trim().max(120).nullish(),
-  mobileNo: z.string().trim().max(32).nullish(),
-});
-export type DoctorDetailsInput = z.infer<typeof doctorDetailsSchema>;
-
 // Hospital-specific fields, only meaningful when the selected ClientType
 // code is HOSPITAL.
 export const hospitalDetailsSchema = z.object({
@@ -58,11 +46,7 @@ export const createClientSchema = z.object({
   // represents whatever depth (Province alone, down to a full Quartier
   // path) it maps to, so one optional field is enough.
   territoryId: id.nullish(),
-  doctor: doctorDetailsSchema.optional(),
   hospital: hospitalDetailsSchema.optional(),
-  // Only meaningful when `doctor` is present — the set of Hospital ids this
-  // Doctor is associated with (DoctorHospital), not Doctor's own field.
-  hospitalIds: z.array(id).optional(),
 });
 export type CreateClientInput = z.infer<typeof createClientSchema>;
 

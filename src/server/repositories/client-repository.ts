@@ -16,15 +16,6 @@ const listInclude = {
       quartier: { select: { id: true, name: true } },
     },
   },
-  doctor: {
-    include: {
-      hospitals: {
-        include: {
-          hospital: { include: { client: { select: { id: true, name: true, code: true } } } },
-        },
-      },
-    },
-  },
   hospital: true,
 } satisfies Prisma.ClientInclude;
 
@@ -94,12 +85,11 @@ export function listClientTypes() {
 }
 
 type ClientCreateData = {
-  client: Omit<Prisma.ClientCreateInput, "doctor" | "hospital">;
-  doctor?: Omit<Prisma.DoctorCreateWithoutClientInput, never>;
+  client: Omit<Prisma.ClientCreateInput, "hospital">;
   hospital?: Omit<Prisma.HospitalCreateWithoutClientInput, never>;
 };
 
-// A Client and its Doctor/Hospital extension are written in one transaction
+// A Client and its Hospital extension are written in one transaction
 // — a failure partway through must never leave a Client row with no
 // extension row (or vice versa), since the extension is what makes the
 // Client usable as the type it claims to be.
@@ -107,7 +97,6 @@ export function createClientWithExtension(data: ClientCreateData): Promise<Clien
   return prisma.client.create({
     data: {
       ...data.client,
-      ...(data.doctor ? { doctor: { create: data.doctor } } : {}),
       ...(data.hospital ? { hospital: { create: data.hospital } } : {}),
     },
     include: listInclude,
@@ -115,14 +104,13 @@ export function createClientWithExtension(data: ClientCreateData): Promise<Clien
 }
 
 type ClientUpdateData = {
-  client: Omit<Prisma.ClientUpdateInput, "doctor" | "hospital">;
-  doctor?: Omit<Prisma.DoctorUpdateWithoutClientInput, never>;
+  client: Omit<Prisma.ClientUpdateInput, "hospital">;
   hospital?: Omit<Prisma.HospitalUpdateWithoutClientInput, never>;
 };
 
 // `upsert`, not `update` — a plain `update` throws P2025 whenever the
 // extension row doesn't already exist, which happens both when a client's
-// type is switched (Doctor <-> Hospital, no extension of the new type yet)
+// type is switched (e.g. to Hospital, no extension of the new type yet)
 // and for pre-S2-02 seed data that was never given an extension row at all
 // for whatever type it's labeled with. `upsert`'s create branch covers both
 // cases the same way createClientWithExtension already does on first
@@ -135,27 +123,14 @@ export function updateClientWithExtension(
     where: { id },
     data: {
       ...data.client,
-      ...(data.doctor
-        ? {
-            doctor: {
-              // The cast is safe: client-service.ts only ever builds this
-              // object from plain scalar fields (never a
-              // FieldUpdateOperationsInput like `{ increment: 1 }`), so it
-              // satisfies the Create shape too — Prisma's Update type is
-              // just wider than what's actually ever passed here.
-              upsert: {
-                create: {
-                  ...data.doctor,
-                  createdBy: data.doctor.updatedBy,
-                } as Prisma.DoctorCreateWithoutClientInput,
-                update: data.doctor,
-              },
-            },
-          }
-        : {}),
       ...(data.hospital
         ? {
             hospital: {
+              // The cast below is safe: client-service.ts only ever builds
+              // this object from plain scalar fields (never a
+              // FieldUpdateOperationsInput like `{ increment: 1 }`), so it
+              // satisfies the Create shape too — Prisma's Update type is
+              // just wider than what's actually ever passed here.
               upsert: {
                 create: {
                   ...data.hospital,

@@ -1,9 +1,7 @@
 import { createClientSchema, updateClientSchema } from "@/lib/schemas/client";
-import { setDoctorHospitals } from "@/server/repositories/doctor-hospital-repository";
 import {
   findClientByCode,
   findClientTypeByCode,
-  findHospitalLookupByClientCodes,
   findTerritoryByCode,
 } from "@/server/repositories/import-lookup-repository";
 import { createClient, updateClient } from "@/server/services/client-service";
@@ -24,17 +22,7 @@ export const CLIENT_IMPORT_COLUMNS = [
   "latitude",
   "longitude",
   "territory",
-  "doctorType",
-  "gender",
-  "department",
-  "mobileNo",
   "hospitalCategory",
-  // Comma-separated Client codes of the Hospitals this Doctor is linked
-  // to — resolved in a second pass, after every row in the file has been
-  // committed, since a Doctor row can reference a Hospital row that only
-  // appears later in the same file (S2-05: the doctor/hospital ordering
-  // problem flagged during scoping).
-  "hospitals",
 ] as const;
 
 type ResolvedClientInput = {
@@ -47,12 +35,6 @@ type ResolvedClientInput = {
   latitude: number | null;
   longitude: number | null;
   territoryId: string | null;
-  doctor: {
-    doctorType: string | null;
-    gender: string | null;
-    department: string | null;
-    mobileNo: string | null;
-  } | null;
   hospital: { hospitalCategory: string | null } | null;
 };
 
@@ -89,9 +71,7 @@ async function resolveOptionalCode(
 async function resolveRow(
   row: Record<string, string>,
   rowNumber: number,
-): Promise<
-  ImportRowOutcome<ResolvedClientInput> & { hospitalCodes: string[]; doctorFlag: boolean }
-> {
+): Promise<ImportRowOutcome<ResolvedClientInput>> {
   const errors: string[] = [];
 
   const code = (row.code ?? "").trim();
@@ -118,28 +98,11 @@ async function resolveRow(
     errors,
   );
 
-  const isDoctor = resolvedTypeCode === "DOCTOR";
   const isHospital = resolvedTypeCode === "HOSPITAL";
 
-  // Fields for the wrong type are ignored rather than rejected — a Doctor
-  // row simply has no use for hospitalCategory, same as the manual form
-  // never asks for it.
-  const doctor = isDoctor
-    ? {
-        doctorType: toStringOrNull(row.doctorType),
-        gender: toStringOrNull(row.gender),
-        department: toStringOrNull(row.department),
-        mobileNo: toStringOrNull(row.mobileNo),
-      }
-    : null;
+  // hospitalCategory is ignored for non-Hospital rows rather than rejected,
+  // same as the manual form never asks for it.
   const hospital = isHospital ? { hospitalCategory: toStringOrNull(row.hospitalCategory) } : null;
-
-  const hospitalCodes = isDoctor
-    ? (row.hospitals ?? "")
-        .split(",")
-        .map((entry) => entry.trim())
-        .filter((entry) => entry.length > 0)
-    : [];
 
   const latitude = toNumberOrNull(row.latitude ?? "");
   const longitude = toNumberOrNull(row.longitude ?? "");
@@ -156,7 +119,6 @@ async function resolveRow(
     latitude,
     longitude,
     territoryId,
-    doctor: doctor ?? undefined,
     hospital: hospital ?? undefined,
   };
   const schema = existing ? updateClientSchema : createClientSchema;
@@ -166,7 +128,7 @@ async function resolveRow(
   }
 
   if (errors.length > 0) {
-    return { row: rowNumber, action: "reject", errors, hospitalCodes: [], doctorFlag: false };
+    return { row: rowNumber, action: "reject", errors };
   }
 
   const data: ResolvedClientInput = {
@@ -179,19 +141,11 @@ async function resolveRow(
     latitude,
     longitude,
     territoryId,
-    doctor,
     hospital,
   };
   return existing
-    ? {
-        row: rowNumber,
-        action: "update",
-        id: existing.id,
-        data,
-        hospitalCodes,
-        doctorFlag: isDoctor,
-      }
-    : { row: rowNumber, action: "create", data, hospitalCodes, doctorFlag: isDoctor };
+    ? { row: rowNumber, action: "update", id: existing.id, data }
+    : { row: rowNumber, action: "create", data };
 }
 
 export async function previewClientImport(
@@ -207,13 +161,7 @@ export async function previewClientImport(
   return outcomes;
 }
 
-// Pass 1 commits every row (create/update, no hospital links yet). Pass 2
-// — only after every row has landed — resolves each Doctor row's
-// `hospitalCodes` against the now-complete set of Clients and replaces
-// its full DoctorHospital set (S2-05: "replace, not merge" on re-import,
-// confirmed with the lead).
-//
-// Progress spans both the resolve pass and this write pass (2×rows.length
+// Progress spans both the resolve pass and the write pass (2×rows.length
 // steps total) — resolving is itself a full pass over every row, so
 // reporting only the write pass would jump from 0% to 50% the instant
 // resolving finishes.
@@ -221,7 +169,7 @@ export async function commitClientImport(
   rows: Record<string, string>[],
   actorId: string,
   onProgress?: ImportProgress,
-): Promise<{ summary: ImportSummary; linkWarnings: { row: number; errors: string[] }[] }> {
+): Promise<{ summary: ImportSummary }> {
   const totalSteps = rows.length * 2;
   const outcomes = await previewClientImport(rows, undefined, (done) =>
     onProgress?.(done, totalSteps),
@@ -229,12 +177,10 @@ export async function commitClientImport(
   let created = 0;
   let updated = 0;
   let writeIndex = 0;
-  const pendingLinks: { doctorId: string; hospitalCodes: string[]; row: number }[] = [];
-  const linkErrors: { row: number; errors: string[] }[] = [];
 
   for (const outcome of outcomes) {
     if (outcome.action === "create") {
-      const result = await createClient(
+      await createClient(
         {
           code: outcome.data.code,
           name: outcome.data.name,
@@ -245,21 +191,13 @@ export async function commitClientImport(
           latitude: outcome.data.latitude,
           longitude: outcome.data.longitude,
           territoryId: outcome.data.territoryId,
-          doctor: outcome.data.doctor ?? undefined,
           hospital: outcome.data.hospital ?? undefined,
         },
         actorId,
       );
       created += 1;
-      if (outcome.doctorFlag && outcome.hospitalCodes.length > 0 && result.doctor) {
-        pendingLinks.push({
-          doctorId: result.doctor.id,
-          hospitalCodes: outcome.hospitalCodes,
-          row: outcome.row,
-        });
-      }
     } else if (outcome.action === "update") {
-      const result = await updateClient(
+      await updateClient(
         {
           id: outcome.id,
           code: outcome.data.code,
@@ -271,46 +209,16 @@ export async function commitClientImport(
           latitude: outcome.data.latitude,
           longitude: outcome.data.longitude,
           territoryId: outcome.data.territoryId,
-          doctor: outcome.data.doctor ?? undefined,
           hospital: outcome.data.hospital ?? undefined,
         },
         actorId,
       );
       updated += 1;
-      if (outcome.doctorFlag && outcome.hospitalCodes.length > 0 && result.doctor) {
-        pendingLinks.push({
-          doctorId: result.doctor.id,
-          hospitalCodes: outcome.hospitalCodes,
-          row: outcome.row,
-        });
-      }
     }
     writeIndex += 1;
     onProgress?.(rows.length + writeIndex, totalSteps);
   }
 
-  // Pass 2: resolve every pending Doctor→Hospital link now that all rows
-  // in this file (and any pre-existing data) have landed.
-  const allCodes = Array.from(new Set(pendingLinks.flatMap((link) => link.hospitalCodes)));
-  const lookup = allCodes.length > 0 ? await findHospitalLookupByClientCodes(allCodes) : [];
-  const hospitalIdByCode = new Map<string, string>();
-  for (const client of lookup) {
-    if (client.hospital) hospitalIdByCode.set(client.code, client.hospital.id);
-  }
-
-  for (const link of pendingLinks) {
-    const hospitalIds: string[] = [];
-    const rowErrors: string[] = [];
-    for (const code of link.hospitalCodes) {
-      const hospitalId = hospitalIdByCode.get(code);
-      if (!hospitalId)
-        rowErrors.push(`Hospital code "${code}" not found among Hospital-type clients.`);
-      else hospitalIds.push(hospitalId);
-    }
-    if (rowErrors.length > 0) linkErrors.push({ row: link.row, errors: rowErrors });
-    await setDoctorHospitals(link.doctorId, hospitalIds, actorId);
-  }
-
   const summary = summarize(rows.length, outcomes, { created, updated });
-  return { summary, linkWarnings: linkErrors };
+  return { summary };
 }

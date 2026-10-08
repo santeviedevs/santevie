@@ -28,14 +28,3 @@ export function findClientByCode(code: string) {
 export function findProductByCode(code: string) {
   return prisma.product.findUnique({ where: { code }, select: { id: true, code: true } });
 }
-
-// Resolves a Doctor's `hospitalCodes` column (S2-05: the many-to-many
-// link) — each code is a Client's own code, but DoctorHospital points at
-// Hospital.id, not Client.id, so this returns both to tell "code matched a
-// client that isn't a Hospital" apart from "code matched nothing at all".
-export function findHospitalLookupByClientCodes(codes: string[]) {
-  return prisma.client.findMany({
-    where: { code: { in: codes } },
-    select: { code: true, hospital: { select: { id: true } } },
-  });
-}

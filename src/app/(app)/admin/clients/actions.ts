@@ -53,10 +53,6 @@ function readNumber(formData: FormData, key: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function readHospitalIds(formData: FormData): string[] {
-  return formData.getAll("hospitalIds").filter((v): v is string => typeof v === "string");
-}
-
 function readCommon(formData: FormData) {
   const typeCode = readText(formData, "typeCode");
   return {
@@ -69,20 +65,10 @@ function readCommon(formData: FormData) {
     latitude: readNumber(formData, "latitude"),
     longitude: readNumber(formData, "longitude"),
     territoryId: readId(formData, "territoryId"),
-    doctor:
-      typeCode === "DOCTOR"
-        ? {
-            doctorType: readText(formData, "doctorType"),
-            gender: readText(formData, "gender"),
-            department: readText(formData, "department"),
-            mobileNo: readText(formData, "mobileNo"),
-          }
-        : undefined,
     hospital:
       typeCode === "HOSPITAL"
         ? { hospitalCategory: readText(formData, "hospitalCategory") }
         : undefined,
-    hospitalIds: typeCode === "DOCTOR" ? readHospitalIds(formData) : undefined,
   };
 }
 

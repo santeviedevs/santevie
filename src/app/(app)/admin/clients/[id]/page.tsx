@@ -93,35 +93,6 @@ export default async function ClientDetailPage({ params }: ClientDetailPageProps
         </div>
       </section>
 
-      {client.doctor ? (
-        <section className="flex flex-col gap-4 rounded-md border border-border p-4">
-          <h2 className="text-sm font-medium">{formDict.doctorSectionLabel}</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label={formDict.doctorType} value={client.doctor.doctorType ?? notProvided} />
-            <Field label={formDict.gender} value={client.doctor.gender ?? notProvided} />
-            <Field label={formDict.department} value={client.doctor.department ?? notProvided} />
-            <Field label={formDict.mobileNo} value={client.doctor.mobileNo ?? notProvided} />
-          </div>
-          <div className="flex flex-col gap-2">
-            <span className="text-xs text-muted-foreground">{formDict.associatedHospitals}</span>
-            {client.doctor.hospitals.length > 0 ? (
-              <ul className="flex flex-col gap-1">
-                {client.doctor.hospitals.map((hospital) => (
-                  <li key={hospital.id} className="text-sm">
-                    {hospital.name}{" "}
-                    <span className="text-xs text-muted-foreground">
-                      ({t.hospitalCode}: {hospital.code})
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <span className="text-sm text-muted-foreground">{formDict.noHospitals}</span>
-            )}
-          </div>
-        </section>
-      ) : null}
-
       {client.hospital ? (
         <section className="flex flex-col gap-4 rounded-md border border-border p-4">
           <h2 className="text-sm font-medium">{formDict.hospitalSectionLabel}</h2>

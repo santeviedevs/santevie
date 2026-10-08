@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { getServerDictionary } from "@/lib/i18n/server";
 import { requirePermission } from "@/server/auth/require-permission";
 import { getClient, getClientFormOptions } from "@/server/services/client-service";
-import { getHospitalOptions } from "@/server/services/doctor-hospital-service";
 
 import { ClientForm } from "../../client-form";
 
@@ -17,10 +16,9 @@ export default async function EditClientPage({ params }: EditClientPageProps) {
   await requirePermission("clients:manage");
 
   const { id } = await params;
-  const [client, options, hospitalOptions, dict] = await Promise.all([
+  const [client, options, dict] = await Promise.all([
     getClient(id),
     getClientFormOptions(),
-    getHospitalOptions(),
     getServerDictionary(),
   ]);
 
@@ -33,7 +31,7 @@ export default async function EditClientPage({ params }: EditClientPageProps) {
       <h1 className="text-xl font-semibold">{dict.editClientTitle(client.name)}</h1>
       <ClientForm
         mode="edit"
-        options={{ ...options, hospitalOptions }}
+        options={options}
         dict={dict.clientForm}
         territoryDict={dict.territory}
         defaultValues={{
@@ -48,18 +46,9 @@ export default async function EditClientPage({ params }: EditClientPageProps) {
           longitude: client.longitude,
           territoryId: client.territory?.id ?? null,
           status: client.status,
-          doctor: client.doctor
-            ? {
-                doctorType: client.doctor.doctorType,
-                gender: client.doctor.gender,
-                department: client.doctor.department,
-                mobileNo: client.doctor.mobileNo,
-              }
-            : undefined,
           hospital: client.hospital
             ? { hospitalCategory: client.hospital.hospitalCategory }
             : undefined,
-          hospitalIds: client.doctor?.hospitals.map((h) => h.id) ?? [],
         }}
       />
     </div>

@@ -16,9 +16,6 @@ vi.mock("@/server/repositories/client-repository", () => ({
   listClientTypes,
 }));
 
-const setDoctorHospitals = vi.fn();
-vi.mock("@/server/repositories/doctor-hospital-repository", () => ({ setDoctorHospitals }));
-
 const findTerritoryById = vi.fn();
 vi.mock("@/server/repositories/territory-repository", () => ({ findTerritoryById }));
 
@@ -33,7 +30,7 @@ const {
   ClientTypeMismatchError,
 } = await import("./client-service");
 
-const DOCTOR_TYPE = { id: "type-doctor", code: "DOCTOR", name: "Doctor" };
+const CLINIC_TYPE = { id: "type-clinic", code: "CLINIC", name: "Clinic" };
 const HOSPITAL_TYPE = { id: "type-hospital", code: "HOSPITAL", name: "Hospital" };
 const CHEMIST_TYPE = { id: "type-chemist", code: "CHEMIST", name: "Chemist" };
 
@@ -48,14 +45,13 @@ const baseClientRow = (overrides: Record<string, unknown> = {}) => ({
   status: "ACTIVE",
   type: CHEMIST_TYPE,
   territory: null,
-  doctor: null,
   hospital: null,
   ...overrides,
 });
 
 beforeEach(() => {
   vi.clearAllMocks();
-  listClientTypes.mockResolvedValue([DOCTOR_TYPE, HOSPITAL_TYPE, CHEMIST_TYPE]);
+  listClientTypes.mockResolvedValue([CLINIC_TYPE, HOSPITAL_TYPE, CHEMIST_TYPE]);
   findTerritoryById.mockResolvedValue({ id: "territory-1", status: "ACTIVE" });
   createClientWithExtension.mockResolvedValue(baseClientRow());
   updateClientWithExtension.mockResolvedValue(baseClientRow());
@@ -69,7 +65,7 @@ describe("createClient", () => {
     );
     expect(result.code).toBe("CL-0001");
     expect(createClientWithExtension).toHaveBeenCalledWith(
-      expect.objectContaining({ doctor: undefined, hospital: undefined }),
+      expect.objectContaining({ hospital: undefined }),
     );
   });
 
@@ -83,50 +79,31 @@ describe("createClient", () => {
     ).rejects.toThrow(InactiveTerritoryError);
   });
 
-  it("rejects a Doctor type submitted without doctor details", async () => {
+  it("creates a Clinic client with no extension", async () => {
+    await createClient({ code: "CL-0002", name: "Clinic", typeId: CLINIC_TYPE.id }, "actor-1");
+    expect(createClientWithExtension).toHaveBeenCalledWith(
+      expect.objectContaining({ hospital: undefined }),
+    );
+  });
+
+  it("rejects a Hospital type submitted without hospital details", async () => {
     await expect(
-      createClient({ code: "CL-0002", name: "Doc", typeId: DOCTOR_TYPE.id }, "actor-1"),
+      createClient({ code: "CL-0003", name: "Hosp", typeId: HOSPITAL_TYPE.id }, "actor-1"),
     ).rejects.toThrow(ClientTypeMismatchError);
   });
 
-  it("rejects doctor details submitted under a non-Doctor type", async () => {
+  it("rejects hospital details submitted under a non-Hospital type", async () => {
     await expect(
       createClient(
         {
-          code: "CL-0002",
-          name: "Doc",
-          typeId: CHEMIST_TYPE.id,
-          doctor: { doctorType: "MÉDECIN" },
+          code: "CL-0003",
+          name: "Clinic",
+          typeId: CLINIC_TYPE.id,
+          hospital: { hospitalCategory: "Centre Médical" },
         },
         "actor-1",
       ),
     ).rejects.toThrow(ClientTypeMismatchError);
-  });
-
-  it("creates a Doctor client and sets its hospital links", async () => {
-    createClientWithExtension.mockResolvedValue(
-      baseClientRow({ type: DOCTOR_TYPE, doctor: { id: "doctor-1", hospitals: [] } }),
-    );
-    findClientById.mockResolvedValue(
-      baseClientRow({ type: DOCTOR_TYPE, doctor: { id: "doctor-1", hospitals: [] } }),
-    );
-
-    await createClient(
-      {
-        code: "CL-0002",
-        name: "Doc",
-        typeId: DOCTOR_TYPE.id,
-        doctor: { doctorType: "MÉDECIN" },
-        hospitalIds: ["hospital-1", "hospital-2"],
-      },
-      "actor-1",
-    );
-
-    expect(setDoctorHospitals).toHaveBeenCalledWith(
-      "doctor-1",
-      ["hospital-1", "hospital-2"],
-      "actor-1",
-    );
   });
 
   it("maps a unique constraint violation to DuplicateClientCodeError", async () => {

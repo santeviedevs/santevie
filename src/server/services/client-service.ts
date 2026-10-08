@@ -10,7 +10,6 @@ import {
   listClientTypes,
   updateClientWithExtension,
 } from "@/server/repositories/client-repository";
-import { setDoctorHospitals } from "@/server/repositories/doctor-hospital-repository";
 import { findTerritoryById } from "@/server/repositories/territory-repository";
 import { listActiveTerritoryOptions } from "@/server/services/territory-service";
 
@@ -30,9 +29,8 @@ export class InactiveTerritoryError extends Error {
   }
 }
 
-// A request claiming `doctor` fields under a Client type whose code isn't
-// DOCTOR (or `hospital` fields under a type that isn't HOSPITAL) — never
-// trusted just because the form's discriminant said so.
+// A request claiming `hospital` fields under a type that isn't HOSPITAL —
+// never trusted just because the form's discriminant said so.
 export class ClientTypeMismatchError extends Error {
   constructor() {
     super("The submitted details do not match the selected client type.");
@@ -82,14 +80,6 @@ export type ClientSummary = {
     commune: { id: string; name: string } | null;
     quartier: { id: string; name: string } | null;
   } | null;
-  doctor: {
-    id: string;
-    doctorType: string | null;
-    gender: string | null;
-    department: string | null;
-    mobileNo: string | null;
-    hospitals: { id: string; name: string; code: string }[];
-  } | null;
   hospital: { id: string; hospitalCategory: string | null } | null;
 };
 
@@ -109,20 +99,6 @@ function toSummary(client: ClientWithRelations): ClientSummary {
     hasCoordinates: latitude !== null && longitude !== null,
     type: { id: client.type.id, code: client.type.code, name: client.type.name },
     territory: client.territory,
-    doctor: client.doctor
-      ? {
-          id: client.doctor.id,
-          doctorType: client.doctor.doctorType,
-          gender: client.doctor.gender,
-          department: client.doctor.department,
-          mobileNo: client.doctor.mobileNo,
-          hospitals: client.doctor.hospitals.map((link) => ({
-            id: link.hospital.id,
-            name: link.hospital.client.name,
-            code: link.hospital.client.code,
-          })),
-        }
-      : null,
     hospital: client.hospital
       ? { id: client.hospital.id, hospitalCategory: client.hospital.hospitalCategory }
       : null,
@@ -150,7 +126,7 @@ export async function getClientFormOptions() {
 
 // Confirms the requested extension matches the selected ClientType's code —
 // never trusts the shape of the submitted input alone (a form could claim
-// `doctor` fields while `typeId` actually resolves to HOSPITAL).
+// `hospital` fields while `typeId` actually resolves to CHEMIST).
 async function resolveTypeCode(typeId: string): Promise<string> {
   const types = await listClientTypes();
   const type = types.find((t) => t.id === typeId);
@@ -160,11 +136,9 @@ async function resolveTypeCode(typeId: string): Promise<string> {
 
 function assertExtensionMatchesType(
   typeCode: string,
-  input: Pick<CreateClientInput, "doctor" | "hospital">,
+  input: Pick<CreateClientInput, "hospital">,
 ): void {
-  if (typeCode === "DOCTOR" && !input.doctor) throw new ClientTypeMismatchError();
   if (typeCode === "HOSPITAL" && !input.hospital) throw new ClientTypeMismatchError();
-  if (typeCode !== "DOCTOR" && input.doctor) throw new ClientTypeMismatchError();
   if (typeCode !== "HOSPITAL" && input.hospital) throw new ClientTypeMismatchError();
 }
 
@@ -193,16 +167,6 @@ export async function createClient(
         createdBy: actorId,
         updatedBy: actorId,
       },
-      doctor: input.doctor
-        ? {
-            doctorType: input.doctor.doctorType ?? null,
-            gender: input.doctor.gender ?? null,
-            department: input.doctor.department ?? null,
-            mobileNo: input.doctor.mobileNo ?? null,
-            createdBy: actorId,
-            updatedBy: actorId,
-          }
-        : undefined,
       hospital: input.hospital
         ? {
             hospitalCategory: input.hospital.hospitalCategory ?? null,
@@ -213,11 +177,6 @@ export async function createClient(
     });
   } catch (error) {
     mapUniqueConstraintError(error);
-  }
-
-  if (typeCode === "DOCTOR" && created.doctor && input.hospitalIds) {
-    await setDoctorHospitals(created.doctor.id, input.hospitalIds, actorId);
-    created = (await findClientById(created.id))!;
   }
 
   return toSummary(created);
@@ -249,26 +208,12 @@ export async function updateClient(
         ...(input.status ? { status: input.status } : {}),
         updatedBy: actorId,
       },
-      doctor: input.doctor
-        ? {
-            doctorType: input.doctor.doctorType ?? null,
-            gender: input.doctor.gender ?? null,
-            department: input.doctor.department ?? null,
-            mobileNo: input.doctor.mobileNo ?? null,
-            updatedBy: actorId,
-          }
-        : undefined,
       hospital: input.hospital
         ? { hospitalCategory: input.hospital.hospitalCategory ?? null, updatedBy: actorId }
         : undefined,
     });
   } catch (error) {
     mapUniqueConstraintError(error);
-  }
-
-  if (typeCode === "DOCTOR" && updated.doctor && input.hospitalIds) {
-    await setDoctorHospitals(updated.doctor.id, input.hospitalIds, actorId);
-    updated = (await findClientById(updated.id))!;
   }
 
   return toSummary(updated);

@@ -1,4 +1,5 @@
 import {
+  Building2,
   Calendar,
   CalendarDays,
   HelpCircle,
@@ -6,7 +7,6 @@ import {
   Map,
   MapPin,
   Package,
-  Stethoscope,
   Users,
 } from "lucide-react";
 
@@ -143,7 +143,7 @@ export const NAV_ITEM_DEFS: NavItemDef[] = [
       { href: "/leaves/team", key: "teamLeaves", permission: "leave:view-team" },
     ],
   },
-  { href: "/admin/clients", key: "clients", icon: Stethoscope, permission: "clients:manage" },
+  { href: "/admin/clients", key: "clients", icon: Building2, permission: "clients:manage" },
   { href: "/admin/products", key: "products", icon: Package, permission: "products:manage" },
   { href: "/plans", key: "plans", icon: CalendarDays, permission: "plans:respond-own" },
   {

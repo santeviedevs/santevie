@@ -184,7 +184,7 @@ async function main() {
 
   const clientTypes = new Map<string, string>();
   for (const [code, name] of [
-    ["DOCTOR", "Doctor"],
+    ["CLINIC", "Clinic"],
     ["HOSPITAL", "Hospital"],
     ["CHEMIST", "Chemist"],
     ["PHARMACY", "Pharmacy"],
@@ -221,43 +221,21 @@ async function main() {
       `Seed conflict: client CL-HOSP-0001 already exists with a different typeId (${hospitalClient.typeId}); refusing to attach a Hospital extension to it.`,
     );
   }
-  const hospital = await prisma.hospital.upsert({
+  await prisma.hospital.upsert({
     where: { clientId: hospitalClient.id },
     update: {},
     create: { clientId: hospitalClient.id, hospitalCategory: "Centre Médical" },
   });
 
-  const doctorClient = await prisma.client.upsert({
-    where: { code: "CL-DOC-0001" },
+  await prisma.client.upsert({
+    where: { code: "CL-CLINIC-0001" },
     update: {},
     create: {
-      code: "CL-DOC-0001",
-      name: "Sample Doctor",
-      typeId: clientTypes.get("DOCTOR")!,
+      code: "CL-CLINIC-0001",
+      name: "Sample Clinic Center",
+      typeId: clientTypes.get("CLINIC")!,
       territoryId: territory.id,
     },
-  });
-  if (doctorClient.typeId !== clientTypes.get("DOCTOR")) {
-    throw new Error(
-      `Seed conflict: client CL-DOC-0001 already exists with a different typeId (${doctorClient.typeId}); refusing to attach a Doctor extension to it.`,
-    );
-  }
-  const doctor = await prisma.doctor.upsert({
-    where: { clientId: doctorClient.id },
-    update: {},
-    create: {
-      clientId: doctorClient.id,
-      doctorType: "MÉDECIN",
-      gender: "Homme",
-      department: "GÉNÉRALISTE (G.P)",
-      mobileNo: "810000000",
-    },
-  });
-
-  await prisma.doctorHospital.upsert({
-    where: { doctorId_hospitalId: { doctorId: doctor.id, hospitalId: hospital.id } },
-    update: {},
-    create: { doctorId: doctor.id, hospitalId: hospital.id },
   });
 
   // A small starting taxonomy, from our own reading of the price list's

@@ -28,17 +28,14 @@ import {
 import { TerritoryPicker, type TerritoryPickerOption } from "../territories/territory-picker";
 import { type ClientFormState, createClientAction, updateClientAction } from "./actions";
 import { CoordinateMapPicker } from "./coordinate-map-picker";
-import { DoctorHospitalPicker } from "./doctor-hospital-picker";
 
 type ClientType = { id: string; code: string; name: string };
-type HospitalOption = { id: string; name: string; code: string };
 
 type ClientFormProps = {
   mode: "create" | "edit";
   options: {
     types: ClientType[];
     territories: TerritoryPickerOption[];
-    hospitalOptions: HospitalOption[];
   };
   defaultValues?: Partial<UpdateClientInput>;
   dict: Dictionary["clientForm"];
@@ -60,7 +57,7 @@ export function ClientForm({ mode, options, defaultValues, dict, territoryDict }
     formState: { errors },
   } = useForm<CreateClientInput | UpdateClientInput>({
     resolver: zodResolver(schema),
-    defaultValues: { hospitalIds: [], ...defaultValues },
+    defaultValues,
   });
 
   const typeId = useWatch({ control, name: "typeId" });
@@ -68,7 +65,6 @@ export function ClientForm({ mode, options, defaultValues, dict, territoryDict }
   const latitude = useWatch({ control, name: "latitude" });
   const longitude = useWatch({ control, name: "longitude" });
   const status = useWatch({ control, name: "status" });
-  const hospitalIds = useWatch({ control, name: "hospitalIds" }) ?? [];
 
   const selectedType = options.types.find((t) => t.id === typeId);
   const typeCode = selectedType?.code;
@@ -94,15 +90,6 @@ export function ClientForm({ mode, options, defaultValues, dict, territoryDict }
         formData.set("longitude", String(values.longitude));
       }
       if (values.territoryId) formData.set("territoryId", values.territoryId);
-      if (typeCode === "DOCTOR" && values.doctor) {
-        if (values.doctor.doctorType) formData.set("doctorType", values.doctor.doctorType);
-        if (values.doctor.gender) formData.set("gender", values.doctor.gender);
-        if (values.doctor.department) formData.set("department", values.doctor.department);
-        if (values.doctor.mobileNo) formData.set("mobileNo", values.doctor.mobileNo);
-        for (const hospitalId of values.hospitalIds ?? []) {
-          formData.append("hospitalIds", hospitalId);
-        }
-      }
       if (typeCode === "HOSPITAL" && values.hospital?.hospitalCategory) {
         formData.set("hospitalCategory", values.hospital.hospitalCategory);
       }
@@ -132,19 +119,25 @@ export function ClientForm({ mode, options, defaultValues, dict, territoryDict }
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex max-w-md flex-col gap-4" noValidate>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="code">{dict.code}</Label>
+        <Label htmlFor="code">
+          {dict.code} <span className="text-destructive">*</span>
+        </Label>
         <Input id="code" disabled={isPending} {...register("code")} />
         {errors.code ? <p className="text-sm text-destructive">{errors.code.message}</p> : null}
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="name">{dict.name}</Label>
+        <Label htmlFor="name">
+          {dict.name} <span className="text-destructive">*</span>
+        </Label>
         <Input id="name" disabled={isPending} {...register("name")} />
         {errors.name ? <p className="text-sm text-destructive">{errors.name.message}</p> : null}
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="typeId">{dict.type}</Label>
+        <Label htmlFor="typeId">
+          {dict.type} <span className="text-destructive">*</span>
+        </Label>
         <Select
           items={options.types.map((type) => ({ value: type.id, label: type.name }))}
           value={typeId ?? ""}
@@ -166,40 +159,6 @@ export function ClientForm({ mode, options, defaultValues, dict, territoryDict }
         </Select>
         {errors.typeId ? <p className="text-sm text-destructive">{errors.typeId.message}</p> : null}
       </div>
-
-      {typeCode === "DOCTOR" ? (
-        <div className="flex flex-col gap-4 rounded-md border border-border p-3">
-          <Label>{dict.doctorSectionLabel}</Label>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="doctorType">{dict.doctorType}</Label>
-            <Input id="doctorType" disabled={isPending} {...register("doctor.doctorType")} />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="gender">{dict.gender}</Label>
-            <Input id="gender" disabled={isPending} {...register("doctor.gender")} />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="department">{dict.department}</Label>
-            <Input id="department" disabled={isPending} {...register("doctor.department")} />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="mobileNo">{dict.mobileNo}</Label>
-            <Input id="mobileNo" disabled={isPending} {...register("doctor.mobileNo")} />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label>{dict.associatedHospitals}</Label>
-            <DoctorHospitalPicker
-              options={options.hospitalOptions}
-              value={hospitalIds}
-              onChange={(next) => setValue("hospitalIds", next)}
-              disabled={isPending}
-              emptyLabel={dict.noHospitals}
-              searchPlaceholder={dict.searchHospitals}
-              noMatchesLabel={dict.noHospitalsMatch}
-            />
-          </div>
-        </div>
-      ) : null}
 
       {typeCode === "HOSPITAL" ? (
         <div className="flex flex-col gap-4 rounded-md border border-border p-3">
