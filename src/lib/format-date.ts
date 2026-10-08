@@ -12,6 +12,12 @@ export function formatDate(date: Date | string): string {
   return dateFormatter.format(typeof date === "string" ? new Date(date) : date);
 }
 
+// Africa/Kinshasa has a fixed UTC+1 offset, no DST — used wherever a
+// UTC timestamp needs converting to a local minutes-since-midnight value
+// (e.g. attendance-status-service.ts comparing a check-in time against a
+// configured expected-start time), not just for display formatting.
+export const KINSHASA_UTC_OFFSET_MINUTES = 60;
+
 // Real timestamps (DateTime columns, e.g. Attendance.checkInAt) are stored
 // in UTC and rendered in Africa/Kinshasa (DR Congo, UTC+1, no DST) — the
 // client's actual territory data (prisma/seed.ts: Équateur > Mbandaka >

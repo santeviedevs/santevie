@@ -11,17 +11,27 @@ export type Scope = { kind: "all" } | { kind: "ids"; userIds: readonly string[] 
 // against the ROLES literals rather than narrowed at the type level.
 export type ScopeSession = { user: { id: string; roleName: string } };
 
-// ADMIN and MANAGER already hold the *:view-all permissions in the role
-// matrix, so they see every record. SUPERVISOR sees their own downstream
-// team. Everyone else (DELEGATE) sees only their own records.
+// Only ADMIN is truly unrestricted. MANAGER holds the same *:view-all-named
+// permissions as ADMIN in the role matrix, but that permission name
+// describes the *ceiling* of what they're allowed to reach (everything, if
+// they personally manage it), not an automatic grant of the whole
+// org — same tree-scoping mechanism as SUPERVISOR, just rooted one level
+// higher. A MANAGER with no downstream reports of their own sees only
+// themselves, exactly like any other role would.
+//
+// Changed from the original "MANAGER = kind: all" behavior (indistinguishable
+// from ADMIN) after the user explicitly confirmed each manager should only
+// see their own downstream org, not every user in the system — this was
+// never exercised differently in testing since the seed data only has one
+// Manager account.
 export async function getUserScope(session: ScopeSession): Promise<Scope> {
   const { roleName, id } = session.user;
 
-  if (roleName === "ADMIN" || roleName === "MANAGER") {
+  if (roleName === "ADMIN") {
     return { kind: "all" };
   }
 
-  if (roleName === "SUPERVISOR") {
+  if (roleName === "MANAGER" || roleName === "SUPERVISOR") {
     const downstream = await getDownstreamUserIds(id);
     return { kind: "ids", userIds: [id, ...downstream] };
   }
@@ -56,6 +66,27 @@ export async function getDownstreamUserIds(managerId: string): Promise<string[]>
     queue.push(...(childrenOf.get(current) ?? []));
   }
   return downstream;
+}
+
+// Every manager above `userId`, directly or transitively — the mirror image
+// of getDownstreamUserIds, walking managerId upward instead of down. Used by
+// S3-04's attendance-rule resolution to gather "team scope" candidates: a
+// rule owned by any manager/supervisor above a delegate in the chain is a
+// candidate for that delegate.
+export async function getUpstreamManagerIds(userId: string): Promise<string[]> {
+  const links = await findManagerLinks();
+  const managerOf = new Map<string, string | null>();
+  for (const link of links) managerOf.set(link.id, link.managerId);
+
+  const visited = new Set<string>();
+  const upstream: string[] = [];
+  let current = managerOf.get(userId) ?? null;
+  while (current && !visited.has(current)) {
+    visited.add(current);
+    upstream.push(current);
+    current = managerOf.get(current) ?? null;
+  }
+  return upstream;
 }
 
 export function isWithinScope(scope: Scope, userId: string): boolean {

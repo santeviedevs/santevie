@@ -6,7 +6,8 @@ vi.mock("@/server/repositories/user-repository", () => ({
   findManagerLinks,
 }));
 
-const { getDownstreamUserIds, getUserScope, isWithinScope, scopeUserIds } = await import("./scope");
+const { getDownstreamUserIds, getUpstreamManagerIds, getUserScope, isWithinScope, scopeUserIds } =
+  await import("./scope");
 
 describe("getDownstreamUserIds", () => {
   it("resolves the full downstream team, several levels deep", async () => {
@@ -35,6 +36,27 @@ describe("getDownstreamUserIds", () => {
   });
 });
 
+describe("getUpstreamManagerIds", () => {
+  it("resolves every manager above a user, directly or transitively", async () => {
+    findManagerLinks.mockResolvedValueOnce([
+      { id: "top", managerId: null },
+      { id: "mid", managerId: "top" },
+      { id: "leaf", managerId: "mid" },
+      { id: "unrelated", managerId: null },
+    ]);
+
+    const upstream = await getUpstreamManagerIds("leaf");
+
+    expect(upstream).toEqual(["mid", "top"]);
+  });
+
+  it("returns an empty list for a user with no manager", async () => {
+    findManagerLinks.mockResolvedValueOnce([{ id: "top", managerId: null }]);
+
+    await expect(getUpstreamManagerIds("top")).resolves.toEqual([]);
+  });
+});
+
 describe("getUserScope", () => {
   it("gives ADMIN unrestricted access", async () => {
     findManagerLinks.mockClear();
@@ -44,9 +66,18 @@ describe("getUserScope", () => {
     expect(findManagerLinks).not.toHaveBeenCalled();
   });
 
-  it("gives MANAGER unrestricted access", async () => {
+  it("scopes MANAGER to themselves plus their downstream org, not every user", async () => {
+    findManagerLinks.mockResolvedValueOnce([
+      { id: "mgr-1", managerId: null },
+      { id: "sup-1", managerId: "mgr-1" },
+      { id: "report-1", managerId: "sup-1" },
+      { id: "other-mgr", managerId: null },
+      { id: "other-mgr-report", managerId: "other-mgr" },
+    ]);
+
     await expect(getUserScope({ user: { id: "mgr-1", roleName: "MANAGER" } })).resolves.toEqual({
-      kind: "all",
+      kind: "ids",
+      userIds: ["mgr-1", "sup-1", "report-1"],
     });
   });
 

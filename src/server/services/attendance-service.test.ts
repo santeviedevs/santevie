@@ -127,13 +127,20 @@ describe("checkIn — location quality", () => {
     );
   });
 
-  it("rejects a fix worse than the accuracy threshold", async () => {
+  it("rejects a fix worse than the reject threshold", async () => {
     findUserById.mockResolvedValueOnce(baseUser());
 
     await expect(checkIn("user-1", { ...goodFix, accuracy: 500 })).rejects.toThrow(
       LocationAccuracyTooLowError,
     );
     expect(createSession).not.toHaveBeenCalled();
+  });
+
+  it("accepts and stores a fix in the borderline band (between the accept and reject thresholds), rather than rejecting it", async () => {
+    findUserById.mockResolvedValueOnce(baseUser());
+
+    await expect(checkIn("user-1", { ...goodFix, accuracy: 75 })).resolves.toBeDefined();
+    expect(createSession).toHaveBeenCalledWith(expect.objectContaining({ checkInAccuracy: 75 }));
   });
 
   it("does not evaluate accuracy at all when no location was sent and none is required", async () => {
@@ -290,7 +297,7 @@ describe("checkOut — location requirement and quality", () => {
     await expect(checkOut("user-1", {})).rejects.toThrow(LocationRequiredError);
   });
 
-  it("rejects a fix worse than the accuracy threshold, same as check-in", async () => {
+  it("rejects a fix worse than the reject threshold, same as check-in", async () => {
     findUserById.mockResolvedValueOnce(baseUser());
     findAttendanceWithSessions.mockResolvedValueOnce({
       ...baseAttendanceDay(),
@@ -301,6 +308,20 @@ describe("checkOut — location requirement and quality", () => {
       LocationAccuracyTooLowError,
     );
     expect(updateSession).not.toHaveBeenCalled();
+  });
+
+  it("accepts and stores a borderline-accuracy fix on check-out, same as check-in", async () => {
+    findUserById.mockResolvedValueOnce(baseUser());
+    findAttendanceWithSessions.mockResolvedValueOnce({
+      ...baseAttendanceDay(),
+      sessions: [baseSession()],
+    });
+
+    await expect(checkOut("user-1", { ...goodFix, accuracy: 75 })).resolves.toBeDefined();
+    expect(updateSession).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ checkOutAccuracy: 75 }),
+    );
   });
 
   it("succeeds with a good-accuracy fix for a location-required user, closing the open session", async () => {

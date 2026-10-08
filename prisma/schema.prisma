@@ -44,18 +44,45 @@ enum LeaveStatus {
   REJECTED
 }
 
+enum ActivityType {
+  CAMPAIGN
+  EVENT
+  OTHER
+}
+
+enum ActivityStatus {
+  PLANNED
+  DONE
+  CANCELLED
+}
+
+// MISSED is deliberately not a stored value — it's computed at read time
+// (PENDING + the plan's date has passed) in plan-service.ts, the same
+// "computed, not stored" choice as attendance's ABSENT/NON_WORKING. A
+// PlanItem never needs to be written to just because nobody acted on it.
+enum PlanItemStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum FollowUpStatus {
+  PENDING
+  DONE
+}
+
 // --- Identity ---
 
 model Role {
-  id          String           @id @default(cuid())
-  name        String           @unique
-  description String?
+  id               String           @id @default(cuid())
+  name             String           @unique
+  description      String?
   // Seed-time constant, no Role management UI — default GPS requirement for
   // attendance (check-in and check-out), overridable per user via
   // User.requiresLocation.
-  requiresLocation Boolean @default(false)
-  users       User[]
-  permissions RolePermission[]
+  requiresLocation Boolean          @default(false)
+  users            User[]
+  permissions      RolePermission[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -137,12 +164,17 @@ model User {
   contractDurationUnit  ContractDurationUnit?
   contractExpiryDate    DateTime?             @db.Date
 
-  visits               Visit[]
-  orders               Order[]
-  attendances          Attendance[]
-  targets              Target[]
-  territoryAssignments UserTerritoryAssignment[]
-  leaves               Leave[]
+  visits                  Visit[]
+  orders                  Order[]
+  attendances             Attendance[]
+  targets                 Target[]
+  territoryAssignments    UserTerritoryAssignment[]
+  leaves                  Leave[]
+  ownedAttendanceRules    AttendanceRule[]          @relation("AttendanceRuleOwner")
+  targetedAttendanceRules AttendanceRule[]          @relation("AttendanceRuleTarget")
+  plans                   Plan[]
+  ownedActivities         Activity[]
+  ownedFollowUps          FollowUp[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -272,6 +304,8 @@ model Territory {
   territoryAssignments UserTerritoryAssignment[]
   holidays             Holiday[]
   workingDays          TerritoryWorkingDay[]
+  attendanceRules      AttendanceRule[]
+  activities           Activity[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -354,8 +388,10 @@ model Client {
   territoryId String?
   territory   Territory? @relation(fields: [territoryId], references: [id])
 
-  visits Visit[]
-  orders Order[]
+  visits     Visit[]
+  orders     Order[]
+  planItems  PlanItem[]
+  activities Activity[]
 
   // At most one of these is ever set, matched to `type` — a Doctor client
   // has a `doctor` row and no `hospital` row, and vice versa. Kept as two
@@ -654,25 +690,25 @@ model AttendanceSession {
   attendanceId String
   attendance   Attendance @relation(fields: [attendanceId], references: [id])
 
-  checkInAt  DateTime
-  checkInLat Decimal?  @db.Decimal(9, 6)
-  checkInLng Decimal?  @db.Decimal(9, 6)
+  checkInAt       DateTime
+  checkInLat      Decimal?  @db.Decimal(9, 6)
+  checkInLng      Decimal?  @db.Decimal(9, 6)
   // Device's own clock at check-in — reference only, never authoritative;
   // checkInAt (server time) is the business-event timestamp.
   checkInDeviceAt DateTime?
   // The GPS fix's own confidence radius in meters, not a distance to
   // anything else — the quality gate used at check-in time.
-  checkInAccuracy Decimal? @db.Decimal(10, 2)
+  checkInAccuracy Decimal?  @db.Decimal(10, 2)
 
-  checkOutAt  DateTime?
-  checkOutLat Decimal?  @db.Decimal(9, 6)
-  checkOutLng Decimal?  @db.Decimal(9, 6)
+  checkOutAt       DateTime?
+  checkOutLat      Decimal?  @db.Decimal(9, 6)
+  checkOutLng      Decimal?  @db.Decimal(9, 6)
   // Device's own clock at check-out — reference only, never authoritative;
   // checkOutAt (server time) is the business-event timestamp.
   checkOutDeviceAt DateTime?
   // The GPS fix's own confidence radius in meters — same quality gate
   // (MAX_ACCEPTABLE_ACCURACY_METERS) applied at check-out as at check-in.
-  checkOutAccuracy Decimal? @db.Decimal(10, 2)
+  checkOutAccuracy Decimal?  @db.Decimal(10, 2)
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -681,6 +717,66 @@ model AttendanceSession {
 
   @@index([attendanceId])
   @@map("attendance_sessions")
+}
+
+// S3-04: configurable late/incomplete thresholds, admin/manager/supervisor
+// editable via UI (not a hardcoded constant — client explicitly wants this
+// changeable without a deploy). Insert-only / versioned: a change always
+// creates a new row, never updates an existing one. This is what lets
+// re-running status derivation for a past business date stay stable even
+// after a rule is edited later — resolution filters candidates to
+// `createdAt <= businessDate` and takes the newest, so a row created after
+// the date being evaluated simply can never apply to it. updatedAt/updatedBy
+// are carried for convention consistency only; they're never meaningfully
+// used since rows are never edited in place.
+//
+// Exactly one of territoryId / ownerId / targetUserId is set per row (all
+// three null = the global/admin default):
+//   - territoryId: applies to every delegate assigned to that territory.
+//   - ownerId: "team" scope — applies to everyone in the owner's downstream
+//     reporting chain (see getUpstreamManagerIds/getDownstreamUserIds in
+//     scope.ts).
+//   - targetUserId: "individual" scope — applies to exactly one delegate.
+// Resolution (attendance-rule-service.ts) gathers every candidate that could
+// apply to a given delegate across all three scopes plus the global
+// default, keeps only those valid as of the business date, and takes the
+// single most-recently-created one — recency wins regardless of scope type
+// or which role (admin/manager/supervisor) created it.
+model AttendanceRule {
+  id String @id @default(cuid())
+
+  // Minutes since midnight a delegate is expected to check in by (e.g. 540
+  // = 09:00) — there's no shift-start concept anywhere else in the schema,
+  // so this rule is also where that expectation itself is configured, not
+  // just the grace period around it.
+  expectedStartMinutes Int
+  // Grace period after expectedStartMinutes before a check-in counts as
+  // LATE rather than PRESENT.
+  lateGraceMinutes     Int
+  // Total worked minutes (summed across the day's sessions) below which a
+  // day counts as INCOMPLETE even if every session has a check-out. A day
+  // with a check-in and no check-out at all is always INCOMPLETE regardless
+  // of this value.
+  minimumWorkedMinutes Int
+
+  territoryId String?
+  territory   Territory? @relation(fields: [territoryId], references: [id])
+
+  ownerId String?
+  owner   User?   @relation("AttendanceRuleOwner", fields: [ownerId], references: [id])
+
+  targetUserId String?
+  targetUser   User?   @relation("AttendanceRuleTarget", fields: [targetUserId], references: [id])
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@index([territoryId])
+  @@index([ownerId])
+  @@index([targetUserId])
+  @@map("attendance_rules")
 }
 
 // --- Targets ---
@@ -835,4 +931,128 @@ model TerritoryWorkingDay {
 
   @@unique([territoryId, dayOfWeek])
   @@map("territory_working_days")
+}
+
+// --- Visit planning (S3-06) ---
+
+// One row per (delegate, date) — the day's planned route. Items are added
+// before the day starts and locked once it does (see
+// PLAN_EDIT_CUTOFF_HOUR in src/lib/schemas/plan.ts); visit *execution*
+// against a plan is a separate, later story (S4-01) and isn't modeled here.
+// A plan starts unassigned (userId and date both null) — built on the
+// "Plan Visits" screen with no visitor or date attached at all. It only
+// gets both at once, via the "Assignment" screen's assign/reassign action.
+// Reassigning an already-assigned plan never updates this row in place —
+// it creates a brand-new Plan for the new visitor (a visitor can hold
+// several plans, even for the same date, deliberately not deduplicated)
+// and moves the still-relevant items onto it; the source row is deleted
+// once empty. No @@unique on (userId, date) — multiple plans per visitor
+// per day are allowed by design.
+model Plan {
+  id String @id @default(cuid())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  date DateTime?
+
+  items PlanItem[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, date])
+  @@map("plans")
+}
+
+// `sequence` is the delegate's chosen visit order for the day — assigned
+// on add (next available slot) and rewritten wholesale on reorder, never
+// treated as a stable identity of its own.
+model PlanItem {
+  id String @id @default(cuid())
+
+  planId String
+  plan   Plan   @relation(fields: [planId], references: [id])
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  sequence Int
+  status   PlanItemStatus @default(PENDING)
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  // Enforces "no duplicate client on the same plan/date" at the database
+  // level — the service layer gives a friendlier error before ever hitting
+  // this constraint, but the constraint is the actual backstop.
+  @@unique([planId, clientId])
+  @@index([planId])
+  @@map("plan_items")
+}
+
+// --- Marketing activity planning and follow-ups (S3-07) ---
+
+// Exactly one of clientId/territoryId is set, enforced at the Zod boundary
+// (src/lib/schemas/activity.ts), not at this level — Prisma has no native
+// "exactly one of" column constraint.
+model Activity {
+  id     String         @id @default(cuid())
+  type   ActivityType
+  date   DateTime
+  status ActivityStatus @default(PLANNED)
+  notes  String?
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  territoryId String?
+  territory   Territory? @relation(fields: [territoryId], references: [id])
+
+  // Null = created but not yet assigned. Only a manager assigns (see
+  // activities:assign); an unassigned activity has no owner to follow up with.
+  ownerId String?
+  owner   User?   @relation(fields: [ownerId], references: [id])
+
+  followUps FollowUp[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([date])
+  @@map("activities")
+}
+
+// Linked to Activity only for now — the doc's "linked to a visit or
+// activity" would also cover Visit, but Visit (while it exists as a bare
+// table since S1-03) has no working visit-execution feature yet; that's
+// S4-01, Sprint 4. A visitId relation is deferred until that story actually
+// builds visit execution, rather than forward-referencing a feature that
+// doesn't exist yet.
+model FollowUp {
+  id      String         @id @default(cuid())
+  dueDate DateTime
+  status  FollowUpStatus @default(PENDING)
+
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id])
+
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id])
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([dueDate])
+  @@map("follow_ups")
 }
