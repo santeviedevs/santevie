@@ -2,6 +2,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { config as loadEnv } from "dotenv";
 
 import { PrismaClient } from "../generated/prisma/client";
+import { slugifyLookupName } from "../src/lib/lookup-slug";
 import { hashPassword } from "../src/server/auth/password";
 import {
   PERMISSIONS,
@@ -237,6 +238,56 @@ async function main() {
       territoryId: territory.id,
     },
   });
+
+  // Initial Person Types. Configurable at runtime (admins can add more from
+  // the Persons form) — these are only the two the client named up front.
+  for (const [code, name] of [
+    ["MEDECIN", "MÉDECIN"],
+    ["INFIRMIER", "INFIRMIER"],
+  ]) {
+    await prisma.personType.upsert({ where: { code }, update: {}, create: { code, name } });
+  }
+
+  // Initial Specializations / Departments, taken from the client's source
+  // data. Configurable at runtime like Person Type — admins can add more
+  // from the Persons form. Distinct from Person Type, Center Type and Role
+  // at Center; per-Center roles are deliberately NOT seeded (no approved
+  // values). The code comes from slugifyLookupName, the same rule the
+  // Persons form uses, so a value later typed into the combobox maps onto
+  // the same row instead of duplicating it.
+  for (const name of [
+    "GÉNÉRALISTE (G.P)",
+    "PÉDIATRE (PED)",
+    "INFIRMIÈRE (NURSE)",
+    "INFIRMIÈRE TITULAIRE (IT) (HEAD NURSE)",
+    "INFIRMIÈRE GÉNÉRALISTE (G.P NURSE)",
+    "CHIRURGIEN (SURGEON)",
+    "MÉDECINE INTERNE (INTERNIST)",
+    "GYNÉCOLOGUE (GYN)",
+    "DENTISTE",
+    "NEUROLOGUE",
+    "STAGIAIRE MÉDECINE (INTERN-DOCTOR)",
+    "SAGE-FEMME (MID-WIFE)",
+    "TECHNICIEN DE LABORATOIRE",
+    "STAGIAIRE INFIRMIÈRE (INTERN-NURSE)",
+    "ORTHOPEDICIEN",
+    "OPHTALMOLOGIST",
+    "PHARMACIEN (PHARMACIST)",
+    "UROLOGUE",
+    "GASTROLOGUE",
+    "CARDIOLOGUE",
+    "ORL (ENT)",
+    "PSYCHOLOGUE",
+    "PHYSIOTHÉRAPEUTE",
+    "PSYCHIATRE",
+  ]) {
+    const code = slugifyLookupName(name);
+    await prisma.specialization.upsert({
+      where: { code },
+      update: {},
+      create: { code, name },
+    });
+  }
 
   // A small starting taxonomy, from our own reading of the price list's
   // generic names — the sheet itself has no category column, and the

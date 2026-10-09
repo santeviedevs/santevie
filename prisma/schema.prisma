@@ -12,6 +12,12 @@ enum Status {
   INACTIVE
 }
 
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
 enum OrderStatus {
   DRAFT
   SUBMITTED
@@ -306,6 +312,7 @@ model Territory {
   workingDays          TerritoryWorkingDay[]
   attendanceRules      AttendanceRule[]
   activities           Activity[]
+  persons              Person[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -392,6 +399,7 @@ model Client {
   orders     Order[]
   planItems  PlanItem[]
   activities Activity[]
+  persons    PersonCenter[]
 
   // Set only for HOSPITAL-type clients. Kept as an optional one-to-one
   // extension rather than fields on Client itself so other client types
@@ -998,4 +1006,120 @@ model FollowUp {
   @@index([ownerId])
   @@index([dueDate])
   @@map("follow_ups")
+}
+
+// --- Persons (doctors, nurses, other professionals) ---
+
+// Configurable lookup, same shape as ClientType — never a TypeScript enum.
+// `code` is derived from the name (uppercase, accent-free slug), so it also
+// acts as the case-insensitive uniqueness guard when an admin types a new
+// value into the create-or-select combobox.
+model PersonType {
+  id   String @id @default(cuid())
+  code String @unique
+  name String
+
+  persons Person[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("person_types")
+}
+
+// Professional specialization / department — separate from PersonType and
+// from PersonCenterRole. Seeded from the client's source data (see
+// prisma/seed.ts); admins can add more from the Persons form.
+model Specialization {
+  id   String @id @default(cuid())
+  code String @unique
+  name String
+
+  persons Person[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("specializations")
+}
+
+// The role a Person holds at one specific Center — a property of the
+// Person<->Center relationship (PersonCenter), never of the Person itself.
+// Values are not business-confirmed; admins create them as needed.
+model PersonCenterRole {
+  id   String @id @default(cuid())
+  code String @unique
+  name String
+
+  personCenters PersonCenter[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("person_center_roles")
+}
+
+// `code` is backend-generated (PER-00001, from the person_code_seq
+// Postgres sequence created in the migration) and immutable once written.
+// `territoryId` is the Person's own Territory — independent of any
+// associated Center's.
+model Person {
+  id     String  @id @default(cuid())
+  code   String  @unique
+  name   String
+  gender Gender?
+  mobile String?
+  status Status  @default(ACTIVE)
+
+  personTypeId String
+  personType   PersonType @relation(fields: [personTypeId], references: [id])
+
+  specializationId String
+  specialization   Specialization @relation(fields: [specializationId], references: [id])
+
+  territoryId String
+  territory   Territory @relation(fields: [territoryId], references: [id])
+
+  centers PersonCenter[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@index([personTypeId, status])
+  @@index([specializationId, status])
+  @@index([territoryId, status])
+  @@index([name])
+  @@map("persons")
+}
+
+// Many-to-many join between Person and Center (the Client model), carrying
+// the per-association role.
+model PersonCenter {
+  id String @id @default(cuid())
+
+  personId String
+  person   Person @relation(fields: [personId], references: [id])
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  roleAtCenterId String
+  roleAtCenter   PersonCenterRole @relation(fields: [roleAtCenterId], references: [id])
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([personId, clientId])
+  @@index([clientId])
+  @@map("person_centers")
 }

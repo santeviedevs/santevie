@@ -22,6 +22,7 @@ export type Dictionary = {
     territoryAssignment: string;
     team: string;
     clients: string;
+    persons: string;
     products: string;
     installGuide: string;
     leavesGroup: string;
@@ -631,6 +632,90 @@ export type Dictionary = {
     notProvided: string;
     hospitalCode: string;
   };
+  // The Persons admin module (doctors, nurses and other professionals).
+  // Plain strings only, so the whole object can be passed into client
+  // components. "Centers" here is the existing Client model.
+  persons: {
+    title: string;
+    description: string;
+    addPerson: string;
+    columnCode: string;
+    columnPerson: string;
+    columnType: string;
+    columnSpecialization: string;
+    columnMobile: string;
+    columnTerritory: string;
+    columnCenters: string;
+    columnStatus: string;
+    centersLabel: string;
+    view: string;
+    edit: string;
+    activate: string;
+    deactivate: string;
+    noResults: string;
+    statusActive: string;
+    statusInactive: string;
+    statusChanged: string;
+    searchLabel: string;
+    searchPlaceholder: string;
+    typeFilterLabel: string;
+    anyType: string;
+    specializationFilterLabel: string;
+    anySpecialization: string;
+    centerTypeFilterLabel: string;
+    anyCenterType: string;
+    statusFilterLabel: string;
+    anyStatus: string;
+    filterActive: string;
+    filterInactive: string;
+    clearFilters: string;
+    newTitle: string;
+    editTitle: string;
+    basicSection: string;
+    professionalSection: string;
+    territorySection: string;
+    centersSection: string;
+    codeNote: string;
+    name: string;
+    personType: string;
+    selectOrAddType: string;
+    gender: string;
+    genderNone: string;
+    genderMale: string;
+    genderFemale: string;
+    genderOther: string;
+    mobile: string;
+    specialization: string;
+    selectOrAddSpecialization: string;
+    territory: string;
+    addCenter: string;
+    center: string;
+    centerType: string;
+    roleAtCenter: string;
+    selectCenter: string;
+    selectOrAddRole: string;
+    addNew: string;
+    add: string;
+    remove: string;
+    noCenters: string;
+    centerAlreadyAdded: string;
+    centerAndRoleRequired: string;
+    noMatches: string;
+    statusSwitchLabel: string;
+    activeDescription: string;
+    inactiveDescription: string;
+    cancel: string;
+    createPerson: string;
+    saveChanges: string;
+    saving: string;
+    personCreated: string;
+    personUpdated: string;
+    backToList: string;
+    editPerson: string;
+    notProvided: string;
+    codeLabel: string;
+    centerRelationNote: string;
+  };
   // The Product catalogue admin screen (S2-03). Both grossPrice and
   // netPrice are shown — the source price list carries both, and the
   // admin team relies on comparing them, same reasoning as the schema
@@ -752,6 +837,7 @@ const en: Dictionary = {
     territoryAssignment: "Assign Territories",
     team: "Team",
     clients: "Centers",
+    persons: "Persons",
     products: "Products",
     installGuide: "Install guide",
     leavesGroup: "Leaves",
@@ -1286,6 +1372,88 @@ const en: Dictionary = {
     notProvided: "Not provided",
     hospitalCode: "Code",
   },
+  persons: {
+    title: "Persons",
+    description: "Manage doctors, nurses and other professional persons.",
+    addPerson: "Add Person",
+    columnCode: "Code",
+    columnPerson: "Person",
+    columnType: "Person type",
+    columnSpecialization: "Specialization",
+    columnMobile: "Mobile",
+    columnTerritory: "Territory",
+    columnCenters: "Centers",
+    columnStatus: "Status",
+    centersLabel: "Centers",
+    view: "View",
+    edit: "Edit",
+    activate: "Activate",
+    deactivate: "Deactivate",
+    noResults: "No persons match these filters.",
+    statusActive: "ACTIVE",
+    statusInactive: "INACTIVE",
+    statusChanged: "Status updated",
+    searchLabel: "Search",
+    searchPlaceholder: "Code, name or mobile",
+    typeFilterLabel: "Person type",
+    anyType: "Any type",
+    specializationFilterLabel: "Specialization",
+    anySpecialization: "Any specialization",
+    centerTypeFilterLabel: "Center type",
+    anyCenterType: "Any center type",
+    statusFilterLabel: "Status",
+    anyStatus: "Any status",
+    filterActive: "Active",
+    filterInactive: "Inactive",
+    clearFilters: "Clear filters",
+    newTitle: "Add Person",
+    editTitle: "Edit person",
+    basicSection: "Basic information",
+    professionalSection: "Professional information",
+    territorySection: "Territory",
+    centersSection: "Associated centers",
+    codeNote: "The person code is generated automatically.",
+    name: "Full name",
+    personType: "Person type",
+    selectOrAddType: "Select or add new type",
+    gender: "Gender",
+    genderNone: "Not specified",
+    genderMale: "Male",
+    genderFemale: "Female",
+    genderOther: "Other",
+    mobile: "Mobile",
+    specialization: "Specialization / Department",
+    selectOrAddSpecialization: "Select or add specialization",
+    territory: "Territory",
+    addCenter: "Add center",
+    center: "Center",
+    centerType: "Center type",
+    roleAtCenter: "Role at center",
+    selectCenter: "Select a center",
+    selectOrAddRole: "Select or add role",
+    addNew: "Add",
+    add: "Add",
+    remove: "Remove",
+    noCenters: "No centers associated yet.",
+    centerAlreadyAdded: "This center is already associated with the person.",
+    centerAndRoleRequired: "Select a center and a role at that center.",
+    noMatches: "No matches",
+    statusSwitchLabel: "Active",
+    activeDescription: "Person is active.",
+    inactiveDescription: "Deactivated — kept in history, relationships preserved.",
+    cancel: "Cancel",
+    createPerson: "Create Person",
+    saveChanges: "Save changes",
+    saving: "Saving...",
+    personCreated: "Person created",
+    personUpdated: "Person updated",
+    backToList: "Back to persons",
+    editPerson: "Edit person",
+    notProvided: "Not provided",
+    codeLabel: "Code",
+    centerRelationNote:
+      "A person can belong to several centers, with a different role at each one.",
+  },
   productsPage: {
     title: "Products",
     newProduct: "New product",
@@ -1393,6 +1561,7 @@ const fr: Dictionary = {
     territoryAssignment: "Affecter des territoires",
     team: "Équipe",
     clients: "Centres",
+    persons: "Personnes",
     products: "Produits",
     installGuide: "Guide d'installation",
     leavesGroup: "Congés",
@@ -1928,6 +2097,88 @@ const fr: Dictionary = {
     address: "Adresse",
     notProvided: "Non renseigné",
     hospitalCode: "Code",
+  },
+  persons: {
+    title: "Personnes",
+    description: "Gérer les médecins, infirmiers et autres professionnels.",
+    addPerson: "Ajouter une personne",
+    columnCode: "Code",
+    columnPerson: "Personne",
+    columnType: "Type de personne",
+    columnSpecialization: "Spécialisation",
+    columnMobile: "Mobile",
+    columnTerritory: "Territoire",
+    columnCenters: "Centres",
+    columnStatus: "Statut",
+    centersLabel: "Centres",
+    view: "Voir",
+    edit: "Modifier",
+    activate: "Activer",
+    deactivate: "Désactiver",
+    noResults: "Aucune personne ne correspond à ces filtres.",
+    statusActive: "ACTIF",
+    statusInactive: "INACTIF",
+    statusChanged: "Statut mis à jour",
+    searchLabel: "Rechercher",
+    searchPlaceholder: "Code, nom ou mobile",
+    typeFilterLabel: "Type de personne",
+    anyType: "Tous les types",
+    specializationFilterLabel: "Spécialisation",
+    anySpecialization: "Toutes les spécialisations",
+    centerTypeFilterLabel: "Type de centre",
+    anyCenterType: "Tous les types de centre",
+    statusFilterLabel: "Statut",
+    anyStatus: "Tous les statuts",
+    filterActive: "Actif",
+    filterInactive: "Inactif",
+    clearFilters: "Effacer les filtres",
+    newTitle: "Ajouter une personne",
+    editTitle: "Modifier la personne",
+    basicSection: "Informations de base",
+    professionalSection: "Informations professionnelles",
+    territorySection: "Territoire",
+    centersSection: "Centres associés",
+    codeNote: "Le code de la personne est généré automatiquement.",
+    name: "Nom complet",
+    personType: "Type de personne",
+    selectOrAddType: "Sélectionner ou ajouter un type",
+    gender: "Genre",
+    genderNone: "Non précisé",
+    genderMale: "Homme",
+    genderFemale: "Femme",
+    genderOther: "Autre",
+    mobile: "Mobile",
+    specialization: "Spécialisation / Département",
+    selectOrAddSpecialization: "Sélectionner ou ajouter une spécialisation",
+    territory: "Territoire",
+    addCenter: "Ajouter un centre",
+    center: "Centre",
+    centerType: "Type de centre",
+    roleAtCenter: "Rôle au centre",
+    selectCenter: "Sélectionner un centre",
+    selectOrAddRole: "Sélectionner ou ajouter un rôle",
+    addNew: "Ajouter",
+    add: "Ajouter",
+    remove: "Retirer",
+    noCenters: "Aucun centre associé pour l'instant.",
+    centerAlreadyAdded: "Ce centre est déjà associé à la personne.",
+    centerAndRoleRequired: "Sélectionnez un centre et un rôle dans ce centre.",
+    noMatches: "Aucun résultat",
+    statusSwitchLabel: "Actif",
+    activeDescription: "La personne est active.",
+    inactiveDescription: "Désactivée — conservée dans l'historique, relations préservées.",
+    cancel: "Annuler",
+    createPerson: "Créer la personne",
+    saveChanges: "Enregistrer",
+    saving: "Enregistrement...",
+    personCreated: "Personne créée",
+    personUpdated: "Personne mise à jour",
+    backToList: "Retour aux personnes",
+    editPerson: "Modifier la personne",
+    notProvided: "Non renseigné",
+    codeLabel: "Code",
+    centerRelationNote:
+      "Une personne peut appartenir à plusieurs centres, avec un rôle différent dans chacun.",
   },
   productsPage: {
     title: "Produits",

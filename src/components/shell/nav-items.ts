@@ -7,6 +7,7 @@ import {
   Map,
   MapPin,
   Package,
+  Stethoscope,
   Users,
 } from "lucide-react";
 
@@ -29,6 +30,7 @@ type NavKey =
   | "myLeaves"
   | "teamLeaves"
   | "clients"
+  | "persons"
   | "products"
   | "plans"
   | "activitiesGroup"
@@ -144,6 +146,7 @@ export const NAV_ITEM_DEFS: NavItemDef[] = [
     ],
   },
   { href: "/admin/clients", key: "clients", icon: Building2, permission: "clients:manage" },
+  { href: "/admin/persons", key: "persons", icon: Stethoscope, permission: "persons:manage" },
   { href: "/admin/products", key: "products", icon: Package, permission: "products:manage" },
   { href: "/plans", key: "plans", icon: CalendarDays, permission: "plans:respond-own" },
   {
