@@ -22,7 +22,7 @@ export type Dictionary = {
     territoryAssignment: string;
     team: string;
     centers: string;
-    persons: string;
+    contacts: string;
     products: string;
     installGuide: string;
     leavesGroup: string;
@@ -33,7 +33,8 @@ export type Dictionary = {
     checkInOut: string;
     attendanceRules: string;
     attendanceAdmin: string;
-    plans: string;
+    routes: string;
+    visits: string;
     activitiesGroup: string;
     activities: string;
     followUps: string;
@@ -430,19 +431,18 @@ export type Dictionary = {
     export: string;
     noResults: string;
   };
-  // S3-06's single-screen daily visit planner — one plan per delegate per
-  // date, reordered in place rather than through a separate edit screen.
-  plansPage: {
+  // S3-06 route planning, assignment and the visit-execution screen — a route is
+  // an ordered list of centers, reordered in place rather than through a separate edit screen.
+  routesPage: {
     title: string;
-    tabPlanVisits: string;
-    tabAssignment: string;
-    tabMyVisits: string;
-    planVisitsTitle: string;
-    assignmentTitle: string;
-    myVisitsTitle: string;
+    tabPlanRoutes: string;
+    tabAssignRoutes: string;
+    planRoutesTitle: string;
+    assignRoutesTitle: string;
+    visitsTitle: string;
     myselfOption: string;
-    newPlan: string;
-    noPlansYet: string;
+    newRoute: string;
+    noRoutesYet: string;
     noDateYet: string;
     unassignedLabel: string;
     noCentersYet: string;
@@ -462,21 +462,21 @@ export type Dictionary = {
     dateLabel: string;
     assignAction: string;
     reassignAction: string;
-    planAssigned: string;
-    planReassigned: string;
+    routeAssigned: string;
+    routeReassigned: string;
     cancelAssignment: string;
     assignmentCancelled: string;
     hasCompletedHint: string;
     itemsCountSuffix: string;
-    backToPlanVisits: string;
+    backToPlanRoutes: string;
     editAction: string;
     save: string;
     saving: string;
-    planSaved: string;
-    newPlanPageTitle: string;
+    routeSaved: string;
+    newRoutePageTitle: string;
     manageAssignmentAction: string;
     viewAction: string;
-    backToAssignment: string;
+    backToAssignRoutes: string;
   };
   // S3-07's marketing activity planning and follow-ups — one screen
   // combining the pending/overdue widget, the create form, and the month
@@ -563,7 +563,7 @@ export type Dictionary = {
     columnName: string;
     columnType: string;
     columnResponsiblePerson: string;
-    columnContact: string;
+    columnMobileNo: string;
     columnTerritory: string;
     columnCoordinates: string;
     columnStatus: string;
@@ -593,7 +593,6 @@ export type Dictionary = {
     type: string;
     selectType: string;
     responsiblePerson: string;
-    contact: string;
     address: string;
     territorySectionLabel: string;
     coordinatesLabel: string;
@@ -627,20 +626,20 @@ export type Dictionary = {
     editCenter: string;
     detailsSectionLabel: string;
     responsiblePerson: string;
-    contact: string;
+    mobileNo: string;
     address: string;
     notProvided: string;
     hospitalCode: string;
   };
-  // The Persons admin module (doctors, nurses and other professionals).
+  // The Contacts admin module (doctors, nurses and other professionals).
   // Plain strings only, so the whole object can be passed into client
   // components. "Centers" here is the existing Center model.
-  persons: {
+  contacts: {
     title: string;
     description: string;
-    addPerson: string;
+    addContact: string;
     columnCode: string;
-    columnPerson: string;
+    columnContact: string;
     columnType: string;
     columnSpecialization: string;
     columnMobile: string;
@@ -677,7 +676,7 @@ export type Dictionary = {
     centersSection: string;
     codeNote: string;
     name: string;
-    personType: string;
+    contactType: string;
     selectOrAddType: string;
     gender: string;
     genderNone: string;
@@ -705,13 +704,13 @@ export type Dictionary = {
     activeDescription: string;
     inactiveDescription: string;
     cancel: string;
-    createPerson: string;
+    createContact: string;
     saveChanges: string;
     saving: string;
-    personCreated: string;
-    personUpdated: string;
+    contactCreated: string;
+    contactUpdated: string;
     backToList: string;
-    editPerson: string;
+    editContact: string;
     notProvided: string;
     codeLabel: string;
     centerRelationNote: string;
@@ -837,7 +836,7 @@ const en: Dictionary = {
     territoryAssignment: "Assign Territories",
     team: "Team",
     centers: "Centers",
-    persons: "Persons",
+    contacts: "Contacts",
     products: "Products",
     installGuide: "Install guide",
     leavesGroup: "Leaves",
@@ -848,7 +847,8 @@ const en: Dictionary = {
     checkInOut: "Check-In/Out",
     attendanceRules: "Attendance Rules",
     attendanceAdmin: "Attendance Reports",
-    plans: "Visit Plan",
+    routes: "Routes/Routes-Assignment",
+    visits: "Visits",
     activitiesGroup: "Marketing",
     activities: "Activities",
     followUps: "Follow-Ups",
@@ -1184,17 +1184,16 @@ const en: Dictionary = {
     export: "Export to Excel",
     noResults: "No attendance records found.",
   },
-  plansPage: {
-    title: "Visit Plan",
-    tabPlanVisits: "Plan Visits",
-    tabAssignment: "Assignment",
-    tabMyVisits: "My Visits",
-    planVisitsTitle: "Plan Visits",
-    assignmentTitle: "Assignment",
-    myVisitsTitle: "My Visits",
+  routesPage: {
+    title: "Routes",
+    tabPlanRoutes: "Plan Routes",
+    tabAssignRoutes: "Assign Routes",
+    planRoutesTitle: "Plan Routes",
+    assignRoutesTitle: "Assign Routes",
+    visitsTitle: "Visits",
     myselfOption: "Myself",
-    newPlan: "New plan",
-    noPlansYet: "No plans yet.",
+    newRoute: "New route",
+    noRoutesYet: "No routes yet.",
     noDateYet: "No date yet",
     unassignedLabel: "Not assigned to anyone",
     noCentersYet: "No centers added yet.",
@@ -1202,9 +1201,9 @@ const en: Dictionary = {
     noMatches: "No matching centers.",
     anyTerritory: "Any territory",
     remove: "Remove",
-    locked: "This plan's date has started, so it's locked and can no longer be edited.",
-    centerAdded: "Center added to plan",
-    centerRemoved: "Center removed from plan",
+    locked: "This route's date has started, so it's locked and can no longer be edited.",
+    centerAdded: "Center added to route",
+    centerRemoved: "Center removed from route",
     assignedByPrefix: "Assigned by",
     markComplete: "Mark completed",
     markCancelled: "Cancel",
@@ -1214,21 +1213,21 @@ const en: Dictionary = {
     dateLabel: "Date",
     assignAction: "Assign",
     reassignAction: "Reassign",
-    planAssigned: "Plan assigned",
-    planReassigned: "Plan reassigned",
+    routeAssigned: "Route assigned",
+    routeReassigned: "Route reassigned",
     cancelAssignment: "Cancel assignment",
     assignmentCancelled: "Assignment cancelled",
-    hasCompletedHint: "This plan already has completed visits, so it can no longer be reassigned.",
+    hasCompletedHint: "This route already has completed visits, so it can no longer be reassigned.",
     itemsCountSuffix: "centers",
-    backToPlanVisits: "Back to Plan Visits",
+    backToPlanRoutes: "Back to Plan Routes",
     editAction: "Edit",
     save: "Save",
     saving: "Saving...",
-    planSaved: "Plan saved",
-    newPlanPageTitle: "New plan",
+    routeSaved: "Route saved",
+    newRoutePageTitle: "New route",
     manageAssignmentAction: "Manage assignment",
     viewAction: "View",
-    backToAssignment: "Back to Assignment",
+    backToAssignRoutes: "Back to Assign Routes",
   },
   activitiesPage: {
     title: "Marketing Activities",
@@ -1307,7 +1306,7 @@ const en: Dictionary = {
     columnName: "Name",
     columnType: "Type",
     columnResponsiblePerson: "Responsible person",
-    columnContact: "Contact",
+    columnMobileNo: "Mobile No.",
     columnTerritory: "Territory",
     columnCoordinates: "Coordinates",
     columnStatus: "Status",
@@ -1337,7 +1336,6 @@ const en: Dictionary = {
     type: "Type",
     selectType: "Select a type",
     responsiblePerson: "Responsible person",
-    contact: "Contact",
     address: "Address",
     territorySectionLabel: "Territory",
     coordinatesLabel: "Coordinates",
@@ -1346,7 +1344,7 @@ const en: Dictionary = {
     doctorType: "Doctor type",
     gender: "Gender",
     department: "Department",
-    mobileNo: "Mobile number",
+    mobileNo: "Mobile No.",
     associatedHospitals: "Associated hospitals",
     noHospitals: "No active hospitals to associate yet.",
     searchHospitals: "Search hospitals by name or code...",
@@ -1367,18 +1365,18 @@ const en: Dictionary = {
     editCenter: "Edit center",
     detailsSectionLabel: "Details",
     responsiblePerson: "Responsible person",
-    contact: "Contact",
+    mobileNo: "Mobile No.",
     address: "Address",
     notProvided: "Not provided",
     hospitalCode: "Code",
   },
-  persons: {
-    title: "Persons",
-    description: "Manage doctors, nurses and other professional persons.",
-    addPerson: "Add Person",
+  contacts: {
+    title: "Contacts",
+    description: "Manage doctors, nurses and other professional contacts.",
+    addContact: "Add Contact",
     columnCode: "Code",
-    columnPerson: "Person",
-    columnType: "Person type",
+    columnContact: "Contact",
+    columnType: "Contact type",
     columnSpecialization: "Specialization",
     columnMobile: "Mobile",
     columnTerritory: "Territory",
@@ -1389,13 +1387,13 @@ const en: Dictionary = {
     edit: "Edit",
     activate: "Activate",
     deactivate: "Deactivate",
-    noResults: "No persons match these filters.",
+    noResults: "No contacts match these filters.",
     statusActive: "ACTIVE",
     statusInactive: "INACTIVE",
     statusChanged: "Status updated",
     searchLabel: "Search",
     searchPlaceholder: "Code, name or mobile",
-    typeFilterLabel: "Person type",
+    typeFilterLabel: "Contact type",
     anyType: "Any type",
     specializationFilterLabel: "Specialization",
     anySpecialization: "Any specialization",
@@ -1406,15 +1404,15 @@ const en: Dictionary = {
     filterActive: "Active",
     filterInactive: "Inactive",
     clearFilters: "Clear filters",
-    newTitle: "Add Person",
-    editTitle: "Edit person",
+    newTitle: "Add Contact",
+    editTitle: "Edit contact",
     basicSection: "Basic information",
     professionalSection: "Professional information",
     territorySection: "Territory",
     centersSection: "Associated centers",
-    codeNote: "The person code is generated automatically.",
+    codeNote: "The contact code is generated automatically.",
     name: "Full name",
-    personType: "Person type",
+    contactType: "Contact type",
     selectOrAddType: "Select or add new type",
     gender: "Gender",
     genderNone: "Not specified",
@@ -1435,24 +1433,24 @@ const en: Dictionary = {
     add: "Add",
     remove: "Remove",
     noCenters: "No centers associated yet.",
-    centerAlreadyAdded: "This center is already associated with the person.",
+    centerAlreadyAdded: "This center is already associated with the contact.",
     centerAndRoleRequired: "Select a center and a role at that center.",
     noMatches: "No matches",
     statusSwitchLabel: "Active",
-    activeDescription: "Person is active.",
+    activeDescription: "Contact is active.",
     inactiveDescription: "Deactivated — kept in history, relationships preserved.",
     cancel: "Cancel",
-    createPerson: "Create Person",
+    createContact: "Create Contact",
     saveChanges: "Save changes",
     saving: "Saving...",
-    personCreated: "Person created",
-    personUpdated: "Person updated",
-    backToList: "Back to persons",
-    editPerson: "Edit person",
+    contactCreated: "Contact created",
+    contactUpdated: "Contact updated",
+    backToList: "Back to contacts",
+    editContact: "Edit contact",
     notProvided: "Not provided",
     codeLabel: "Code",
     centerRelationNote:
-      "A person can belong to several centers, with a different role at each one.",
+      "A contact can belong to several centers, with a different role at each one.",
   },
   productsPage: {
     title: "Products",
@@ -1561,7 +1559,7 @@ const fr: Dictionary = {
     territoryAssignment: "Affecter des territoires",
     team: "Équipe",
     centers: "Centres",
-    persons: "Personnes",
+    contacts: "Contacts",
     products: "Produits",
     installGuide: "Guide d'installation",
     leavesGroup: "Congés",
@@ -1572,7 +1570,8 @@ const fr: Dictionary = {
     checkInOut: "Pointage",
     attendanceRules: "Règles de présence",
     attendanceAdmin: "Rapports de présence",
-    plans: "Plan de visite",
+    routes: "Routes/Routes-Affectation",
+    visits: "Visites",
     activitiesGroup: "Marketing",
     activities: "Activités",
     followUps: "Suivis",
@@ -1909,17 +1908,16 @@ const fr: Dictionary = {
     export: "Exporter vers Excel",
     noResults: "Aucun enregistrement de présence trouvé.",
   },
-  plansPage: {
-    title: "Plan de visite",
-    tabPlanVisits: "Planifier des visites",
-    tabAssignment: "Affectation",
-    tabMyVisits: "Mes visites",
-    planVisitsTitle: "Planifier des visites",
-    assignmentTitle: "Affectation",
-    myVisitsTitle: "Mes visites",
+  routesPage: {
+    title: "Routes",
+    tabPlanRoutes: "Planifier les routes",
+    tabAssignRoutes: "Affecter les routes",
+    planRoutesTitle: "Planifier les routes",
+    assignRoutesTitle: "Affecter les routes",
+    visitsTitle: "Visites",
     myselfOption: "Moi-même",
-    newPlan: "Nouveau plan",
-    noPlansYet: "Aucun plan pour le moment.",
+    newRoute: "Nouvelle route",
+    noRoutesYet: "Aucune route pour le moment.",
     noDateYet: "Pas encore de date",
     unassignedLabel: "Non affecté",
     noCentersYet: "Aucun centre ajouté pour le moment.",
@@ -1927,9 +1925,10 @@ const fr: Dictionary = {
     noMatches: "Aucun centre correspondant.",
     anyTerritory: "Tous les territoires",
     remove: "Retirer",
-    locked: "La date de ce plan a commencé, il est donc verrouillé et ne peut plus être modifié.",
-    centerAdded: "Centre ajouté au plan",
-    centerRemoved: "Centre retiré du plan",
+    locked:
+      "La date de cette route a commencé, elle est donc verrouillée et ne peut plus être modifiée.",
+    centerAdded: "Centre ajouté à la route",
+    centerRemoved: "Centre retiré de la route",
     assignedByPrefix: "Assigné par",
     markComplete: "Marquer comme terminé",
     markCancelled: "Annuler",
@@ -1939,21 +1938,22 @@ const fr: Dictionary = {
     dateLabel: "Date",
     assignAction: "Affecter",
     reassignAction: "Réaffecter",
-    planAssigned: "Plan affecté",
-    planReassigned: "Plan réaffecté",
+    routeAssigned: "Route affectée",
+    routeReassigned: "Route réaffectée",
     cancelAssignment: "Annuler l'affectation",
     assignmentCancelled: "Affectation annulée",
-    hasCompletedHint: "Ce plan a déjà des visites terminées, il ne peut donc plus être réaffecté.",
+    hasCompletedHint:
+      "Cette route a déjà des visites terminées, elle ne peut donc plus être réaffectée.",
     itemsCountSuffix: "centres",
-    backToPlanVisits: "Retour à Planifier des visites",
+    backToPlanRoutes: "Retour à Planifier les routes",
     editAction: "Modifier",
     save: "Enregistrer",
     saving: "Enregistrement...",
-    planSaved: "Plan enregistré",
-    newPlanPageTitle: "Nouveau plan",
+    routeSaved: "Route enregistrée",
+    newRoutePageTitle: "Nouvelle route",
     manageAssignmentAction: "Gérer l'affectation",
     viewAction: "Voir",
-    backToAssignment: "Retour à l'affectation",
+    backToAssignRoutes: "Retour à Affecter les routes",
   },
   activitiesPage: {
     title: "Activités marketing",
@@ -2032,7 +2032,7 @@ const fr: Dictionary = {
     columnName: "Nom",
     columnType: "Type",
     columnResponsiblePerson: "Responsable",
-    columnContact: "Contact",
+    columnMobileNo: "N° de mobile",
     columnTerritory: "Territoire",
     columnCoordinates: "Coordonnées",
     columnStatus: "Statut",
@@ -2062,7 +2062,6 @@ const fr: Dictionary = {
     type: "Type",
     selectType: "Sélectionner un type",
     responsiblePerson: "Responsable",
-    contact: "Contact",
     address: "Adresse",
     territorySectionLabel: "Territoire",
     coordinatesLabel: "Coordonnées",
@@ -2071,7 +2070,7 @@ const fr: Dictionary = {
     doctorType: "Type de médecin",
     gender: "Genre",
     department: "Département",
-    mobileNo: "Numéro de mobile",
+    mobileNo: "N° de mobile",
     associatedHospitals: "Hôpitaux associés",
     noHospitals: "Aucun hôpital actif à associer pour le moment.",
     searchHospitals: "Rechercher un hôpital par nom ou code...",
@@ -2093,18 +2092,18 @@ const fr: Dictionary = {
     editCenter: "Modifier le centre",
     detailsSectionLabel: "Détails",
     responsiblePerson: "Responsable",
-    contact: "Contact",
+    mobileNo: "N° de mobile",
     address: "Adresse",
     notProvided: "Non renseigné",
     hospitalCode: "Code",
   },
-  persons: {
-    title: "Personnes",
+  contacts: {
+    title: "Contacts",
     description: "Gérer les médecins, infirmiers et autres professionnels.",
-    addPerson: "Ajouter une personne",
+    addContact: "Ajouter un contact",
     columnCode: "Code",
-    columnPerson: "Personne",
-    columnType: "Type de personne",
+    columnContact: "Contact",
+    columnType: "Type de contact",
     columnSpecialization: "Spécialisation",
     columnMobile: "Mobile",
     columnTerritory: "Territoire",
@@ -2115,13 +2114,13 @@ const fr: Dictionary = {
     edit: "Modifier",
     activate: "Activer",
     deactivate: "Désactiver",
-    noResults: "Aucune personne ne correspond à ces filtres.",
+    noResults: "Aucun contact ne correspond à ces filtres.",
     statusActive: "ACTIF",
     statusInactive: "INACTIF",
     statusChanged: "Statut mis à jour",
     searchLabel: "Rechercher",
     searchPlaceholder: "Code, nom ou mobile",
-    typeFilterLabel: "Type de personne",
+    typeFilterLabel: "Type de contact",
     anyType: "Tous les types",
     specializationFilterLabel: "Spécialisation",
     anySpecialization: "Toutes les spécialisations",
@@ -2132,15 +2131,15 @@ const fr: Dictionary = {
     filterActive: "Actif",
     filterInactive: "Inactif",
     clearFilters: "Effacer les filtres",
-    newTitle: "Ajouter une personne",
-    editTitle: "Modifier la personne",
+    newTitle: "Ajouter un contact",
+    editTitle: "Modifier le contact",
     basicSection: "Informations de base",
     professionalSection: "Informations professionnelles",
     territorySection: "Territoire",
     centersSection: "Centres associés",
-    codeNote: "Le code de la personne est généré automatiquement.",
+    codeNote: "Le code du contact est généré automatiquement.",
     name: "Nom complet",
-    personType: "Type de personne",
+    contactType: "Type de contact",
     selectOrAddType: "Sélectionner ou ajouter un type",
     gender: "Genre",
     genderNone: "Non précisé",
@@ -2161,24 +2160,24 @@ const fr: Dictionary = {
     add: "Ajouter",
     remove: "Retirer",
     noCenters: "Aucun centre associé pour l'instant.",
-    centerAlreadyAdded: "Ce centre est déjà associé à la personne.",
+    centerAlreadyAdded: "Ce centre est déjà associé au contact.",
     centerAndRoleRequired: "Sélectionnez un centre et un rôle dans ce centre.",
     noMatches: "Aucun résultat",
     statusSwitchLabel: "Actif",
-    activeDescription: "La personne est active.",
-    inactiveDescription: "Désactivée — conservée dans l'historique, relations préservées.",
+    activeDescription: "Le contact est actif.",
+    inactiveDescription: "Désactivé — conservé dans l'historique, relations préservées.",
     cancel: "Annuler",
-    createPerson: "Créer la personne",
+    createContact: "Créer le contact",
     saveChanges: "Enregistrer",
     saving: "Enregistrement...",
-    personCreated: "Personne créée",
-    personUpdated: "Personne mise à jour",
-    backToList: "Retour aux personnes",
-    editPerson: "Modifier la personne",
+    contactCreated: "Contact créé",
+    contactUpdated: "Contact mis à jour",
+    backToList: "Retour aux contacts",
+    editContact: "Modifier le contact",
     notProvided: "Non renseigné",
     codeLabel: "Code",
     centerRelationNote:
-      "Une personne peut appartenir à plusieurs centres, avec un rôle différent dans chacun.",
+      "Un contact peut appartenir à plusieurs centres, avec un rôle différent dans chacun.",
   },
   productsPage: {
     title: "Produits",

@@ -239,21 +239,21 @@ async function main() {
     },
   });
 
-  // Initial Person Types. Configurable at runtime (admins can add more from
-  // the Persons form) — these are only the two the client named up front.
+  // Initial Contact Types. Configurable at runtime (admins can add more from
+  // the Contacts form) — these are only the two the client named up front.
   for (const [code, name] of [
     ["MEDECIN", "MÉDECIN"],
     ["INFIRMIER", "INFIRMIER"],
   ]) {
-    await prisma.personType.upsert({ where: { code }, update: {}, create: { code, name } });
+    await prisma.contactType.upsert({ where: { code }, update: {}, create: { code, name } });
   }
 
   // Initial Specializations / Departments, taken from the client's source
-  // data. Configurable at runtime like Person Type — admins can add more
-  // from the Persons form. Distinct from Person Type, Center Type and Role
+  // data. Configurable at runtime like Contact Type — admins can add more
+  // from the Contacts form. Distinct from Contact Type, Center Type and Role
   // at Center; per-Center roles are deliberately NOT seeded (no approved
   // values). The code comes from slugifyLookupName, the same rule the
-  // Persons form uses, so a value later typed into the combobox maps onto
+  // Contacts form uses, so a value later typed into the combobox maps onto
   // the same row instead of duplicating it.
   for (const name of [
     "GÉNÉRALISTE (G.P)",

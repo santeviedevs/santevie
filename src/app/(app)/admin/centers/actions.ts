@@ -60,7 +60,7 @@ function readCommon(formData: FormData) {
     name: formData.get("name"),
     typeId: formData.get("typeId"),
     responsiblePerson: readText(formData, "responsiblePerson"),
-    contact: readText(formData, "contact"),
+    mobileNo: readText(formData, "mobileNo"),
     address: readText(formData, "address"),
     latitude: readNumber(formData, "latitude"),
     longitude: readNumber(formData, "longitude"),

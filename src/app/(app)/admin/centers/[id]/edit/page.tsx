@@ -40,7 +40,7 @@ export default async function EditCenterPage({ params }: EditCenterPageProps) {
           name: center.name,
           typeId: center.type.id,
           responsiblePerson: center.responsiblePerson,
-          contact: center.contact,
+          mobileNo: center.mobileNo,
           address: center.address,
           latitude: center.latitude,
           longitude: center.longitude,

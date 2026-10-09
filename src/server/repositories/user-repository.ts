@@ -166,7 +166,7 @@ export function listActiveUserOptions() {
 // unscoped by any manager chain: a Manager with zero current reports still
 // shows up, since the point is letting the viewer pre-filter by someone
 // before they've been assigned a team.
-// S3-06's "assigned by" display on a plan item — createdBy is a plain
+// S3-06's "assigned by" display on a route item — createdBy is a plain
 // audit-column id (no relation), and may reference a now-deactivated user,
 // so this deliberately doesn't filter by status the way listActiveUserOptions
 // does.

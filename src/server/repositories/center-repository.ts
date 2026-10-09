@@ -66,7 +66,7 @@ export function listActiveCentersForSelection() {
   });
 }
 
-// S3-06's visit-planning center picker — active centers within a specific
+// S3-06's route-planning center picker — active centers within a specific
 // set of territory ids (the delegate's permitted territories). Kept
 // separate from listActiveCentersForSelection above rather than widening
 // that function's shape, since its existing callers (order/visit pickers)

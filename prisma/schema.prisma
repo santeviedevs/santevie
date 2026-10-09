@@ -63,10 +63,10 @@ enum ActivityStatus {
 }
 
 // MISSED is deliberately not a stored value — it's computed at read time
-// (PENDING + the plan's date has passed) in plan-service.ts, the same
+// (PENDING + the route's date has passed) in route-service.ts, the same
 // "computed, not stored" choice as attendance's ABSENT/NON_WORKING. A
-// PlanItem never needs to be written to just because nobody acted on it.
-enum PlanItemStatus {
+// RouteItem never needs to be written to just because nobody acted on it.
+enum RouteItemStatus {
   PENDING
   COMPLETED
   CANCELLED
@@ -178,7 +178,7 @@ model User {
   leaves                  Leave[]
   ownedAttendanceRules    AttendanceRule[]          @relation("AttendanceRuleOwner")
   targetedAttendanceRules AttendanceRule[]          @relation("AttendanceRuleTarget")
-  plans                   Plan[]
+  routes                  Route[]
   ownedActivities         Activity[]
   ownedFollowUps          FollowUp[]
 
@@ -312,7 +312,7 @@ model Territory {
   workingDays          TerritoryWorkingDay[]
   attendanceRules      AttendanceRule[]
   activities           Activity[]
-  persons              Person[]
+  contacts             Contact[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -376,11 +376,11 @@ model Center {
   id                String   @id @default(cuid())
   code              String   @unique
   name              String
-  // The name of the on-site point of contact — distinct from `contact`,
-  // which is free text (phone/email/whatever) and doesn't identify who it
-  // belongs to.
+  // The name of the on-site contact in charge — distinct from `mobileNo`,
+  // which is the Center's own free-text mobile number and doesn't identify
+  // who it belongs to.
   responsiblePerson String?
-  contact           String?
+  mobileNo          String?
   address           String?
   latitude          Decimal? @db.Decimal(9, 6)
   longitude         Decimal? @db.Decimal(9, 6)
@@ -397,9 +397,9 @@ model Center {
 
   visits     Visit[]
   orders     Order[]
-  planItems  PlanItem[]
+  routeItems RouteItem[]
   activities Activity[]
-  persons    PersonCenter[]
+  contacts   ContactCenter[]
 
   // Set only for HOSPITAL-type centers. Kept as an optional one-to-one
   // extension rather than fields on Center itself so other center types
@@ -888,18 +888,18 @@ model TerritoryWorkingDay {
 
 // One row per (delegate, date) — the day's planned route. Items are added
 // before the day starts and locked once it does (see
-// PLAN_EDIT_CUTOFF_HOUR in src/lib/schemas/plan.ts); visit *execution*
-// against a plan is a separate, later story (S4-01) and isn't modeled here.
-// A plan starts unassigned (userId and date both null) — built on the
-// "Plan Visits" screen with no visitor or date attached at all. It only
-// gets both at once, via the "Assignment" screen's assign/reassign action.
-// Reassigning an already-assigned plan never updates this row in place —
-// it creates a brand-new Plan for the new visitor (a visitor can hold
-// several plans, even for the same date, deliberately not deduplicated)
+// ROUTE_EDIT_CUTOFF_HOUR in src/lib/schemas/route.ts); visit *execution*
+// against a route is a separate, later story (S4-01) and isn't modeled here.
+// A route starts unassigned (userId and date both null) — built on the
+// "Plan Routes" screen with no visitor or date attached at all. It only
+// gets both at once, via the "Assign Routes" screen's assign/reassign action.
+// Reassigning an already-assigned route never updates this row in place —
+// it creates a brand-new Route for the new visitor (a visitor can hold
+// several routes, even for the same date, deliberately not deduplicated)
 // and moves the still-relevant items onto it; the source row is deleted
-// once empty. No @@unique on (userId, date) — multiple plans per visitor
+// once empty. No @@unique on (userId, date) — multiple routes per visitor
 // per day are allowed by design.
-model Plan {
+model Route {
   id String @id @default(cuid())
 
   userId String?
@@ -907,7 +907,7 @@ model Plan {
 
   date DateTime?
 
-  items PlanItem[]
+  items RouteItem[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -915,35 +915,35 @@ model Plan {
   updatedAt DateTime @updatedAt
 
   @@index([userId, date])
-  @@map("plans")
+  @@map("routes")
 }
 
 // `sequence` is the delegate's chosen visit order for the day — assigned
 // on add (next available slot) and rewritten wholesale on reorder, never
 // treated as a stable identity of its own.
-model PlanItem {
+model RouteItem {
   id String @id @default(cuid())
 
-  planId String
-  plan   Plan   @relation(fields: [planId], references: [id])
+  routeId String
+  route   Route  @relation(fields: [routeId], references: [id])
 
   centerId String
   center   Center @relation(fields: [centerId], references: [id])
 
   sequence Int
-  status   PlanItemStatus @default(PENDING)
+  status   RouteItemStatus @default(PENDING)
 
   createdBy String?
   createdAt DateTime @default(now())
   updatedBy String?
   updatedAt DateTime @updatedAt
 
-  // Enforces "no duplicate center on the same plan/date" at the database
+  // Enforces "no duplicate center on the same route/date" at the database
   // level — the service layer gives a friendlier error before ever hitting
   // this constraint, but the constraint is the actual backstop.
-  @@unique([planId, centerId])
-  @@index([planId])
-  @@map("plan_items")
+  @@unique([routeId, centerId])
+  @@index([routeId])
+  @@map("route_items")
 }
 
 // --- Marketing activity planning and follow-ups (S3-07) ---
@@ -1008,36 +1008,36 @@ model FollowUp {
   @@map("follow_ups")
 }
 
-// --- Persons (doctors, nurses, other professionals) ---
+// --- Contacts (doctors, nurses, other professionals) ---
 
 // Configurable lookup, same shape as CenterType — never a TypeScript enum.
 // `code` is derived from the name (uppercase, accent-free slug), so it also
 // acts as the case-insensitive uniqueness guard when an admin types a new
 // value into the create-or-select combobox.
-model PersonType {
+model ContactType {
   id   String @id @default(cuid())
   code String @unique
   name String
 
-  persons Person[]
+  contacts Contact[]
 
   createdBy String?
   createdAt DateTime @default(now())
   updatedBy String?
   updatedAt DateTime @updatedAt
 
-  @@map("person_types")
+  @@map("contact_types")
 }
 
-// Professional specialization / department — separate from PersonType and
-// from PersonCenterRole. Seeded from the client's source data (see
-// prisma/seed.ts); admins can add more from the Persons form.
+// Professional specialization / department — separate from ContactType and
+// from ContactCenterRole. Seeded from the client's source data (see
+// prisma/seed.ts); admins can add more from the Contacts form.
 model Specialization {
   id   String @id @default(cuid())
   code String @unique
   name String
 
-  persons Person[]
+  contacts Contact[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -1047,29 +1047,29 @@ model Specialization {
   @@map("specializations")
 }
 
-// The role a Person holds at one specific Center — a property of the
-// Person<->Center relationship (PersonCenter), never of the Person itself.
+// The role a Contact holds at one specific Center — a property of the
+// Contact<->Center relationship (ContactCenter), never of the Contact itself.
 // Values are not business-confirmed; admins create them as needed.
-model PersonCenterRole {
+model ContactCenterRole {
   id   String @id @default(cuid())
   code String @unique
   name String
 
-  personCenters PersonCenter[]
+  contactCenters ContactCenter[]
 
   createdBy String?
   createdAt DateTime @default(now())
   updatedBy String?
   updatedAt DateTime @updatedAt
 
-  @@map("person_center_roles")
+  @@map("contact_center_roles")
 }
 
-// `code` is backend-generated (PER-00001, from the person_code_seq
+// `code` is backend-generated (CON-00001, from the contact_code_seq
 // Postgres sequence created in the migration) and immutable once written.
-// `territoryId` is the Person's own Territory — independent of any
+// `territoryId` is the Contact's own Territory — independent of any
 // associated Center's.
-model Person {
+model Contact {
   id     String  @id @default(cuid())
   code   String  @unique
   name   String
@@ -1077,8 +1077,8 @@ model Person {
   mobile String?
   status Status  @default(ACTIVE)
 
-  personTypeId String
-  personType   PersonType @relation(fields: [personTypeId], references: [id])
+  contactTypeId String
+  contactType   ContactType @relation(fields: [contactTypeId], references: [id])
 
   specializationId String
   specialization   Specialization @relation(fields: [specializationId], references: [id])
@@ -1086,40 +1086,40 @@ model Person {
   territoryId String
   territory   Territory @relation(fields: [territoryId], references: [id])
 
-  centers PersonCenter[]
+  centers ContactCenter[]
 
   createdBy String?
   createdAt DateTime @default(now())
   updatedBy String?
   updatedAt DateTime @updatedAt
 
-  @@index([personTypeId, status])
+  @@index([contactTypeId, status])
   @@index([specializationId, status])
   @@index([territoryId, status])
   @@index([name])
-  @@map("persons")
+  @@map("contacts")
 }
 
-// Many-to-many join between Person and Center (the Center model), carrying
+// Many-to-many join between Contact and Center (the Center model), carrying
 // the per-association role.
-model PersonCenter {
+model ContactCenter {
   id String @id @default(cuid())
 
-  personId String
-  person   Person @relation(fields: [personId], references: [id])
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id])
 
   centerId String
   center   Center @relation(fields: [centerId], references: [id])
 
   roleAtCenterId String
-  roleAtCenter   PersonCenterRole @relation(fields: [roleAtCenterId], references: [id])
+  roleAtCenter   ContactCenterRole @relation(fields: [roleAtCenterId], references: [id])
 
   createdBy String?
   createdAt DateTime @default(now())
   updatedBy String?
   updatedAt DateTime @updatedAt
 
-  @@unique([personId, centerId])
+  @@unique([contactId, centerId])
   @@index([centerId])
-  @@map("person_centers")
+  @@map("contact_centers")
 }

@@ -38,7 +38,7 @@ const baseCenterRow = (overrides: Record<string, unknown> = {}) => ({
   id: "center-1",
   code: "CL-0001",
   name: "Sample",
-  contact: null,
+  mobileNo: null,
   address: null,
   latitude: null,
   longitude: null,
