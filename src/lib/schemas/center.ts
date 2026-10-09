@@ -38,7 +38,7 @@ export const createCenterSchema = z.object({
   name,
   typeId: id,
   responsiblePerson: z.string().trim().max(160).nullish(),
-  contact: z.string().trim().max(80).nullish(),
+  mobileNo: z.string().trim().max(80).nullish(),
   address: z.string().trim().max(240).nullish(),
   latitude,
   longitude,

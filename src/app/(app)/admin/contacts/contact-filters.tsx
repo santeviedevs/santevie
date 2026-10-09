@@ -13,14 +13,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Dictionary } from "@/lib/i18n/dictionary";
-import type { PersonFilters as PersonFiltersValue } from "@/lib/schemas/person";
+import type { ContactFilters as ContactFiltersValue } from "@/lib/schemas/contact";
 
 import { TerritoryPicker, type TerritoryPickerOption } from "../territories/territory-picker";
 
 type Option = { id: string; name: string };
 
 type FilterKey =
-  "q" | "personTypeId" | "specializationId" | "centerTypeId" | "territoryId" | "status";
+  "q" | "contactTypeId" | "specializationId" | "centerTypeId" | "territoryId" | "status";
 
 function FilterSelect({
   id,
@@ -61,8 +61,8 @@ function FilterSelect({
   );
 }
 
-export function PersonFilters({
-  personTypes,
+export function ContactFilters({
+  contactTypes,
   specializations,
   centerTypes,
   territories,
@@ -70,12 +70,12 @@ export function PersonFilters({
   dict,
   territoryDict,
 }: {
-  personTypes: Option[];
+  contactTypes: Option[];
   specializations: Option[];
   centerTypes: Option[];
   territories: TerritoryPickerOption[];
-  filters: PersonFiltersValue;
-  dict: Dictionary["persons"];
+  filters: ContactFiltersValue;
+  dict: Dictionary["contacts"];
   territoryDict: Dictionary["territory"];
 }) {
   const router = useRouter();
@@ -108,7 +108,7 @@ export function PersonFilters({
 
     const merged: Record<FilterKey, string> = {
       q: inputRef.current?.value ?? "",
-      personTypeId: filters.personTypeId ?? "",
+      contactTypeId: filters.contactTypeId ?? "",
       specializationId: filters.specializationId ?? "",
       centerTypeId: filters.centerTypeId ?? "",
       territoryId: filters.territoryId ?? "",
@@ -144,7 +144,7 @@ export function PersonFilters({
 
   const hasActiveFilters = Boolean(
     filters.q ||
-    filters.personTypeId ||
+    filters.contactTypeId ||
     filters.specializationId ||
     filters.centerTypeId ||
     filters.territoryId ||
@@ -169,12 +169,12 @@ export function PersonFilters({
       </div>
 
       <FilterSelect
-        id="personTypeId"
+        id="contactTypeId"
         label={dict.typeFilterLabel}
         anyLabel={dict.anyType}
-        options={toOptions(personTypes)}
-        value={filters.personTypeId ?? ""}
-        onChange={(value) => applyFilters({ personTypeId: value })}
+        options={toOptions(contactTypes)}
+        value={filters.contactTypeId ?? ""}
+        onChange={(value) => applyFilters({ contactTypeId: value })}
       />
 
       <FilterSelect

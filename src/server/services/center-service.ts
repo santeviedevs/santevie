@@ -65,7 +65,7 @@ export type CenterSummary = {
   code: string;
   name: string;
   responsiblePerson: string | null;
-  contact: string | null;
+  mobileNo: string | null;
   address: string | null;
   latitude: number | null;
   longitude: number | null;
@@ -91,7 +91,7 @@ function toSummary(center: CenterWithRelations): CenterSummary {
     code: center.code,
     name: center.name,
     responsiblePerson: center.responsiblePerson,
-    contact: center.contact,
+    mobileNo: center.mobileNo,
     address: center.address,
     latitude,
     longitude,
@@ -157,7 +157,7 @@ export async function createCenter(
         code: input.code,
         name: input.name,
         responsiblePerson: input.responsiblePerson ?? null,
-        contact: input.contact ?? null,
+        mobileNo: input.mobileNo ?? null,
         address: input.address ?? null,
         latitude: input.latitude ?? null,
         longitude: input.longitude ?? null,
@@ -197,7 +197,7 @@ export async function updateCenter(
         code: input.code,
         name: input.name,
         responsiblePerson: input.responsiblePerson ?? null,
-        contact: input.contact ?? null,
+        mobileNo: input.mobileNo ?? null,
         address: input.address ?? null,
         latitude: input.latitude ?? null,
         longitude: input.longitude ?? null,

@@ -1,38 +1,38 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const findPersons = vi.fn();
-const countPersons = vi.fn();
-const findPersonById = vi.fn();
-const findPersonCenterLinks = vi.fn();
-const findPersonReferenceIds = vi.fn();
-const createPersonWithCenters = vi.fn();
-const updatePersonWithCenters = vi.fn();
-const setPersonStatusRow = vi.fn();
-const nextPersonCodeNumber = vi.fn();
-const findPersonTypeById = vi.fn();
+const findContacts = vi.fn();
+const countContacts = vi.fn();
+const findContactById = vi.fn();
+const findContactCenterLinks = vi.fn();
+const findContactReferenceIds = vi.fn();
+const createContactWithCenters = vi.fn();
+const updateContactWithCenters = vi.fn();
+const setContactStatusRow = vi.fn();
+const nextContactCodeNumber = vi.fn();
+const findContactTypeById = vi.fn();
 const findSpecializationById = vi.fn();
 const findCentersByIds = vi.fn();
 const findCenterRolesByIds = vi.fn();
 const findLookupByCode = vi.fn();
 const createLookup = vi.fn();
 
-vi.mock("@/server/repositories/person-repository", () => ({
-  findPersons,
-  countPersons,
-  findPersonById,
-  findPersonCenterLinks,
-  findPersonReferenceIds,
-  createPersonWithCenters,
-  updatePersonWithCenters,
-  setPersonStatus: setPersonStatusRow,
-  nextPersonCodeNumber,
-  findPersonTypeById,
+vi.mock("@/server/repositories/contact-repository", () => ({
+  findContacts,
+  countContacts,
+  findContactById,
+  findContactCenterLinks,
+  findContactReferenceIds,
+  createContactWithCenters,
+  updateContactWithCenters,
+  setContactStatus: setContactStatusRow,
+  nextContactCodeNumber,
+  findContactTypeById,
   findSpecializationById,
   findCentersByIds,
   findCenterRolesByIds,
   findLookupByCode,
   createLookup,
-  listPersonTypes: vi.fn(),
+  listContactTypes: vi.fn(),
   listSpecializations: vi.fn(),
   listCenterRoles: vi.fn(),
 }));
@@ -47,19 +47,19 @@ vi.mock("@/server/repositories/territory-repository", () => ({ findTerritoryById
 vi.mock("@/server/services/territory-service", () => ({ listActiveTerritoryOptions: vi.fn() }));
 
 const {
-  createPerson,
-  updatePerson,
-  listPersons,
-  setPersonStatus,
+  createContact,
+  updateContact,
+  listContacts,
+  setContactStatus,
   createLookupValue,
   slugifyLookupName,
-  formatPersonCode,
-  DuplicatePersonCenterError,
-  InactivePersonReferenceError,
-  InvalidPersonReferenceError,
+  formatContactCode,
+  DuplicateContactCenterError,
+  InactiveContactReferenceError,
+  InvalidContactReferenceError,
   InvalidLookupNameError,
-  PersonNotFoundError,
-} = await import("./person-service");
+  ContactNotFoundError,
+} = await import("./contact-service");
 
 const territoryRow = {
   id: "ter-1",
@@ -72,13 +72,13 @@ const territoryRow = {
 };
 
 const detailRow = (overrides: Record<string, unknown> = {}) => ({
-  id: "person-1",
-  code: "PER-00001",
+  id: "contact-1",
+  code: "CON-00001",
   name: "Dr Test",
   gender: null,
   mobile: null,
   status: "ACTIVE",
-  personType: { id: "pt-1", code: "MEDECIN", name: "MÉDECIN" },
+  contactType: { id: "pt-1", code: "MEDECIN", name: "MÉDECIN" },
   specialization: { id: "sp-1", code: "CARDIO", name: "Cardiology" },
   territory: territoryRow,
   centers: [
@@ -99,7 +99,7 @@ const detailRow = (overrides: Record<string, unknown> = {}) => ({
 
 const baseInput = {
   name: "Dr Test",
-  personTypeId: "pt-1",
+  contactTypeId: "pt-1",
   specializationId: "sp-1",
   territoryId: "ter-1",
   centers: [{ centerId: "c-1", roleAtCenterId: "r-1" }],
@@ -107,55 +107,55 @@ const baseInput = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  findPersonTypeById.mockResolvedValue({ id: "pt-1" });
+  findContactTypeById.mockResolvedValue({ id: "pt-1" });
   findSpecializationById.mockResolvedValue({ id: "sp-1" });
   findTerritoryById.mockResolvedValue(territoryRow);
   findCentersByIds.mockResolvedValue([{ id: "c-1", status: "ACTIVE" }]);
   findCenterRolesByIds.mockResolvedValue([{ id: "r-1" }]);
-  nextPersonCodeNumber.mockResolvedValue(1);
-  createPersonWithCenters.mockResolvedValue(detailRow());
-  updatePersonWithCenters.mockResolvedValue(detailRow());
+  nextContactCodeNumber.mockResolvedValue(1);
+  createContactWithCenters.mockResolvedValue(detailRow());
+  updateContactWithCenters.mockResolvedValue(detailRow());
 });
 
-describe("formatPersonCode", () => {
+describe("formatContactCode", () => {
   it("pads the sequence number", () => {
-    expect(formatPersonCode(7)).toBe("PER-00007");
-    expect(formatPersonCode(12345)).toBe("PER-12345");
+    expect(formatContactCode(7)).toBe("CON-00007");
+    expect(formatContactCode(12345)).toBe("CON-12345");
   });
 });
 
-describe("createPerson", () => {
+describe("createContact", () => {
   it("generates the code on the backend and returns the Territory path", async () => {
-    nextPersonCodeNumber.mockResolvedValue(42);
-    createPersonWithCenters.mockResolvedValue(detailRow({ code: "PER-00042" }));
+    nextContactCodeNumber.mockResolvedValue(42);
+    createContactWithCenters.mockResolvedValue(detailRow({ code: "CON-00042" }));
 
-    const result = await createPerson(baseInput, "actor-1");
+    const result = await createContact(baseInput, "actor-1");
 
-    expect(createPersonWithCenters).toHaveBeenCalledWith(
-      expect.objectContaining({ code: "PER-00042", name: "Dr Test" }),
+    expect(createContactWithCenters).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "CON-00042", name: "Dr Test" }),
       baseInput.centers,
       "actor-1",
     );
-    expect(result.code).toBe("PER-00042");
+    expect(result.code).toBe("CON-00042");
     expect(result.territory.label).toBe("Province A › Ville B");
     expect(result.centers[0]).toMatchObject({ roleName: "Doctor", typeName: "Hospital" });
   });
 
   it("retries with the next sequence value when the code collides", async () => {
-    nextPersonCodeNumber.mockResolvedValueOnce(1).mockResolvedValueOnce(2);
-    createPersonWithCenters
+    nextContactCodeNumber.mockResolvedValueOnce(1).mockResolvedValueOnce(2);
+    createContactWithCenters
       .mockRejectedValueOnce({ code: "P2002", meta: { target: ["code"] } })
-      .mockResolvedValueOnce(detailRow({ code: "PER-00002" }));
+      .mockResolvedValueOnce(detailRow({ code: "CON-00002" }));
 
-    const result = await createPerson(baseInput, "actor-1");
+    const result = await createContact(baseInput, "actor-1");
 
-    expect(createPersonWithCenters).toHaveBeenCalledTimes(2);
-    expect(result.code).toBe("PER-00002");
+    expect(createContactWithCenters).toHaveBeenCalledTimes(2);
+    expect(result.code).toBe("CON-00002");
   });
 
   it("rejects the same Center twice", async () => {
     await expect(
-      createPerson(
+      createContact(
         {
           ...baseInput,
           centers: [
@@ -165,11 +165,11 @@ describe("createPerson", () => {
         },
         "actor-1",
       ),
-    ).rejects.toBeInstanceOf(DuplicatePersonCenterError);
-    expect(createPersonWithCenters).not.toHaveBeenCalled();
+    ).rejects.toBeInstanceOf(DuplicateContactCenterError);
+    expect(createContactWithCenters).not.toHaveBeenCalled();
   });
 
-  it("allows one Person at several Centers with a different role each", async () => {
+  it("allows one Contact at several Centers with a different role each", async () => {
     findCentersByIds.mockResolvedValue([
       { id: "c-1", status: "ACTIVE" },
       { id: "c-2", status: "ACTIVE" },
@@ -180,71 +180,85 @@ describe("createPerson", () => {
       { centerId: "c-2", roleAtCenterId: "r-2" },
     ];
 
-    await createPerson({ ...baseInput, centers }, "actor-1");
+    await createContact({ ...baseInput, centers }, "actor-1");
 
-    expect(createPersonWithCenters).toHaveBeenCalledWith(expect.anything(), centers, "actor-1");
+    expect(createContactWithCenters).toHaveBeenCalledWith(expect.anything(), centers, "actor-1");
   });
 
   it("rejects an inactive Territory", async () => {
     findTerritoryById.mockResolvedValue({ ...territoryRow, status: "INACTIVE" });
-    await expect(createPerson(baseInput, "a")).rejects.toBeInstanceOf(InactivePersonReferenceError);
+    await expect(createContact(baseInput, "a")).rejects.toBeInstanceOf(
+      InactiveContactReferenceError,
+    );
   });
 
   it("rejects an inactive Center", async () => {
     findCentersByIds.mockResolvedValue([{ id: "c-1", status: "INACTIVE" }]);
-    await expect(createPerson(baseInput, "a")).rejects.toBeInstanceOf(InactivePersonReferenceError);
+    await expect(createContact(baseInput, "a")).rejects.toBeInstanceOf(
+      InactiveContactReferenceError,
+    );
   });
 
   it("rejects unknown references", async () => {
-    findPersonTypeById.mockResolvedValue(null);
-    await expect(createPerson(baseInput, "a")).rejects.toBeInstanceOf(InvalidPersonReferenceError);
+    findContactTypeById.mockResolvedValue(null);
+    await expect(createContact(baseInput, "a")).rejects.toBeInstanceOf(
+      InvalidContactReferenceError,
+    );
 
-    findPersonTypeById.mockResolvedValue({ id: "pt-1" });
+    findContactTypeById.mockResolvedValue({ id: "pt-1" });
     findSpecializationById.mockResolvedValue(null);
-    await expect(createPerson(baseInput, "a")).rejects.toBeInstanceOf(InvalidPersonReferenceError);
+    await expect(createContact(baseInput, "a")).rejects.toBeInstanceOf(
+      InvalidContactReferenceError,
+    );
 
     findSpecializationById.mockResolvedValue({ id: "sp-1" });
     findTerritoryById.mockResolvedValue(null);
-    await expect(createPerson(baseInput, "a")).rejects.toBeInstanceOf(InvalidPersonReferenceError);
+    await expect(createContact(baseInput, "a")).rejects.toBeInstanceOf(
+      InvalidContactReferenceError,
+    );
 
     findTerritoryById.mockResolvedValue(territoryRow);
     findCentersByIds.mockResolvedValue([]);
-    await expect(createPerson(baseInput, "a")).rejects.toBeInstanceOf(InvalidPersonReferenceError);
+    await expect(createContact(baseInput, "a")).rejects.toBeInstanceOf(
+      InvalidContactReferenceError,
+    );
 
     findCentersByIds.mockResolvedValue([{ id: "c-1", status: "ACTIVE" }]);
     findCenterRolesByIds.mockResolvedValue([]);
-    await expect(createPerson(baseInput, "a")).rejects.toBeInstanceOf(InvalidPersonReferenceError);
+    await expect(createContact(baseInput, "a")).rejects.toBeInstanceOf(
+      InvalidContactReferenceError,
+    );
   });
 });
 
-describe("updatePerson", () => {
-  const updateInput = { ...baseInput, id: "person-1" };
+describe("updateContact", () => {
+  const updateInput = { ...baseInput, id: "contact-1" };
 
   beforeEach(() => {
-    findPersonReferenceIds.mockResolvedValue({
-      personTypeId: "pt-1",
+    findContactReferenceIds.mockResolvedValue({
+      contactTypeId: "pt-1",
       specializationId: "sp-1",
       territoryId: "ter-1",
     });
-    findPersonCenterLinks.mockResolvedValue([{ centerId: "c-1", roleAtCenterId: "r-1" }]);
+    findContactCenterLinks.mockResolvedValue([{ centerId: "c-1", roleAtCenterId: "r-1" }]);
   });
 
   it("never sends a code, so it stays immutable", async () => {
-    await updatePerson(updateInput, "actor-1");
+    await updateContact(updateInput, "actor-1");
 
-    const data = updatePersonWithCenters.mock.calls[0]![1];
+    const data = updateContactWithCenters.mock.calls[0]![1];
     expect(data).not.toHaveProperty("code");
-    expect(nextPersonCodeNumber).not.toHaveBeenCalled();
+    expect(nextContactCodeNumber).not.toHaveBeenCalled();
   });
 
   it("passes the replaced association set, including changed roles", async () => {
     findCenterRolesByIds.mockResolvedValue([{ id: "r-9" }]);
     const centers = [{ centerId: "c-1", roleAtCenterId: "r-9" }];
 
-    await updatePerson({ ...updateInput, centers }, "actor-1");
+    await updateContact({ ...updateInput, centers }, "actor-1");
 
-    expect(updatePersonWithCenters).toHaveBeenCalledWith(
-      "person-1",
+    expect(updateContactWithCenters).toHaveBeenCalledWith(
+      "contact-1",
       expect.anything(),
       centers,
       "actor-1",
@@ -253,7 +267,7 @@ describe("updatePerson", () => {
 
   it("does not block saving when an untouched existing Center was later deactivated", async () => {
     findCentersByIds.mockResolvedValue([{ id: "c-1", status: "INACTIVE" }]);
-    await expect(updatePerson(updateInput, "actor-1")).resolves.toBeDefined();
+    await expect(updateContact(updateInput, "actor-1")).resolves.toBeDefined();
   });
 
   it("rejects a newly added inactive Center", async () => {
@@ -263,7 +277,7 @@ describe("updatePerson", () => {
     ]);
     findCenterRolesByIds.mockResolvedValue([{ id: "r-1" }]);
     await expect(
-      updatePerson(
+      updateContact(
         {
           ...updateInput,
           centers: [
@@ -273,54 +287,56 @@ describe("updatePerson", () => {
         },
         "actor-1",
       ),
-    ).rejects.toBeInstanceOf(InactivePersonReferenceError);
+    ).rejects.toBeInstanceOf(InactiveContactReferenceError);
   });
 
   it("allows keeping an inactive current Territory but rejects switching to one", async () => {
     findTerritoryById.mockResolvedValue({ ...territoryRow, status: "INACTIVE" });
-    await expect(updatePerson(updateInput, "actor-1")).resolves.toBeDefined();
+    await expect(updateContact(updateInput, "actor-1")).resolves.toBeDefined();
 
-    findPersonReferenceIds.mockResolvedValue({
-      personTypeId: "pt-1",
+    findContactReferenceIds.mockResolvedValue({
+      contactTypeId: "pt-1",
       specializationId: "sp-1",
       territoryId: "other-territory",
     });
-    await expect(updatePerson(updateInput, "actor-1")).rejects.toBeInstanceOf(
-      InactivePersonReferenceError,
+    await expect(updateContact(updateInput, "actor-1")).rejects.toBeInstanceOf(
+      InactiveContactReferenceError,
     );
   });
 
-  it("throws for a missing Person", async () => {
-    findPersonReferenceIds.mockResolvedValue(null);
-    await expect(updatePerson(updateInput, "actor-1")).rejects.toBeInstanceOf(PersonNotFoundError);
+  it("throws for a missing Contact", async () => {
+    findContactReferenceIds.mockResolvedValue(null);
+    await expect(updateContact(updateInput, "actor-1")).rejects.toBeInstanceOf(
+      ContactNotFoundError,
+    );
   });
 });
 
-describe("listPersons", () => {
+describe("listContacts", () => {
   it("is organisation-wide: filters go straight to the query with no user scope", async () => {
-    findPersons.mockResolvedValue([detailRow()]);
-    countPersons.mockResolvedValue(1);
+    findContacts.mockResolvedValue([detailRow()]);
+    countContacts.mockResolvedValue(1);
     const filters = { page: 1, pageSize: 5, q: "dr", centerTypeId: "ct-1" };
 
-    const result = await listPersons(filters);
+    const result = await listContacts(filters);
 
-    expect(findPersons).toHaveBeenCalledWith(filters);
+    expect(findContacts).toHaveBeenCalledWith(filters);
     expect(result).toMatchObject({ total: 1, page: 1, pageSize: 5 });
-    expect(result.items[0]).toMatchObject({ code: "PER-00001", centerCount: 1 });
+    expect(result.items[0]).toMatchObject({ code: "CON-00001", centerCount: 1 });
   });
 });
 
-describe("setPersonStatus", () => {
+describe("setContactStatus", () => {
   it("flips the status without deleting anything", async () => {
-    findPersonReferenceIds.mockResolvedValue({ territoryId: "ter-1" });
-    await setPersonStatus("person-1", "INACTIVE", "actor-1");
-    expect(setPersonStatusRow).toHaveBeenCalledWith("person-1", "INACTIVE", "actor-1");
+    findContactReferenceIds.mockResolvedValue({ territoryId: "ter-1" });
+    await setContactStatus("contact-1", "INACTIVE", "actor-1");
+    expect(setContactStatusRow).toHaveBeenCalledWith("contact-1", "INACTIVE", "actor-1");
   });
 
-  it("throws for a missing Person", async () => {
-    findPersonReferenceIds.mockResolvedValue(null);
-    await expect(setPersonStatus("nope", "ACTIVE", "a")).rejects.toBeInstanceOf(
-      PersonNotFoundError,
+  it("throws for a missing Contact", async () => {
+    findContactReferenceIds.mockResolvedValue(null);
+    await expect(setContactStatus("nope", "ACTIVE", "a")).rejects.toBeInstanceOf(
+      ContactNotFoundError,
     );
   });
 });
@@ -336,7 +352,7 @@ describe("lookups", () => {
     const existing = { id: "pt-1", code: "MEDECIN", name: "MÉDECIN" };
     findLookupByCode.mockResolvedValue(existing);
 
-    const result = await createLookupValue({ kind: "personType", name: "médecin" }, "actor-1");
+    const result = await createLookupValue({ kind: "contactType", name: "médecin" }, "actor-1");
 
     expect(result).toBe(existing);
     expect(createLookup).not.toHaveBeenCalled();
@@ -346,9 +362,9 @@ describe("lookups", () => {
     findLookupByCode.mockResolvedValue(null);
     createLookup.mockResolvedValue({ id: "n-1", code: "SAGE_FEMME", name: "Sage-femme" });
 
-    await createLookupValue({ kind: "personType", name: "Sage-femme" }, "actor-1");
+    await createLookupValue({ kind: "contactType", name: "Sage-femme" }, "actor-1");
 
-    expect(createLookup).toHaveBeenCalledWith("personType", {
+    expect(createLookup).toHaveBeenCalledWith("contactType", {
       code: "SAGE_FEMME",
       name: "Sage-femme",
       createdBy: "actor-1",

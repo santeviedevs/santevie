@@ -2,71 +2,71 @@ import { slugifyLookupName } from "@/lib/lookup-slug";
 import type { PagedResult } from "@/lib/pagination";
 import type {
   CenterOption,
+  ContactFilters,
+  CreateContactInput,
   CreateLookupInput,
-  CreatePersonInput,
-  PersonFilters,
-  UpdatePersonInput,
-} from "@/lib/schemas/person";
+  UpdateContactInput,
+} from "@/lib/schemas/contact";
 import {
   listActiveCentersForSelection,
   listCenterTypes,
 } from "@/server/repositories/center-repository";
 import {
-  countPersons,
+  type ContactDetailRow,
+  type ContactListRow,
+  countContacts,
+  createContactWithCenters,
   createLookup,
-  createPersonWithCenters,
   findCenterRolesByIds,
   findCentersByIds,
+  findContactById,
+  findContactCenterLinks,
+  findContactReferenceIds,
+  findContacts,
+  findContactTypeById,
   findLookupByCode,
-  findPersonById,
-  findPersonCenterLinks,
-  findPersonReferenceIds,
-  findPersons,
-  findPersonTypeById,
   findSpecializationById,
   listCenterRoles,
-  listPersonTypes,
+  listContactTypes,
   listSpecializations,
   type LookupRow,
-  nextPersonCodeNumber,
-  type PersonDetailRow,
-  type PersonListRow,
-  setPersonStatus as setPersonStatusRow,
-  updatePersonWithCenters,
-} from "@/server/repositories/person-repository";
+  nextContactCodeNumber,
+  setContactStatus as setContactStatusRow,
+  updateContactWithCenters,
+} from "@/server/repositories/contact-repository";
 import { findTerritoryById } from "@/server/repositories/territory-repository";
 import { listActiveTerritoryOptions } from "@/server/services/territory-service";
 
-export class PersonNotFoundError extends Error {
+export class ContactNotFoundError extends Error {
   constructor() {
-    super("Person not found.");
-    this.name = "PersonNotFoundError";
+    super("Contact not found.");
+    this.name = "ContactNotFoundError";
   }
 }
 
 // A reference (type, specialization, territory, center, role) that doesn't
 // exist at all — never trust an id just because the form offered it.
-export class InvalidPersonReferenceError extends Error {
+export class InvalidContactReferenceError extends Error {
   constructor(what: string) {
     super(`The selected ${what} does not exist.`);
-    this.name = "InvalidPersonReferenceError";
+    this.name = "InvalidContactReferenceError";
   }
 }
 
 // A newly selected Territory or Center that is inactive. An association
-// that was already on the Person and is left untouched is exempt, so a
-// Person stays editable after one of its Centers is later deactivated.
-export class InactivePersonReferenceError extends Error {
+// that was already on the Contact and is left untouched is exempt, so a
+// Contact stays editable after one of its Centers is later deactivated.
+export class InactiveContactReferenceError extends Error {
   constructor(what: string) {
     super(`The selected ${what} is not active.`);
-    this.name = "InactivePersonReferenceError";
+    this.name = "InactiveContactReferenceError";
   }
 }
 
-export class DuplicatePersonCenterError extends Error {
+export class DuplicateContactCenterError extends Error {
   constructor() {
-    super("This center is already associated with the person.");
-    this.name = "DuplicatePersonCenterError";
+    super("This center is already associated with the contact.");
+    this.name = "DuplicateContactCenterError";
   }
 }
 
@@ -95,11 +95,11 @@ function targets(error: { meta?: { target?: unknown } }, needle: string): boolea
     : Array.isArray(target) && target.some((t) => String(t).includes(needle));
 }
 
-// --- Person code (isolated so the format can change without touching the
+// --- Contact code (isolated so the format can change without touching the
 // model or the UI) ---
 
-export function formatPersonCode(n: number): string {
-  return `PER-${String(n).padStart(5, "0")}`;
+export function formatContactCode(n: number): string {
+  return `CON-${String(n).padStart(5, "0")}`;
 }
 
 // --- DTOs (never hand a Prisma row to the client) ---
@@ -119,20 +119,20 @@ function territoryLabel(t: TerritoryLike): string {
     .join(" › ");
 }
 
-export type PersonSummary = {
+export type ContactSummary = {
   id: string;
   code: string;
   name: string;
   gender: "MALE" | "FEMALE" | "OTHER" | null;
   mobile: string | null;
   status: "ACTIVE" | "INACTIVE";
-  personType: { id: string; code: string; name: string };
+  contactType: { id: string; code: string; name: string };
   specialization: { id: string; code: string; name: string };
   territory: { id: string; code: string; label: string };
   centerCount: number;
 };
 
-export type PersonCenterView = {
+export type ContactCenterView = {
   centerId: string;
   code: string;
   name: string;
@@ -142,12 +142,12 @@ export type PersonCenterView = {
   roleName: string;
 };
 
-export type PersonDetail = PersonSummary & {
-  centers: PersonCenterView[];
+export type ContactDetail = ContactSummary & {
+  centers: ContactCenterView[];
   territoryStatus: "ACTIVE" | "INACTIVE";
 };
 
-function toSummary(row: PersonListRow): PersonSummary {
+function toSummary(row: ContactListRow): ContactSummary {
   return {
     id: row.id,
     code: row.code,
@@ -155,7 +155,7 @@ function toSummary(row: PersonListRow): PersonSummary {
     gender: row.gender,
     mobile: row.mobile,
     status: row.status,
-    personType: { id: row.personType.id, code: row.personType.code, name: row.personType.name },
+    contactType: { id: row.contactType.id, code: row.contactType.code, name: row.contactType.name },
     specialization: {
       id: row.specialization.id,
       code: row.specialization.code,
@@ -170,7 +170,7 @@ function toSummary(row: PersonListRow): PersonSummary {
   };
 }
 
-function toDetail(row: PersonDetailRow): PersonDetail {
+function toDetail(row: ContactDetailRow): ContactDetail {
   return {
     ...toSummary(row),
     territoryStatus: row.territory.status,
@@ -188,18 +188,18 @@ function toDetail(row: PersonDetailRow): PersonDetail {
 
 // --- Reads ---
 
-export async function listPersons(filters: PersonFilters): Promise<PagedResult<PersonSummary>> {
-  const [rows, total] = await Promise.all([findPersons(filters), countPersons(filters)]);
+export async function listContacts(filters: ContactFilters): Promise<PagedResult<ContactSummary>> {
+  const [rows, total] = await Promise.all([findContacts(filters), countContacts(filters)]);
   return { items: rows.map(toSummary), total, page: filters.page, pageSize: filters.pageSize };
 }
 
-export async function getPerson(id: string): Promise<PersonDetail | null> {
-  const row = await findPersonById(id);
+export async function getContact(id: string): Promise<ContactDetail | null> {
+  const row = await findContactById(id);
   return row ? toDetail(row) : null;
 }
 
-export type PersonFormOptions = {
-  personTypes: LookupRow[];
+export type ContactFormOptions = {
+  contactTypes: LookupRow[];
   specializations: LookupRow[];
   centerRoles: LookupRow[];
   territories: { id: string; code: string; label: string }[];
@@ -208,11 +208,11 @@ export type PersonFormOptions = {
 
 // `current` (edit only) is merged into the option lists: its Territory or
 // Centers may have been deactivated since, and the form still has to be able
-// to display what the Person currently holds.
-export async function getPersonFormOptions(current?: PersonDetail): Promise<PersonFormOptions> {
-  const [personTypes, specializations, centerRoles, territories, activeCenters, centerTypes] =
+// to display what the Contact currently holds.
+export async function getContactFormOptions(current?: ContactDetail): Promise<ContactFormOptions> {
+  const [contactTypes, specializations, centerRoles, territories, activeCenters, centerTypes] =
     await Promise.all([
-      listPersonTypes(),
+      listContactTypes(),
       listSpecializations(),
       listCenterRoles(),
       listActiveTerritoryOptions(),
@@ -243,17 +243,17 @@ export async function getPersonFormOptions(current?: PersonDetail): Promise<Pers
     territoryOptions.push(current.territory);
   }
 
-  return { personTypes, specializations, centerRoles, territories: territoryOptions, centers };
+  return { contactTypes, specializations, centerRoles, territories: territoryOptions, centers };
 }
 
-export async function getPersonFilterOptions() {
-  const [personTypes, specializations, centerTypes, territories] = await Promise.all([
-    listPersonTypes(),
+export async function getContactFilterOptions() {
+  const [contactTypes, specializations, centerTypes, territories] = await Promise.all([
+    listContactTypes(),
     listSpecializations(),
     listCenterTypes(),
     listActiveTerritoryOptions(),
   ]);
-  return { personTypes, specializations, centerTypes, territories };
+  return { contactTypes, specializations, centerTypes, territories };
 }
 
 // --- Lookup create-or-select ---
@@ -292,8 +292,8 @@ export async function createLookupValue(
 // --- Writes ---
 
 type References = Pick<
-  CreatePersonInput,
-  "personTypeId" | "specializationId" | "territoryId" | "centers"
+  CreateContactInput,
+  "contactTypeId" | "specializationId" | "territoryId" | "centers"
 >;
 
 async function assertReferences(
@@ -303,22 +303,22 @@ async function assertReferences(
     centers: { centerId: string; roleAtCenterId: string }[];
   },
 ): Promise<void> {
-  if (!(await findPersonTypeById(input.personTypeId))) {
-    throw new InvalidPersonReferenceError("person type");
+  if (!(await findContactTypeById(input.contactTypeId))) {
+    throw new InvalidContactReferenceError("contact type");
   }
   if (!(await findSpecializationById(input.specializationId))) {
-    throw new InvalidPersonReferenceError("specialization");
+    throw new InvalidContactReferenceError("specialization");
   }
 
   const territory = await findTerritoryById(input.territoryId);
-  if (!territory) throw new InvalidPersonReferenceError("territory");
+  if (!territory) throw new InvalidContactReferenceError("territory");
   if (territory.status === "INACTIVE" && input.territoryId !== current.territoryId) {
-    throw new InactivePersonReferenceError("territory");
+    throw new InactiveContactReferenceError("territory");
   }
 
   const seen = new Set<string>();
   for (const center of input.centers) {
-    if (seen.has(center.centerId)) throw new DuplicatePersonCenterError();
+    if (seen.has(center.centerId)) throw new DuplicateContactCenterError();
     seen.add(center.centerId);
   }
 
@@ -328,65 +328,65 @@ async function assertReferences(
     centerIds.length ? findCentersByIds(centerIds) : Promise.resolve([]),
     roleIds.length ? findCenterRolesByIds(roleIds) : Promise.resolve([]),
   ]);
-  if (centers.length !== centerIds.length) throw new InvalidPersonReferenceError("center");
-  if (roles.length !== roleIds.length) throw new InvalidPersonReferenceError("role at center");
+  if (centers.length !== centerIds.length) throw new InvalidContactReferenceError("center");
+  if (roles.length !== roleIds.length) throw new InvalidContactReferenceError("role at center");
 
   const alreadyLinked = new Set(current.centers.map((c) => c.centerId));
   for (const center of centers) {
     if (center.status === "INACTIVE" && !alreadyLinked.has(center.id)) {
-      throw new InactivePersonReferenceError("center");
+      throw new InactiveContactReferenceError("center");
     }
   }
 }
 
-export async function createPerson(
-  input: CreatePersonInput,
+export async function createContact(
+  input: CreateContactInput,
   actorId: string,
-): Promise<PersonDetail> {
+): Promise<ContactDetail> {
   await assertReferences(input, { centers: [] });
 
   const data = {
     name: input.name,
     gender: input.gender ?? null,
     mobile: input.mobile ?? null,
-    personTypeId: input.personTypeId,
+    contactTypeId: input.contactTypeId,
     specializationId: input.specializationId,
     territoryId: input.territoryId,
   };
 
   // The code comes from a Postgres sequence, so collisions shouldn't occur;
-  // the retry only covers a manually inserted PER-xxxxx row that the
+  // the retry only covers a manually inserted CON-xxxxx row that the
   // sequence hasn't caught up with.
   for (let tries = 0; tries < 5; tries++) {
-    const code = formatPersonCode(await nextPersonCodeNumber());
+    const code = formatContactCode(await nextContactCodeNumber());
     try {
-      return toDetail(await createPersonWithCenters({ ...data, code }, input.centers, actorId));
+      return toDetail(await createContactWithCenters({ ...data, code }, input.centers, actorId));
     } catch (error) {
       if (isUniqueConstraintViolation(error) && targets(error, "code")) continue;
       throw error;
     }
   }
-  throw new Error("Could not generate a unique person code.");
+  throw new Error("Could not generate a unique contact code.");
 }
 
-export async function updatePerson(
-  input: UpdatePersonInput,
+export async function updateContact(
+  input: UpdateContactInput,
   actorId: string,
-): Promise<PersonDetail> {
-  const existing = await findPersonReferenceIds(input.id);
-  if (!existing) throw new PersonNotFoundError();
-  const currentLinks = await findPersonCenterLinks(input.id);
+): Promise<ContactDetail> {
+  const existing = await findContactReferenceIds(input.id);
+  if (!existing) throw new ContactNotFoundError();
+  const currentLinks = await findContactCenterLinks(input.id);
 
   await assertReferences(input, { territoryId: existing.territoryId, centers: currentLinks });
 
   // `code` is not in the payload: it is immutable.
-  const updated = await updatePersonWithCenters(
+  const updated = await updateContactWithCenters(
     input.id,
     {
       name: input.name,
       gender: input.gender ?? null,
       mobile: input.mobile ?? null,
-      personTypeId: input.personTypeId,
+      contactTypeId: input.contactTypeId,
       specializationId: input.specializationId,
       territoryId: input.territoryId,
       ...(input.status ? { status: input.status } : {}),
@@ -397,13 +397,13 @@ export async function updatePerson(
   return toDetail(updated);
 }
 
-// Deactivation never deletes: the Person and its Center links stay intact
+// Deactivation never deletes: the Contact and its Center links stay intact
 // for history.
-export async function setPersonStatus(
+export async function setContactStatus(
   id: string,
   status: "ACTIVE" | "INACTIVE",
   actorId: string,
 ): Promise<void> {
-  if (!(await findPersonReferenceIds(id))) throw new PersonNotFoundError();
-  await setPersonStatusRow(id, status, actorId);
+  if (!(await findContactReferenceIds(id))) throw new ContactNotFoundError();
+  await setContactStatusRow(id, status, actorId);
 }

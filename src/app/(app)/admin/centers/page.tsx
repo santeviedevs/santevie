@@ -84,7 +84,7 @@ export default async function CentersPage({ searchParams }: CentersPageProps) {
               <TableHead>{t.columnType}</TableHead>
               <TableHead>{t.columnName}</TableHead>
               <TableHead>{t.columnResponsiblePerson}</TableHead>
-              <TableHead>{t.columnContact}</TableHead>
+              <TableHead>{t.columnMobileNo}</TableHead>
               <TableHead>{t.columnTerritory}</TableHead>
               <TableHead>{t.columnCoordinates}</TableHead>
               <TableHead>{t.columnStatus}</TableHead>
@@ -98,7 +98,7 @@ export default async function CentersPage({ searchParams }: CentersPageProps) {
                 <TableCell>{center.type.name}</TableCell>
                 <TableCell>{center.name}</TableCell>
                 <TableCell>{center.responsiblePerson ?? "—"}</TableCell>
-                <TableCell>{center.contact ?? "—"}</TableCell>
+                <TableCell>{center.mobileNo ?? "—"}</TableCell>
                 <TableCell>{center.territory?.code ?? "—"}</TableCell>
                 <TableCell>
                   {center.hasCoordinates ? (

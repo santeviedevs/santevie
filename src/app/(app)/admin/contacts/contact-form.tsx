@@ -21,71 +21,77 @@ import { Switch } from "@/components/ui/switch";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import {
   type CenterOption,
-  type CreatePersonInput,
-  createPersonSchema,
+  type CreateContactInput,
+  createContactSchema,
   GENDERS,
-  type UpdatePersonInput,
-  updatePersonSchema,
-} from "@/lib/schemas/person";
+  type UpdateContactInput,
+  updateContactSchema,
+} from "@/lib/schemas/contact";
 
 import { TerritoryPicker, type TerritoryPickerOption } from "../territories/territory-picker";
-import { createPersonAction, type PersonFormState, updatePersonAction } from "./actions";
+import { type ContactFormState, createContactAction, updateContactAction } from "./actions";
 import { CenterAssociationEditor } from "./center-association-editor";
 import { createLookupOption } from "./create-lookup-option";
 
 type Lookup = { id: string; code: string; name: string };
 
-type PersonFormProps = {
+type ContactFormProps = {
   mode: "create" | "edit";
   options: {
-    personTypes: Lookup[];
+    contactTypes: Lookup[];
     specializations: Lookup[];
     centerRoles: Lookup[];
     territories: TerritoryPickerOption[];
     centers: CenterOption[];
   };
-  defaultValues?: Partial<UpdatePersonInput>;
-  dict: Dictionary["persons"];
+  defaultValues?: Partial<UpdateContactInput>;
+  dict: Dictionary["contacts"];
   territoryDict: Dictionary["territory"];
 };
 
 const toOptions = (rows: Lookup[]): CreatableOption[] =>
   rows.map((row) => ({ id: row.id, label: row.name }));
 
-export function PersonForm({ mode, options, defaultValues, dict, territoryDict }: PersonFormProps) {
+export function ContactForm({
+  mode,
+  options,
+  defaultValues,
+  dict,
+  territoryDict,
+}: ContactFormProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
   const [formError, setFormError] = useState<string | null>(null);
-  const [personTypes, setPersonTypes] = useState(() => toOptions(options.personTypes));
+  const [contactTypes, setContactTypes] = useState(() => toOptions(options.contactTypes));
   const [specializations, setSpecializations] = useState(() => toOptions(options.specializations));
 
-  const schema = mode === "create" ? createPersonSchema : updatePersonSchema;
+  const schema = mode === "create" ? createContactSchema : updateContactSchema;
   const {
     register,
     handleSubmit,
     setValue,
     control,
     formState: { errors },
-  } = useForm<CreatePersonInput | UpdatePersonInput>({
+  } = useForm<CreateContactInput | UpdateContactInput>({
     resolver: zodResolver(schema),
     defaultValues: { centers: [], ...defaultValues },
   });
 
-  const personTypeId = useWatch({ control, name: "personTypeId" });
+  const contactTypeId = useWatch({ control, name: "contactTypeId" });
   const specializationId = useWatch({ control, name: "specializationId" });
   const territoryId = useWatch({ control, name: "territoryId" });
   const gender = useWatch({ control, name: "gender" });
   const centers = useWatch({ control, name: "centers" }) ?? [];
   const status = useWatch({ control, name: "status" });
 
-  const onSubmit = (values: CreatePersonInput | UpdatePersonInput) => {
+  const onSubmit = (values: CreateContactInput | UpdateContactInput) => {
     setFormError(null);
     startTransition(async () => {
       const formData = new FormData();
       if ("id" in values && values.id) formData.set("id", values.id);
       formData.set("name", values.name);
-      formData.set("personTypeId", values.personTypeId);
+      formData.set("contactTypeId", values.contactTypeId);
       if (values.gender) formData.set("gender", values.gender);
       if (values.mobile) formData.set("mobile", values.mobile);
       formData.set("specializationId", values.specializationId);
@@ -95,8 +101,8 @@ export function PersonForm({ mode, options, defaultValues, dict, territoryDict }
         formData.set("status", values.status);
       }
 
-      const action = mode === "create" ? createPersonAction : updatePersonAction;
-      const result: PersonFormState = await action({ error: null }, formData);
+      const action = mode === "create" ? createContactAction : updateContactAction;
+      const result: ContactFormState = await action({ error: null }, formData);
 
       if (result.sessionExpired) {
         router.push(`/login?callbackUrl=${encodeURIComponent(pathname)}`);
@@ -107,8 +113,8 @@ export function PersonForm({ mode, options, defaultValues, dict, territoryDict }
         return;
       }
 
-      toast.success(mode === "create" ? dict.personCreated : dict.personUpdated);
-      router.push("/admin/persons");
+      toast.success(mode === "create" ? dict.contactCreated : dict.contactUpdated);
+      router.push("/admin/contacts");
       router.refresh();
     });
   };
@@ -139,19 +145,19 @@ export function PersonForm({ mode, options, defaultValues, dict, territoryDict }
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="personTypeId">
-            {dict.personType} <span className="text-destructive">*</span>
+          <Label htmlFor="contactTypeId">
+            {dict.contactType} <span className="text-destructive">*</span>
           </Label>
           <CreatableCombobox
-            id="personTypeId"
+            id="contactTypeId"
             placeholder={dict.selectOrAddType}
-            options={personTypes}
-            value={personTypeId || null}
-            onChange={(next) => setValue("personTypeId", next ?? "", { shouldValidate: true })}
+            options={contactTypes}
+            value={contactTypeId || null}
+            onChange={(next) => setValue("contactTypeId", next ?? "", { shouldValidate: true })}
             onCreate={async (name) => {
-              const created = await createLookupOption("personType", name);
+              const created = await createLookupOption("contactType", name);
               if (!created) return null;
-              setPersonTypes((prev) =>
+              setContactTypes((prev) =>
                 prev.some((p) => p.id === created.id) ? prev : [...prev, created],
               );
               return created;
@@ -160,8 +166,8 @@ export function PersonForm({ mode, options, defaultValues, dict, territoryDict }
             noMatchesLabel={dict.noMatches}
             disabled={isPending}
           />
-          {errors.personTypeId ? (
-            <p className="text-sm text-destructive">{errors.personTypeId.message}</p>
+          {errors.contactTypeId ? (
+            <p className="text-sm text-destructive">{errors.contactTypeId.message}</p>
           ) : null}
         </div>
 
@@ -297,12 +303,12 @@ export function PersonForm({ mode, options, defaultValues, dict, territoryDict }
           type="button"
           variant="outline"
           disabled={isPending}
-          onClick={() => router.push("/admin/persons")}
+          onClick={() => router.push("/admin/contacts")}
         >
           {dict.cancel}
         </Button>
         <Button type="submit" disabled={isPending}>
-          {isPending ? dict.saving : mode === "create" ? dict.createPerson : dict.saveChanges}
+          {isPending ? dict.saving : mode === "create" ? dict.createContact : dict.saveChanges}
         </Button>
       </div>
     </form>

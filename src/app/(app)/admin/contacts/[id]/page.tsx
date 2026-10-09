@@ -13,13 +13,13 @@ import {
 } from "@/components/ui/table";
 import { getServerDictionary } from "@/lib/i18n/server";
 import { requirePermission } from "@/server/auth/require-permission";
-import { getPerson } from "@/server/services/person-service";
+import { getContact } from "@/server/services/contact-service";
 
-import { PersonStatusButton } from "../person-status-button";
+import { ContactStatusButton } from "../contact-status-button";
 
 export const dynamic = "force-dynamic";
 
-type PersonDetailPageProps = {
+type ContactDetailPageProps = {
   params: Promise<{ id: string }>;
 };
 
@@ -32,21 +32,21 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export default async function PersonDetailPage({ params }: PersonDetailPageProps) {
-  await requirePermission("persons:manage");
+export default async function ContactDetailPage({ params }: ContactDetailPageProps) {
+  await requirePermission("contacts:manage");
 
   const { id } = await params;
-  const [person, dict] = await Promise.all([getPerson(id), getServerDictionary()]);
-  if (!person) notFound();
+  const [contact, dict] = await Promise.all([getContact(id), getServerDictionary()]);
+  if (!contact) notFound();
 
-  const t = dict.persons;
+  const t = dict.contacts;
   const notProvided = <span className="text-muted-foreground">{t.notProvided}</span>;
   const genderLabel =
-    person.gender === "MALE"
+    contact.gender === "MALE"
       ? t.genderMale
-      : person.gender === "FEMALE"
+      : contact.gender === "FEMALE"
         ? t.genderFemale
-        : person.gender === "OTHER"
+        : contact.gender === "OTHER"
           ? t.genderOther
           : null;
 
@@ -54,25 +54,25 @@ export default async function PersonDetailPage({ params }: PersonDetailPageProps
     <div className="flex flex-col gap-6 p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-xl font-semibold">{person.name}</h1>
-          <Badge variant="outline">{person.code}</Badge>
-          <Badge variant={person.status === "ACTIVE" ? "default" : "secondary"}>
-            {person.status === "ACTIVE" ? t.statusActive : t.statusInactive}
+          <h1 className="text-xl font-semibold">{contact.name}</h1>
+          <Badge variant="outline">{contact.code}</Badge>
+          <Badge variant={contact.status === "ACTIVE" ? "default" : "secondary"}>
+            {contact.status === "ACTIVE" ? t.statusActive : t.statusInactive}
           </Badge>
         </div>
         <div className="flex gap-2">
-          <Button render={<Link href="/admin/persons" />} variant="ghost">
+          <Button render={<Link href="/admin/contacts" />} variant="ghost">
             {t.backToList}
           </Button>
-          <PersonStatusButton
-            personId={person.id}
-            status={person.status}
+          <ContactStatusButton
+            contactId={contact.id}
+            status={contact.status}
             activateLabel={t.activate}
             deactivateLabel={t.deactivate}
             changedLabel={t.statusChanged}
           />
-          <Button render={<Link href={`/admin/persons/${person.id}/edit`} />}>
-            {t.editPerson}
+          <Button render={<Link href={`/admin/contacts/${contact.id}/edit`} />}>
+            {t.editContact}
           </Button>
         </div>
       </div>
@@ -80,24 +80,24 @@ export default async function PersonDetailPage({ params }: PersonDetailPageProps
       <section className="flex flex-col gap-4 rounded-md border border-border p-4">
         <h2 className="text-sm font-medium">{t.basicSection}</h2>
         <div className="grid grid-cols-2 gap-4">
-          <Field label={t.codeLabel} value={person.code} />
-          <Field label={t.name} value={person.name} />
-          <Field label={t.personType} value={person.personType.name} />
+          <Field label={t.codeLabel} value={contact.code} />
+          <Field label={t.name} value={contact.name} />
+          <Field label={t.contactType} value={contact.contactType.name} />
           <Field label={t.gender} value={genderLabel ?? notProvided} />
-          <Field label={t.mobile} value={person.mobile ?? notProvided} />
+          <Field label={t.mobile} value={contact.mobile ?? notProvided} />
         </div>
       </section>
 
       <section className="flex flex-col gap-4 rounded-md border border-border p-4">
         <h2 className="text-sm font-medium">{t.professionalSection}</h2>
         <div className="grid grid-cols-2 gap-4">
-          <Field label={t.specialization} value={person.specialization.name} />
+          <Field label={t.specialization} value={contact.specialization.name} />
         </div>
       </section>
 
       <section className="flex flex-col gap-4 rounded-md border border-border p-4">
         <h2 className="text-sm font-medium">{t.territorySection}</h2>
-        <Field label={t.territory} value={person.territory.label} />
+        <Field label={t.territory} value={contact.territory.label} />
       </section>
 
       <section className="flex flex-col gap-3 rounded-md border border-border p-4">
@@ -114,7 +114,7 @@ export default async function PersonDetailPage({ params }: PersonDetailPageProps
             </TableRow>
           </TableHeader>
           <TableBody>
-            {person.centers.map((center) => (
+            {contact.centers.map((center) => (
               <TableRow key={center.centerId}>
                 <TableCell>
                   {center.name} ({center.code})
@@ -123,7 +123,7 @@ export default async function PersonDetailPage({ params }: PersonDetailPageProps
                 <TableCell>{center.roleName}</TableCell>
               </TableRow>
             ))}
-            {person.centers.length === 0 ? (
+            {contact.centers.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={3} className="text-center text-muted-foreground">
                   {t.noCenters}

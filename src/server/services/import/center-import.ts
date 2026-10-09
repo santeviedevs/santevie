@@ -17,7 +17,7 @@ export const CENTER_IMPORT_COLUMNS = [
   "name",
   "centerType",
   "responsiblePerson",
-  "contact",
+  "mobileNo",
   "address",
   "latitude",
   "longitude",
@@ -30,7 +30,7 @@ type ResolvedCenterInput = {
   name: string;
   typeId: string;
   responsiblePerson: string | null;
-  contact: string | null;
+  mobileNo: string | null;
   address: string | null;
   latitude: number | null;
   longitude: number | null;
@@ -114,7 +114,7 @@ async function resolveRow(
     name,
     typeId,
     responsiblePerson: toStringOrNull(row.responsiblePerson),
-    contact: toStringOrNull(row.contact),
+    mobileNo: toStringOrNull(row.mobileNo),
     address: toStringOrNull(row.address),
     latitude,
     longitude,
@@ -136,7 +136,7 @@ async function resolveRow(
     name,
     typeId,
     responsiblePerson: candidate.responsiblePerson,
-    contact: candidate.contact,
+    mobileNo: candidate.mobileNo,
     address: candidate.address,
     latitude,
     longitude,
@@ -186,7 +186,7 @@ export async function commitCenterImport(
           name: outcome.data.name,
           typeId: outcome.data.typeId,
           responsiblePerson: outcome.data.responsiblePerson,
-          contact: outcome.data.contact,
+          mobileNo: outcome.data.mobileNo,
           address: outcome.data.address,
           latitude: outcome.data.latitude,
           longitude: outcome.data.longitude,
@@ -204,7 +204,7 @@ export async function commitCenterImport(
           name: outcome.data.name,
           typeId: outcome.data.typeId,
           responsiblePerson: outcome.data.responsiblePerson,
-          contact: outcome.data.contact,
+          mobileNo: outcome.data.mobileNo,
           address: outcome.data.address,
           latitude: outcome.data.latitude,
           longitude: outcome.data.longitude,

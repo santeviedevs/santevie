@@ -79,7 +79,7 @@ export default async function CenterDetailPage({ params }: CenterDetailPageProps
           <Field label={formDict.code} value={center.code} />
           <Field label={formDict.name} value={center.name} />
           <Field label={t.responsiblePerson} value={center.responsiblePerson ?? notProvided} />
-          <Field label={t.contact} value={center.contact ?? notProvided} />
+          <Field label={t.mobileNo} value={center.mobileNo ?? notProvided} />
           <Field label={t.address} value={center.address ?? notProvided} />
           <Field
             label={formDict.coordinatesLabel}

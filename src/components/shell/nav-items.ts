@@ -2,12 +2,12 @@ import {
   Building2,
   Calendar,
   CalendarDays,
+  ContactRound,
   HelpCircle,
   Home,
   Map,
   MapPin,
   Package,
-  Stethoscope,
   Users,
 } from "lucide-react";
 
@@ -30,7 +30,7 @@ type NavKey =
   | "myLeaves"
   | "teamLeaves"
   | "centers"
-  | "persons"
+  | "contacts"
   | "products"
   | "plans"
   | "activitiesGroup"
@@ -146,7 +146,7 @@ export const NAV_ITEM_DEFS: NavItemDef[] = [
     ],
   },
   { href: "/admin/centers", key: "centers", icon: Building2, permission: "centers:manage" },
-  { href: "/admin/persons", key: "persons", icon: Stethoscope, permission: "persons:manage" },
+  { href: "/admin/contacts", key: "contacts", icon: ContactRound, permission: "contacts:manage" },
   { href: "/admin/products", key: "products", icon: Package, permission: "products:manage" },
   { href: "/plans", key: "plans", icon: CalendarDays, permission: "plans:respond-own" },
   {

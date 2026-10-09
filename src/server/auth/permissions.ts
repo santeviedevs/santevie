@@ -12,7 +12,7 @@ export const PERMISSIONS = [
   "roles:manage",
   "territories:manage",
   "centers:manage",
-  "persons:manage",
+  "contacts:manage",
   "products:manage",
   "targets:manage",
   "orders:view-own",
@@ -52,7 +52,7 @@ export const ROLE_PERMISSIONS: Record<RoleName, readonly Permission[]> = {
   MANAGER: [
     "territories:manage",
     "centers:manage",
-    "persons:manage",
+    "contacts:manage",
     "products:manage",
     "targets:manage",
     "orders:view-all",

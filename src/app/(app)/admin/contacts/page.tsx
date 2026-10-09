@@ -13,18 +13,18 @@ import {
 } from "@/components/ui/table";
 import { getServerDictionary } from "@/lib/i18n/server";
 import { totalPages } from "@/lib/pagination";
-import { personFiltersSchema } from "@/lib/schemas/person";
+import { contactFiltersSchema } from "@/lib/schemas/contact";
 import { requirePermission } from "@/server/auth/require-permission";
-import { getPersonFilterOptions, listPersons } from "@/server/services/person-service";
+import { getContactFilterOptions, listContacts } from "@/server/services/contact-service";
 
-import { PersonFilters } from "./person-filters";
-import { PersonStatusButton } from "./person-status-button";
+import { ContactFilters } from "./contact-filters";
+import { ContactStatusButton } from "./contact-status-button";
 
-// Persons are organisation-wide and filtered per request; never let this be
+// Contacts are organisation-wide and filtered per request; never let this be
 // statically cached (execution plan, Section 4).
 export const dynamic = "force-dynamic";
 
-type PersonsPageProps = {
+type ContactsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
@@ -33,13 +33,13 @@ function firstValue(value: string | string[] | undefined): string | undefined {
   return single === "" ? undefined : single;
 }
 
-export default async function PersonsPage({ searchParams }: PersonsPageProps) {
-  await requirePermission("persons:manage");
+export default async function ContactsPage({ searchParams }: ContactsPageProps) {
+  await requirePermission("contacts:manage");
 
   const params = await searchParams;
-  const filters = personFiltersSchema.parse({
+  const filters = contactFiltersSchema.parse({
     q: firstValue(params.q),
-    personTypeId: firstValue(params.personTypeId),
+    contactTypeId: firstValue(params.contactTypeId),
     specializationId: firstValue(params.specializationId),
     centerTypeId: firstValue(params.centerTypeId),
     territoryId: firstValue(params.territoryId),
@@ -48,12 +48,12 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
     pageSize: firstValue(params.pageSize),
   });
 
-  const [{ items: persons, total }, filterOptions, dict] = await Promise.all([
-    listPersons(filters),
-    getPersonFilterOptions(),
+  const [{ items: contacts, total }, filterOptions, dict] = await Promise.all([
+    listContacts(filters),
+    getContactFilterOptions(),
     getServerDictionary(),
   ]);
-  const t = dict.persons;
+  const t = dict.contacts;
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -62,11 +62,11 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
           <h1 className="text-xl font-semibold">{t.title}</h1>
           <p className="text-sm text-muted-foreground">{t.description}</p>
         </div>
-        <Button render={<Link href="/admin/persons/new" />}>+ {t.addPerson}</Button>
+        <Button render={<Link href="/admin/contacts/new" />}>+ {t.addContact}</Button>
       </div>
 
-      <PersonFilters
-        personTypes={filterOptions.personTypes}
+      <ContactFilters
+        contactTypes={filterOptions.contactTypes}
         specializations={filterOptions.specializations}
         centerTypes={filterOptions.centerTypes}
         territories={filterOptions.territories}
@@ -80,7 +80,7 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
           <TableHeader>
             <TableRow>
               <TableHead>{t.columnCode}</TableHead>
-              <TableHead>{t.columnPerson}</TableHead>
+              <TableHead>{t.columnContact}</TableHead>
               <TableHead>{t.columnType}</TableHead>
               <TableHead>{t.columnSpecialization}</TableHead>
               <TableHead>{t.columnMobile}</TableHead>
@@ -91,40 +91,40 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {persons.map((person) => (
-              <TableRow key={person.id}>
-                <TableCell>{person.code}</TableCell>
-                <TableCell>{person.name}</TableCell>
-                <TableCell>{person.personType.name}</TableCell>
-                <TableCell>{person.specialization.name}</TableCell>
-                <TableCell>{person.mobile ?? "—"}</TableCell>
-                <TableCell>{person.territory.label}</TableCell>
+            {contacts.map((contact) => (
+              <TableRow key={contact.id}>
+                <TableCell>{contact.code}</TableCell>
+                <TableCell>{contact.name}</TableCell>
+                <TableCell>{contact.contactType.name}</TableCell>
+                <TableCell>{contact.specialization.name}</TableCell>
+                <TableCell>{contact.mobile ?? "—"}</TableCell>
+                <TableCell>{contact.territory.label}</TableCell>
                 <TableCell>
-                  {person.centerCount} {t.centersLabel}
+                  {contact.centerCount} {t.centersLabel}
                 </TableCell>
                 <TableCell>
-                  <Badge variant={person.status === "ACTIVE" ? "default" : "secondary"}>
-                    {person.status === "ACTIVE" ? t.statusActive : t.statusInactive}
+                  <Badge variant={contact.status === "ACTIVE" ? "default" : "secondary"}>
+                    {contact.status === "ACTIVE" ? t.statusActive : t.statusInactive}
                   </Badge>
                 </TableCell>
                 <TableCell className="flex justify-end gap-2">
                   <Button
-                    render={<Link href={`/admin/persons/${person.id}`} />}
+                    render={<Link href={`/admin/contacts/${contact.id}`} />}
                     variant="ghost"
                     size="sm"
                   >
                     {t.view}
                   </Button>
                   <Button
-                    render={<Link href={`/admin/persons/${person.id}/edit`} />}
+                    render={<Link href={`/admin/contacts/${contact.id}/edit`} />}
                     variant="outline"
                     size="sm"
                   >
                     {t.edit}
                   </Button>
-                  <PersonStatusButton
-                    personId={person.id}
-                    status={person.status}
+                  <ContactStatusButton
+                    contactId={contact.id}
+                    status={contact.status}
                     activateLabel={t.activate}
                     deactivateLabel={t.deactivate}
                     changedLabel={t.statusChanged}
@@ -132,7 +132,7 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
                 </TableCell>
               </TableRow>
             ))}
-            {persons.length === 0 ? (
+            {contacts.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="text-center text-muted-foreground">
                   {t.noResults}

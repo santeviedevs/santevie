@@ -81,7 +81,7 @@ export function CenterForm({ mode, options, defaultValues, dict, territoryDict }
       if (values.responsiblePerson) {
         formData.set("responsiblePerson", values.responsiblePerson);
       }
-      if (values.contact) formData.set("contact", values.contact);
+      if (values.mobileNo) formData.set("mobileNo", values.mobileNo);
       if (values.address) formData.set("address", values.address);
       if (values.latitude !== null && values.latitude !== undefined) {
         formData.set("latitude", String(values.latitude));
@@ -180,8 +180,8 @@ export function CenterForm({ mode, options, defaultValues, dict, territoryDict }
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="contact">{dict.contact}</Label>
-        <Input id="contact" disabled={isPending} {...register("contact")} />
+        <Label htmlFor="mobileNo">{dict.mobileNo}</Label>
+        <Input id="mobileNo" disabled={isPending} {...register("mobileNo")} />
       </div>
 
       <div className="flex flex-col gap-2">

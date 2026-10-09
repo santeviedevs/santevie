@@ -1,5 +1,5 @@
 // Uppercase, accent-free slug: "Médecin Généraliste" -> "MEDECIN_GENERALISTE".
-// Used as the code of the Person lookup tables (person type, specialization,
+// Used as the code of the Contact lookup tables (contact type, specialization,
 // role at center), which makes the unique index a case- and
 // accent-insensitive duplicate guard on the typed name. Shared by the
 // service (values typed into the comboboxes) and the seed, so both always

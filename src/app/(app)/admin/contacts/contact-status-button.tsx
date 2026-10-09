@@ -6,18 +6,18 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 
-import { setPersonStatusAction } from "./actions";
+import { setContactStatusAction } from "./actions";
 
 // Activate / Deactivate row action. Deactivation only flips the status —
-// the Person and its Center links are kept.
-export function PersonStatusButton({
-  personId,
+// the Contact and its Center links are kept.
+export function ContactStatusButton({
+  contactId,
   status,
   activateLabel,
   deactivateLabel,
   changedLabel,
 }: {
-  personId: string;
+  contactId: string;
   status: "ACTIVE" | "INACTIVE";
   activateLabel: string;
   deactivateLabel: string;
@@ -37,7 +37,7 @@ export function PersonStatusButton({
       disabled={isPending}
       onClick={() =>
         startTransition(async () => {
-          const result = await setPersonStatusAction(personId, next);
+          const result = await setContactStatusAction(contactId, next);
           if (result.sessionExpired) {
             router.push(`/login?callbackUrl=${encodeURIComponent(pathname)}`);
             return;

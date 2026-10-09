@@ -13,13 +13,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { Dictionary } from "@/lib/i18n/dictionary";
-import type { CenterOption, PersonCenterInput } from "@/lib/schemas/person";
+import type { CenterOption, ContactCenterInput } from "@/lib/schemas/contact";
 
 import { createLookupOption } from "./create-lookup-option";
 
-// The Person <-> Center association editor: pick a Center, pick the role the
-// Person holds at *that* Center, add the row. A Center can only appear once
-// (mirrors the database's unique(personId, centerId)); the server re-checks.
+// The Contact <-> Center association editor: pick a Center, pick the role the
+// Contact holds at *that* Center, add the row. A Center can only appear once
+// (mirrors the database's unique(contactId, centerId)); the server re-checks.
 export function CenterAssociationEditor({
   centers,
   roles: initialRoles,
@@ -30,9 +30,9 @@ export function CenterAssociationEditor({
 }: {
   centers: CenterOption[];
   roles: CreatableOption[];
-  value: PersonCenterInput[];
-  onChange: (next: PersonCenterInput[]) => void;
-  dict: Dictionary["persons"];
+  value: ContactCenterInput[];
+  onChange: (next: ContactCenterInput[]) => void;
+  dict: Dictionary["contacts"];
   disabled?: boolean;
 }) {
   const [roles, setRoles] = useState(initialRoles);

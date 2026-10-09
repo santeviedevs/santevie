@@ -1,5 +1,5 @@
 import { toSkipTake } from "@/lib/pagination";
-import type { LookupKind, PersonFilters } from "@/lib/schemas/person";
+import type { ContactFilters, LookupKind } from "@/lib/schemas/contact";
 import { prisma } from "@/server/db";
 
 import type { Prisma } from "../../../generated/prisma/client";
@@ -16,17 +16,17 @@ const territorySelect = {
   },
 } satisfies { select: Prisma.TerritorySelect };
 
-// List rows only need how many Centers a Person has, not the Centers
+// List rows only need how many Centers a Contact has, not the Centers
 // themselves — a _count avoids loading (and N+1-ing) every association.
 const listInclude = {
-  personType: true,
+  contactType: true,
   specialization: true,
   territory: territorySelect,
   _count: { select: { centers: true } },
-} satisfies Prisma.PersonInclude;
+} satisfies Prisma.ContactInclude;
 
 const detailInclude = {
-  personType: true,
+  contactType: true,
   specialization: true,
   territory: territorySelect,
   centers: {
@@ -37,17 +37,17 @@ const detailInclude = {
     orderBy: { center: { name: "asc" } },
   },
   _count: { select: { centers: true } },
-} satisfies Prisma.PersonInclude;
+} satisfies Prisma.ContactInclude;
 
-export type PersonListRow = Prisma.PersonGetPayload<{ include: typeof listInclude }>;
-export type PersonDetailRow = Prisma.PersonGetPayload<{ include: typeof detailInclude }>;
+export type ContactListRow = Prisma.ContactGetPayload<{ include: typeof listInclude }>;
+export type ContactDetailRow = Prisma.ContactGetPayload<{ include: typeof detailInclude }>;
 
-// Persons are organisation-wide for ADMIN and MANAGER — there is deliberately
+// Contacts are organisation-wide for ADMIN and MANAGER — there is deliberately
 // no scope/hierarchy filter here (see server/scope.ts, which is for
 // user-attributable rows).
-function buildWhere(filters: PersonFilters): Prisma.PersonWhereInput {
+function buildWhere(filters: ContactFilters): Prisma.ContactWhereInput {
   return {
-    ...(filters.personTypeId ? { personTypeId: filters.personTypeId } : {}),
+    ...(filters.contactTypeId ? { contactTypeId: filters.contactTypeId } : {}),
     ...(filters.specializationId ? { specializationId: filters.specializationId } : {}),
     ...(filters.territoryId ? { territoryId: filters.territoryId } : {}),
     ...(filters.status ? { status: filters.status } : {}),
@@ -66,8 +66,8 @@ function buildWhere(filters: PersonFilters): Prisma.PersonWhereInput {
   };
 }
 
-export function findPersons(filters: PersonFilters): Promise<PersonListRow[]> {
-  return prisma.person.findMany({
+export function findContacts(filters: ContactFilters): Promise<ContactListRow[]> {
+  return prisma.contact.findMany({
     where: buildWhere(filters),
     include: listInclude,
     orderBy: [{ name: "asc" }, { id: "asc" }],
@@ -75,34 +75,34 @@ export function findPersons(filters: PersonFilters): Promise<PersonListRow[]> {
   });
 }
 
-export function countPersons(filters: PersonFilters): Promise<number> {
-  return prisma.person.count({ where: buildWhere(filters) });
+export function countContacts(filters: ContactFilters): Promise<number> {
+  return prisma.contact.count({ where: buildWhere(filters) });
 }
 
-export function findPersonById(id: string): Promise<PersonDetailRow | null> {
-  return prisma.person.findUnique({ where: { id }, include: detailInclude });
+export function findContactById(id: string): Promise<ContactDetailRow | null> {
+  return prisma.contact.findUnique({ where: { id }, include: detailInclude });
 }
 
 // Existing links, so an edit can tell which associations are untouched
 // (exempt from the active-reference check) from new or changed ones.
-export function findPersonCenterLinks(personId: string) {
-  return prisma.personCenter.findMany({
-    where: { personId },
+export function findContactCenterLinks(contactId: string) {
+  return prisma.contactCenter.findMany({
+    where: { contactId },
     select: { centerId: true, roleAtCenterId: true },
   });
 }
 
-export function findPersonReferenceIds(personId: string) {
-  return prisma.person.findUnique({
-    where: { id: personId },
-    select: { personTypeId: true, specializationId: true, territoryId: true },
+export function findContactReferenceIds(contactId: string) {
+  return prisma.contact.findUnique({
+    where: { id: contactId },
+    select: { contactTypeId: true, specializationId: true, territoryId: true },
   });
 }
 
 // --- Lookups ---
 
-export function listPersonTypes() {
-  return prisma.personType.findMany({
+export function listContactTypes() {
+  return prisma.contactType.findMany({
     select: { id: true, code: true, name: true },
     orderBy: { name: "asc" },
   });
@@ -116,14 +116,14 @@ export function listSpecializations() {
 }
 
 export function listCenterRoles() {
-  return prisma.personCenterRole.findMany({
+  return prisma.contactCenterRole.findMany({
     select: { id: true, code: true, name: true },
     orderBy: { name: "asc" },
   });
 }
 
-export function findPersonTypeById(id: string) {
-  return prisma.personType.findUnique({ where: { id }, select: { id: true } });
+export function findContactTypeById(id: string) {
+  return prisma.contactType.findUnique({ where: { id }, select: { id: true } });
 }
 
 export function findSpecializationById(id: string) {
@@ -131,7 +131,7 @@ export function findSpecializationById(id: string) {
 }
 
 export function findCenterRolesByIds(ids: string[]) {
-  return prisma.personCenterRole.findMany({
+  return prisma.contactCenterRole.findMany({
     where: { id: { in: ids } },
     select: { id: true },
   });
@@ -154,55 +154,55 @@ export function findLookupByCode(kind: LookupKind, code: string): Promise<Lookup
   const where = { code };
   const select = { id: true, code: true, name: true };
   switch (kind) {
-    case "personType":
-      return prisma.personType.findUnique({ where, select });
+    case "contactType":
+      return prisma.contactType.findUnique({ where, select });
     case "specialization":
       return prisma.specialization.findUnique({ where, select });
     case "centerRole":
-      return prisma.personCenterRole.findUnique({ where, select });
+      return prisma.contactCenterRole.findUnique({ where, select });
   }
 }
 
 export function createLookup(kind: LookupKind, data: LookupData): Promise<LookupRow> {
   const select = { id: true, code: true, name: true };
   switch (kind) {
-    case "personType":
-      return prisma.personType.create({ data, select });
+    case "contactType":
+      return prisma.contactType.create({ data, select });
     case "specialization":
       return prisma.specialization.create({ data, select });
     case "centerRole":
-      return prisma.personCenterRole.create({ data, select });
+      return prisma.contactCenterRole.create({ data, select });
   }
 }
 
-// --- Person code ---
+// --- Contact code ---
 
-export async function nextPersonCodeNumber(): Promise<number> {
-  const rows = await prisma.$queryRaw<{ n: bigint }[]>`SELECT nextval('person_code_seq') AS n`;
+export async function nextContactCodeNumber(): Promise<number> {
+  const rows = await prisma.$queryRaw<{ n: bigint }[]>`SELECT nextval('contact_code_seq') AS n`;
   return Number(rows[0]!.n);
 }
 
 // --- Writes ---
 
-export type PersonCenterData = { centerId: string; roleAtCenterId: string };
+export type ContactCenterData = { centerId: string; roleAtCenterId: string };
 
-type PersonWriteData = {
+type ContactWriteData = {
   name: string;
   gender: "MALE" | "FEMALE" | "OTHER" | null;
   mobile: string | null;
-  personTypeId: string;
+  contactTypeId: string;
   specializationId: string;
   territoryId: string;
 };
 
-// The Person and its Center links are written in a single nested create, so
-// a failure partway can never leave a Person with a partial set of links.
-export function createPersonWithCenters(
-  data: PersonWriteData & { code: string },
-  centers: PersonCenterData[],
+// The Contact and its Center links are written in a single nested create, so
+// a failure partway can never leave a Contact with a partial set of links.
+export function createContactWithCenters(
+  data: ContactWriteData & { code: string },
+  centers: ContactCenterData[],
   actorId: string,
-): Promise<PersonDetailRow> {
-  return prisma.person.create({
+): Promise<ContactDetailRow> {
+  return prisma.contact.create({
     data: {
       ...data,
       status: "ACTIVE",
@@ -217,24 +217,24 @@ export function createPersonWithCenters(
 }
 
 // `code` is intentionally absent from the update payload — it never changes.
-export function updatePersonWithCenters(
+export function updateContactWithCenters(
   id: string,
-  data: PersonWriteData & { status?: "ACTIVE" | "INACTIVE" },
-  centers: PersonCenterData[],
+  data: ContactWriteData & { status?: "ACTIVE" | "INACTIVE" },
+  centers: ContactCenterData[],
   actorId: string,
-): Promise<PersonDetailRow> {
+): Promise<ContactDetailRow> {
   return prisma.$transaction(async (tx) => {
-    await tx.personCenter.deleteMany({
-      where: { personId: id, centerId: { notIn: centers.map((c) => c.centerId) } },
+    await tx.contactCenter.deleteMany({
+      where: { contactId: id, centerId: { notIn: centers.map((c) => c.centerId) } },
     });
     for (const center of centers) {
-      await tx.personCenter.upsert({
-        where: { personId_centerId: { personId: id, centerId: center.centerId } },
+      await tx.contactCenter.upsert({
+        where: { contactId_centerId: { contactId: id, centerId: center.centerId } },
         update: { roleAtCenterId: center.roleAtCenterId, updatedBy: actorId },
-        create: { personId: id, ...center, createdBy: actorId, updatedBy: actorId },
+        create: { contactId: id, ...center, createdBy: actorId, updatedBy: actorId },
       });
     }
-    return tx.person.update({
+    return tx.contact.update({
       where: { id },
       data: { ...data, updatedBy: actorId },
       include: detailInclude,
@@ -242,8 +242,8 @@ export function updatePersonWithCenters(
   });
 }
 
-export function setPersonStatus(id: string, status: "ACTIVE" | "INACTIVE", actorId: string) {
-  return prisma.person.update({
+export function setContactStatus(id: string, status: "ACTIVE" | "INACTIVE", actorId: string) {
+  return prisma.contact.update({
     where: { id },
     data: { status, updatedBy: actorId },
     select: { id: true },

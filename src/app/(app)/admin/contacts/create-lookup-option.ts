@@ -3,7 +3,7 @@
 import { toast } from "sonner";
 
 import type { CreatableOption } from "@/components/creatable-combobox";
-import type { LookupKind } from "@/lib/schemas/person";
+import type { LookupKind } from "@/lib/schemas/contact";
 
 import { createLookupAction } from "./actions";
 
