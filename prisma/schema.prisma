@@ -63,10 +63,10 @@ enum ActivityStatus {
 }
 
 // MISSED is deliberately not a stored value — it's computed at read time
-// (PENDING + the plan's date has passed) in plan-service.ts, the same
+// (PENDING + the route's date has passed) in route-service.ts, the same
 // "computed, not stored" choice as attendance's ABSENT/NON_WORKING. A
-// PlanItem never needs to be written to just because nobody acted on it.
-enum PlanItemStatus {
+// RouteItem never needs to be written to just because nobody acted on it.
+enum RouteItemStatus {
   PENDING
   COMPLETED
   CANCELLED
@@ -178,7 +178,7 @@ model User {
   leaves                  Leave[]
   ownedAttendanceRules    AttendanceRule[]          @relation("AttendanceRuleOwner")
   targetedAttendanceRules AttendanceRule[]          @relation("AttendanceRuleTarget")
-  plans                   Plan[]
+  routes                  Route[]
   ownedActivities         Activity[]
   ownedFollowUps          FollowUp[]
 
@@ -312,7 +312,7 @@ model Territory {
   workingDays          TerritoryWorkingDay[]
   attendanceRules      AttendanceRule[]
   activities           Activity[]
-  contacts              Contact[]
+  contacts             Contact[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -397,9 +397,9 @@ model Center {
 
   visits     Visit[]
   orders     Order[]
-  planItems  PlanItem[]
+  routeItems RouteItem[]
   activities Activity[]
-  contacts    ContactCenter[]
+  contacts   ContactCenter[]
 
   // Set only for HOSPITAL-type centers. Kept as an optional one-to-one
   // extension rather than fields on Center itself so other center types
@@ -888,18 +888,18 @@ model TerritoryWorkingDay {
 
 // One row per (delegate, date) — the day's planned route. Items are added
 // before the day starts and locked once it does (see
-// PLAN_EDIT_CUTOFF_HOUR in src/lib/schemas/plan.ts); visit *execution*
-// against a plan is a separate, later story (S4-01) and isn't modeled here.
-// A plan starts unassigned (userId and date both null) — built on the
-// "Plan Visits" screen with no visitor or date attached at all. It only
-// gets both at once, via the "Assignment" screen's assign/reassign action.
-// Reassigning an already-assigned plan never updates this row in place —
-// it creates a brand-new Plan for the new visitor (a visitor can hold
-// several plans, even for the same date, deliberately not deduplicated)
+// ROUTE_EDIT_CUTOFF_HOUR in src/lib/schemas/route.ts); visit *execution*
+// against a route is a separate, later story (S4-01) and isn't modeled here.
+// A route starts unassigned (userId and date both null) — built on the
+// "Plan Routes" screen with no visitor or date attached at all. It only
+// gets both at once, via the "Assign Routes" screen's assign/reassign action.
+// Reassigning an already-assigned route never updates this row in place —
+// it creates a brand-new Route for the new visitor (a visitor can hold
+// several routes, even for the same date, deliberately not deduplicated)
 // and moves the still-relevant items onto it; the source row is deleted
-// once empty. No @@unique on (userId, date) — multiple plans per visitor
+// once empty. No @@unique on (userId, date) — multiple routes per visitor
 // per day are allowed by design.
-model Plan {
+model Route {
   id String @id @default(cuid())
 
   userId String?
@@ -907,7 +907,7 @@ model Plan {
 
   date DateTime?
 
-  items PlanItem[]
+  items RouteItem[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -915,35 +915,35 @@ model Plan {
   updatedAt DateTime @updatedAt
 
   @@index([userId, date])
-  @@map("plans")
+  @@map("routes")
 }
 
 // `sequence` is the delegate's chosen visit order for the day — assigned
 // on add (next available slot) and rewritten wholesale on reorder, never
 // treated as a stable identity of its own.
-model PlanItem {
+model RouteItem {
   id String @id @default(cuid())
 
-  planId String
-  plan   Plan   @relation(fields: [planId], references: [id])
+  routeId String
+  route   Route  @relation(fields: [routeId], references: [id])
 
   centerId String
   center   Center @relation(fields: [centerId], references: [id])
 
   sequence Int
-  status   PlanItemStatus @default(PENDING)
+  status   RouteItemStatus @default(PENDING)
 
   createdBy String?
   createdAt DateTime @default(now())
   updatedBy String?
   updatedAt DateTime @updatedAt
 
-  // Enforces "no duplicate center on the same plan/date" at the database
+  // Enforces "no duplicate center on the same route/date" at the database
   // level — the service layer gives a friendlier error before ever hitting
   // this constraint, but the constraint is the actual backstop.
-  @@unique([planId, centerId])
-  @@index([planId])
-  @@map("plan_items")
+  @@unique([routeId, centerId])
+  @@index([routeId])
+  @@map("route_items")
 }
 
 // --- Marketing activity planning and follow-ups (S3-07) ---

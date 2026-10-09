@@ -3,20 +3,19 @@ import Link from "next/link";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import { cn } from "@/lib/utils";
 
-// Three separate routes, same Link-based pill bar pattern as
+// Two separate routes, same Link-based pill bar pattern as
 // calendar/calendar-tabs.tsx. Only shown to viewers who hold
-// plans:assign-team — a DELEGATE never sees this, just My Visits directly.
-export function PlanTabs({
+// routes:assign-team — the whole Routes section is closed to Delegates.
+export function RouteTabs({
   active,
   dict,
 }: {
-  active: "visits" | "assign" | "my-visits";
-  dict: Dictionary["plansPage"];
+  active: "route" | "assign";
+  dict: Dictionary["routesPage"];
 }) {
   const tabs = [
-    { key: "visits" as const, href: "/plans/visits", label: dict.tabPlanVisits },
-    { key: "assign" as const, href: "/plans/assign", label: dict.tabAssignment },
-    { key: "my-visits" as const, href: "/plans", label: dict.tabMyVisits },
+    { key: "route" as const, href: "/routes/plan", label: dict.tabPlanRoutes },
+    { key: "assign" as const, href: "/routes/assign", label: dict.tabAssignRoutes },
   ];
 
   return (

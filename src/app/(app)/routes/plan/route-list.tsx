@@ -5,17 +5,17 @@ import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/format-date";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 
-type PlanItem = {
+type RouteItem = {
   id: string;
   status: "PENDING" | "COMPLETED" | "CANCELLED" | "MISSED";
   center: { name: string; code: string };
 };
-type PlanGroup = {
+type RouteGroup = {
   id: string;
   date: string | null;
   visitorName: string | null;
   editable: boolean;
-  items: PlanItem[];
+  items: RouteItem[];
 };
 
 const STATUS_VARIANT = {
@@ -25,42 +25,42 @@ const STATUS_VARIANT = {
   MISSED: "destructive",
 } as const;
 
-// Plan Visits list — summary only, same list+Edit pattern as every other
+// Plan Routes list — summary only, same list+Edit pattern as every other
 // CRUD screen in this app (e.g. admin/centers). All content editing
 // (add/remove/reorder, the Save-gated draft) happens on the dedicated
-// /plans/visits/[planId] page, not here.
-export function PlanVisitsList({
-  plans,
+// /routes/plan/[routeId] page, not here.
+export function RouteList({
+  routes,
   dict,
 }: {
-  plans: PlanGroup[];
-  dict: Dictionary["plansPage"];
+  routes: RouteGroup[];
+  dict: Dictionary["routesPage"];
 }) {
-  if (plans.length === 0) {
-    return <p className="text-sm text-muted-foreground">{dict.noPlansYet}</p>;
+  if (routes.length === 0) {
+    return <p className="text-sm text-muted-foreground">{dict.noRoutesYet}</p>;
   }
 
   return (
     <div className="flex flex-col gap-3">
-      {plans.map((plan) => {
-        const counts = plan.items.reduce<Record<string, number>>((acc, item) => {
+      {routes.map((route) => {
+        const counts = route.items.reduce<Record<string, number>>((acc, item) => {
           acc[item.status] = (acc[item.status] ?? 0) + 1;
           return acc;
         }, {});
 
         return (
           <div
-            key={plan.id}
+            key={route.id}
             className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border p-4"
           >
             <div className="flex flex-col gap-1">
               <h3 className="text-sm font-semibold">
-                {plan.visitorName ?? dict.unassignedLabel}
-                {plan.date ? ` — ${formatDate(new Date(plan.date))}` : ` (${dict.noDateYet})`}
+                {route.visitorName ?? dict.unassignedLabel}
+                {route.date ? ` — ${formatDate(new Date(route.date))}` : ` (${dict.noDateYet})`}
               </h3>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-muted-foreground">
-                  {plan.items.length} {dict.itemsCountSuffix}
+                  {route.items.length} {dict.itemsCountSuffix}
                 </span>
                 {Object.entries(counts).map(([status, count]) => (
                   <Badge
@@ -70,13 +70,13 @@ export function PlanVisitsList({
                     {count} {status}
                   </Badge>
                 ))}
-                {!plan.editable ? (
+                {!route.editable ? (
                   <span className="text-xs text-muted-foreground">{dict.locked}</span>
                 ) : null}
               </div>
-              {plan.items.length > 0 ? (
+              {route.items.length > 0 ? (
                 <div className="flex flex-col text-xs text-muted-foreground">
-                  {plan.items.map((item) => (
+                  {route.items.map((item) => (
                     <span key={item.id}>
                       {item.center.name} ({item.center.code})
                     </span>
@@ -85,8 +85,8 @@ export function PlanVisitsList({
               ) : null}
             </div>
 
-            <Button render={<Link href={`/plans/visits/${plan.id}`} />} variant="outline" size="sm">
-              {plan.editable ? dict.editAction : dict.viewAction}
+            <Button render={<Link href={`/routes/plan/${route.id}`} />} variant="outline" size="sm">
+              {route.editable ? dict.editAction : dict.viewAction}
             </Button>
           </div>
         );

@@ -33,7 +33,8 @@ export type Dictionary = {
     checkInOut: string;
     attendanceRules: string;
     attendanceAdmin: string;
-    plans: string;
+    routes: string;
+    visits: string;
     activitiesGroup: string;
     activities: string;
     followUps: string;
@@ -430,19 +431,18 @@ export type Dictionary = {
     export: string;
     noResults: string;
   };
-  // S3-06's single-screen daily visit planner — one plan per delegate per
-  // date, reordered in place rather than through a separate edit screen.
-  plansPage: {
+  // S3-06 route planning, assignment and the visit-execution screen — a route is
+  // an ordered list of centers, reordered in place rather than through a separate edit screen.
+  routesPage: {
     title: string;
-    tabPlanVisits: string;
-    tabAssignment: string;
-    tabMyVisits: string;
-    planVisitsTitle: string;
-    assignmentTitle: string;
-    myVisitsTitle: string;
+    tabPlanRoutes: string;
+    tabAssignRoutes: string;
+    planRoutesTitle: string;
+    assignRoutesTitle: string;
+    visitsTitle: string;
     myselfOption: string;
-    newPlan: string;
-    noPlansYet: string;
+    newRoute: string;
+    noRoutesYet: string;
     noDateYet: string;
     unassignedLabel: string;
     noCentersYet: string;
@@ -462,21 +462,21 @@ export type Dictionary = {
     dateLabel: string;
     assignAction: string;
     reassignAction: string;
-    planAssigned: string;
-    planReassigned: string;
+    routeAssigned: string;
+    routeReassigned: string;
     cancelAssignment: string;
     assignmentCancelled: string;
     hasCompletedHint: string;
     itemsCountSuffix: string;
-    backToPlanVisits: string;
+    backToPlanRoutes: string;
     editAction: string;
     save: string;
     saving: string;
-    planSaved: string;
-    newPlanPageTitle: string;
+    routeSaved: string;
+    newRoutePageTitle: string;
     manageAssignmentAction: string;
     viewAction: string;
-    backToAssignment: string;
+    backToAssignRoutes: string;
   };
   // S3-07's marketing activity planning and follow-ups — one screen
   // combining the pending/overdue widget, the create form, and the month
@@ -847,7 +847,8 @@ const en: Dictionary = {
     checkInOut: "Check-In/Out",
     attendanceRules: "Attendance Rules",
     attendanceAdmin: "Attendance Reports",
-    plans: "Visit Plan",
+    routes: "Routes/Routes-Assignment",
+    visits: "Visits",
     activitiesGroup: "Marketing",
     activities: "Activities",
     followUps: "Follow-Ups",
@@ -1183,17 +1184,16 @@ const en: Dictionary = {
     export: "Export to Excel",
     noResults: "No attendance records found.",
   },
-  plansPage: {
-    title: "Visit Plan",
-    tabPlanVisits: "Plan Visits",
-    tabAssignment: "Assignment",
-    tabMyVisits: "My Visits",
-    planVisitsTitle: "Plan Visits",
-    assignmentTitle: "Assignment",
-    myVisitsTitle: "My Visits",
+  routesPage: {
+    title: "Routes",
+    tabPlanRoutes: "Plan Routes",
+    tabAssignRoutes: "Assign Routes",
+    planRoutesTitle: "Plan Routes",
+    assignRoutesTitle: "Assign Routes",
+    visitsTitle: "Visits",
     myselfOption: "Myself",
-    newPlan: "New plan",
-    noPlansYet: "No plans yet.",
+    newRoute: "New route",
+    noRoutesYet: "No routes yet.",
     noDateYet: "No date yet",
     unassignedLabel: "Not assigned to anyone",
     noCentersYet: "No centers added yet.",
@@ -1201,9 +1201,9 @@ const en: Dictionary = {
     noMatches: "No matching centers.",
     anyTerritory: "Any territory",
     remove: "Remove",
-    locked: "This plan's date has started, so it's locked and can no longer be edited.",
-    centerAdded: "Center added to plan",
-    centerRemoved: "Center removed from plan",
+    locked: "This route's date has started, so it's locked and can no longer be edited.",
+    centerAdded: "Center added to route",
+    centerRemoved: "Center removed from route",
     assignedByPrefix: "Assigned by",
     markComplete: "Mark completed",
     markCancelled: "Cancel",
@@ -1213,21 +1213,21 @@ const en: Dictionary = {
     dateLabel: "Date",
     assignAction: "Assign",
     reassignAction: "Reassign",
-    planAssigned: "Plan assigned",
-    planReassigned: "Plan reassigned",
+    routeAssigned: "Route assigned",
+    routeReassigned: "Route reassigned",
     cancelAssignment: "Cancel assignment",
     assignmentCancelled: "Assignment cancelled",
-    hasCompletedHint: "This plan already has completed visits, so it can no longer be reassigned.",
+    hasCompletedHint: "This route already has completed visits, so it can no longer be reassigned.",
     itemsCountSuffix: "centers",
-    backToPlanVisits: "Back to Plan Visits",
+    backToPlanRoutes: "Back to Plan Routes",
     editAction: "Edit",
     save: "Save",
     saving: "Saving...",
-    planSaved: "Plan saved",
-    newPlanPageTitle: "New plan",
+    routeSaved: "Route saved",
+    newRoutePageTitle: "New route",
     manageAssignmentAction: "Manage assignment",
     viewAction: "View",
-    backToAssignment: "Back to Assignment",
+    backToAssignRoutes: "Back to Assign Routes",
   },
   activitiesPage: {
     title: "Marketing Activities",
@@ -1570,7 +1570,8 @@ const fr: Dictionary = {
     checkInOut: "Pointage",
     attendanceRules: "Règles de présence",
     attendanceAdmin: "Rapports de présence",
-    plans: "Plan de visite",
+    routes: "Routes/Routes-Affectation",
+    visits: "Visites",
     activitiesGroup: "Marketing",
     activities: "Activités",
     followUps: "Suivis",
@@ -1907,17 +1908,16 @@ const fr: Dictionary = {
     export: "Exporter vers Excel",
     noResults: "Aucun enregistrement de présence trouvé.",
   },
-  plansPage: {
-    title: "Plan de visite",
-    tabPlanVisits: "Planifier des visites",
-    tabAssignment: "Affectation",
-    tabMyVisits: "Mes visites",
-    planVisitsTitle: "Planifier des visites",
-    assignmentTitle: "Affectation",
-    myVisitsTitle: "Mes visites",
+  routesPage: {
+    title: "Routes",
+    tabPlanRoutes: "Planifier les routes",
+    tabAssignRoutes: "Affecter les routes",
+    planRoutesTitle: "Planifier les routes",
+    assignRoutesTitle: "Affecter les routes",
+    visitsTitle: "Visites",
     myselfOption: "Moi-même",
-    newPlan: "Nouveau plan",
-    noPlansYet: "Aucun plan pour le moment.",
+    newRoute: "Nouvelle route",
+    noRoutesYet: "Aucune route pour le moment.",
     noDateYet: "Pas encore de date",
     unassignedLabel: "Non affecté",
     noCentersYet: "Aucun centre ajouté pour le moment.",
@@ -1925,9 +1925,10 @@ const fr: Dictionary = {
     noMatches: "Aucun centre correspondant.",
     anyTerritory: "Tous les territoires",
     remove: "Retirer",
-    locked: "La date de ce plan a commencé, il est donc verrouillé et ne peut plus être modifié.",
-    centerAdded: "Centre ajouté au plan",
-    centerRemoved: "Centre retiré du plan",
+    locked:
+      "La date de cette route a commencé, elle est donc verrouillée et ne peut plus être modifiée.",
+    centerAdded: "Centre ajouté à la route",
+    centerRemoved: "Centre retiré de la route",
     assignedByPrefix: "Assigné par",
     markComplete: "Marquer comme terminé",
     markCancelled: "Annuler",
@@ -1937,21 +1938,22 @@ const fr: Dictionary = {
     dateLabel: "Date",
     assignAction: "Affecter",
     reassignAction: "Réaffecter",
-    planAssigned: "Plan affecté",
-    planReassigned: "Plan réaffecté",
+    routeAssigned: "Route affectée",
+    routeReassigned: "Route réaffectée",
     cancelAssignment: "Annuler l'affectation",
     assignmentCancelled: "Affectation annulée",
-    hasCompletedHint: "Ce plan a déjà des visites terminées, il ne peut donc plus être réaffecté.",
+    hasCompletedHint:
+      "Cette route a déjà des visites terminées, elle ne peut donc plus être réaffectée.",
     itemsCountSuffix: "centres",
-    backToPlanVisits: "Retour à Planifier des visites",
+    backToPlanRoutes: "Retour à Planifier les routes",
     editAction: "Modifier",
     save: "Enregistrer",
     saving: "Enregistrement...",
-    planSaved: "Plan enregistré",
-    newPlanPageTitle: "Nouveau plan",
+    routeSaved: "Route enregistrée",
+    newRoutePageTitle: "Nouvelle route",
     manageAssignmentAction: "Gérer l'affectation",
     viewAction: "Voir",
-    backToAssignment: "Retour à l'affectation",
+    backToAssignRoutes: "Retour à Affecter les routes",
   },
   activitiesPage: {
     title: "Activités marketing",

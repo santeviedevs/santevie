@@ -10,23 +10,23 @@ import { formatDate } from "@/lib/format-date";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 
 import {
-  cancelPlanItemAction,
-  completePlanItemAction,
-  type PlanFormState,
-  reorderPlanItemsAction,
-} from "./actions";
+  cancelRouteItemAction,
+  completeRouteItemAction,
+  reorderRouteItemsAction,
+  type RouteFormState,
+} from "../routes/actions";
 
-type PlanItem = {
+type RouteItem = {
   id: string;
   sequence: number;
   status: "PENDING" | "COMPLETED" | "CANCELLED" | "MISSED";
   center: { id: string; name: string; code: string };
 };
-type PlanGroup = {
+type RouteGroup = {
   id: string;
   date: string | null;
   createdByName: string | null;
-  items: PlanItem[];
+  items: RouteItem[];
 };
 
 const STATUS_VARIANT = {
@@ -36,21 +36,21 @@ const STATUS_VARIANT = {
   MISSED: "destructive",
 } as const;
 
-// My Visits — purely respond. No add, no remove: content changes only
-// happen on Plan Visits, even for a self-planned day. Each group here is
-// one Plan assigned to the viewer; reorder, complete and cancel are all
-// scoped to a single plan's items at a time.
+// Visits — purely respond. No add, no remove: content changes only
+// happen on Plan Routes, even for a self-planned day. Each group here is
+// one Route assigned to the viewer; reorder, complete and cancel are all
+// scoped to a single route's items at a time.
 export function MyVisitsList({
-  plans,
+  routes,
   dict,
 }: {
-  plans: PlanGroup[];
-  dict: Dictionary["plansPage"];
+  routes: RouteGroup[];
+  dict: Dictionary["routesPage"];
 }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  function move(planId: string, items: PlanItem[], index: number, direction: -1 | 1) {
+  function move(routeId: string, items: RouteItem[], index: number, direction: -1 | 1) {
     const next = [...items];
     const target = index + direction;
     if (target < 0 || target >= next.length) return;
@@ -59,19 +59,19 @@ export function MyVisitsList({
     setError(null);
     startTransition(async () => {
       const formData = new FormData();
-      formData.set("planId", planId);
-      next.forEach((item) => formData.append("orderedPlanItemIds", item.id));
-      const result: PlanFormState = await reorderPlanItemsAction({ error: null }, formData);
+      formData.set("routeId", routeId);
+      next.forEach((item) => formData.append("orderedRouteItemIds", item.id));
+      const result: RouteFormState = await reorderRouteItemsAction({ error: null }, formData);
       if (result.error) setError(result.error);
     });
   }
 
-  function complete(planItemId: string) {
+  function complete(routeItemId: string) {
     setError(null);
     startTransition(async () => {
       const formData = new FormData();
-      formData.set("planItemId", planItemId);
-      const result: PlanFormState = await completePlanItemAction({ error: null }, formData);
+      formData.set("routeItemId", routeItemId);
+      const result: RouteFormState = await completeRouteItemAction({ error: null }, formData);
       if (result.error) {
         setError(result.error);
         return;
@@ -80,12 +80,12 @@ export function MyVisitsList({
     });
   }
 
-  function cancel(planItemId: string) {
+  function cancel(routeItemId: string) {
     setError(null);
     startTransition(async () => {
       const formData = new FormData();
-      formData.set("planItemId", planItemId);
-      const result: PlanFormState = await cancelPlanItemAction({ error: null }, formData);
+      formData.set("routeItemId", routeItemId);
+      const result: RouteFormState = await cancelRouteItemAction({ error: null }, formData);
       if (result.error) {
         setError(result.error);
         return;
@@ -94,32 +94,32 @@ export function MyVisitsList({
     });
   }
 
-  if (plans.length === 0) {
-    return <p className="text-sm text-muted-foreground">{dict.noPlansYet}</p>;
+  if (routes.length === 0) {
+    return <p className="text-sm text-muted-foreground">{dict.noRoutesYet}</p>;
   }
 
   return (
     <div className="flex flex-col gap-6">
-      {plans.map((plan) => (
-        <div key={plan.id} className="flex flex-col gap-2 rounded-md border border-border p-4">
+      {routes.map((route) => (
+        <div key={route.id} className="flex flex-col gap-2 rounded-md border border-border p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <h3 className="flex items-center gap-2 text-sm font-semibold">
               <CalendarDays className="size-4 text-muted-foreground" aria-hidden />
-              {plan.date ? formatDate(new Date(plan.date)) : dict.noDateYet}
+              {route.date ? formatDate(new Date(route.date)) : dict.noDateYet}
             </h3>
-            {plan.createdByName ? (
+            {route.createdByName ? (
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <User className="size-4" aria-hidden />
-                {dict.assignedByPrefix} {plan.createdByName}
+                {dict.assignedByPrefix} {route.createdByName}
               </span>
             ) : null}
           </div>
 
-          {plan.items.length === 0 ? (
+          {route.items.length === 0 ? (
             <p className="text-sm text-muted-foreground">{dict.noCentersYet}</p>
           ) : (
             <ol className="flex flex-col gap-2">
-              {plan.items.map((item, index) => {
+              {route.items.map((item, index) => {
                 const actionable = item.status === "PENDING" || item.status === "MISSED";
                 return (
                   <li
@@ -145,7 +145,7 @@ export function MyVisitsList({
                         size="sm"
                         className="max-sm:w-8 max-sm:px-0"
                         disabled={isPending || index === 0}
-                        onClick={() => move(plan.id, plan.items, index, -1)}
+                        onClick={() => move(route.id, route.items, index, -1)}
                       >
                         ↑
                       </Button>
@@ -154,8 +154,8 @@ export function MyVisitsList({
                         variant="outline"
                         size="sm"
                         className="max-sm:w-8 max-sm:px-0"
-                        disabled={isPending || index === plan.items.length - 1}
-                        onClick={() => move(plan.id, plan.items, index, 1)}
+                        disabled={isPending || index === route.items.length - 1}
+                        onClick={() => move(route.id, route.items, index, 1)}
                       >
                         ↓
                       </Button>

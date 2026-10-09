@@ -1,6 +1,7 @@
 import {
   Building2,
   Calendar,
+  CalendarCheck,
   CalendarDays,
   ContactRound,
   HelpCircle,
@@ -8,6 +9,7 @@ import {
   Map,
   MapPin,
   Package,
+  Route,
   Users,
 } from "lucide-react";
 
@@ -32,7 +34,8 @@ type NavKey =
   | "centers"
   | "contacts"
   | "products"
-  | "plans"
+  | "routes"
+  | "visits"
   | "activitiesGroup"
   | "activities"
   | "followUps"
@@ -148,7 +151,10 @@ export const NAV_ITEM_DEFS: NavItemDef[] = [
   { href: "/admin/centers", key: "centers", icon: Building2, permission: "centers:manage" },
   { href: "/admin/contacts", key: "contacts", icon: ContactRound, permission: "contacts:manage" },
   { href: "/admin/products", key: "products", icon: Package, permission: "products:manage" },
-  { href: "/plans", key: "plans", icon: CalendarDays, permission: "plans:respond-own" },
+  // Routes (Plan Routes + Assign Routes tabs) is the planning/assignment
+  // side — closed to Delegates. Visits is the execution side, open to all.
+  { href: "/routes", key: "routes", icon: Route, permission: "routes:assign-team" },
+  { href: "/visits", key: "visits", icon: CalendarCheck, permission: "visits:respond-own" },
   {
     key: "activitiesGroup",
     icon: CalendarDays,

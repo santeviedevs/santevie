@@ -16,9 +16,9 @@ import {
 } from "@/components/ui/select";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 
-import { assignPlanAction, cancelPlanAssignmentAction, type PlanFormState } from "../actions";
+import { assignRouteAction, cancelRouteAssignmentAction, type RouteFormState } from "../actions";
 
-type PlanItem = {
+type RouteItem = {
   id: string;
   status: "PENDING" | "COMPLETED" | "CANCELLED" | "MISSED";
   center: { name: string; code: string };
@@ -32,23 +32,23 @@ const STATUS_VARIANT = {
   MISSED: "destructive",
 } as const;
 
-// The Assignment screen's one write surface — assign/reassign a plan
+// The Assignment screen's one write surface — assign/reassign a route
 // (target + date) or cancel its assignment (bulk-cancel every still-
-// PENDING item). Never touches content; that's Plan Visits' job.
+// PENDING item). Never touches content; that's Plan Routes' job.
 export function AssignDetail({
-  planId,
+  routeId,
   visitorName,
   date,
   items,
   users,
   dict,
 }: {
-  planId: string;
+  routeId: string;
   visitorName: string | null;
   date: string | null;
-  items: PlanItem[];
+  items: RouteItem[];
   users: AssignableUser[];
-  dict: Dictionary["plansPage"];
+  dict: Dictionary["routesPage"];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -65,16 +65,16 @@ export function AssignDetail({
     setError(null);
     startTransition(async () => {
       const formData = new FormData();
-      formData.set("planId", planId);
+      formData.set("routeId", routeId);
       formData.set("targetUserId", targetUserId);
       formData.set("date", formDate);
-      const result: PlanFormState = await assignPlanAction({ error: null }, formData);
+      const result: RouteFormState = await assignRouteAction({ error: null }, formData);
       if (result.error) {
         setError(result.error);
         return;
       }
-      toast.success(visitorName ? dict.planReassigned : dict.planAssigned);
-      router.push("/plans/assign");
+      toast.success(visitorName ? dict.routeReassigned : dict.routeAssigned);
+      router.push("/routes/assign");
     });
   }
 
@@ -82,14 +82,14 @@ export function AssignDetail({
     setError(null);
     startTransition(async () => {
       const formData = new FormData();
-      formData.set("planId", planId);
-      const result: PlanFormState = await cancelPlanAssignmentAction({ error: null }, formData);
+      formData.set("routeId", routeId);
+      const result: RouteFormState = await cancelRouteAssignmentAction({ error: null }, formData);
       if (result.error) {
         setError(result.error);
         return;
       }
       toast.success(dict.assignmentCancelled);
-      router.push("/plans/assign");
+      router.push("/routes/assign");
     });
   }
 

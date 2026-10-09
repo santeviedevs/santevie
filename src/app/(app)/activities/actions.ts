@@ -36,7 +36,7 @@ async function requireActivityPermission(permission: Permission) {
   }
 }
 
-// Same shape as mapPlanError in plans/actions.ts: a known business-rule
+// Same shape as mapRouteError in routes/actions.ts: a known business-rule
 // error becomes a user-facing message, anything else is a real failure and
 // is rethrown.
 function mapActivityError(error: unknown): string {

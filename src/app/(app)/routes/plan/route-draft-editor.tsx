@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 
-import { type PlanFormState, savePlanAction } from "../actions";
+import { type RouteFormState, saveRouteAction } from "../actions";
 
 type CenterOption = { id: string; name: string; code: string; territoryId: string | null };
 type TerritoryOption = { id: string; label: string };
@@ -41,25 +41,25 @@ const READONLY_STATUS_VARIANT = {
   CANCELLED: "outline",
 } as const;
 
-// The Plan Visits editor — a brand-new plan (planId null) or an existing
+// The Plan Routes editor — a brand-new route (routeId null) or an existing
 // still-editable one. Everything here is local draft state; nothing is
-// written until Save runs. COMPLETED/CANCELLED items from an existing plan
+// written until Save runs. COMPLETED/CANCELLED items from an existing route
 // are shown read-only alongside the draft but are never part of it — the
 // service never touches them regardless of what's in centerIdsInOrder.
-export function PlanDraftEditor({
-  planId,
+export function RouteDraftEditor({
+  routeId,
   initialCenterIds,
   readOnlyItems,
   availableCenters,
   territories,
   dict,
 }: {
-  planId: string | null;
+  routeId: string | null;
   initialCenterIds: string[];
   readOnlyItems: ReadOnlyItem[];
   availableCenters: CenterOption[];
   territories: TerritoryOption[];
-  dict: Dictionary["plansPage"];
+  dict: Dictionary["routesPage"];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -111,15 +111,15 @@ export function PlanDraftEditor({
     setError(null);
     startTransition(async () => {
       const formData = new FormData();
-      if (planId) formData.set("planId", planId);
+      if (routeId) formData.set("routeId", routeId);
       draftCenterIds.forEach((centerId) => formData.append("centerIdsInOrder", centerId));
-      const result: PlanFormState = await savePlanAction({ error: null }, formData);
+      const result: RouteFormState = await saveRouteAction({ error: null }, formData);
       if (result.error) {
         setError(result.error);
         return;
       }
-      toast.success(dict.planSaved);
-      router.push("/plans/visits");
+      toast.success(dict.routeSaved);
+      router.push("/routes/plan");
     });
   }
 

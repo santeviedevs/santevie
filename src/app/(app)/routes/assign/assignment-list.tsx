@@ -5,65 +5,65 @@ import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/format-date";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 
-type PlanItem = {
+type RouteItem = {
   id: string;
   status: "PENDING" | "COMPLETED" | "CANCELLED" | "MISSED";
   center: { name: string; code: string };
 };
-type PlanGroup = {
+type RouteGroup = {
   id: string;
   date: string | null;
   visitorName: string | null;
-  items: PlanItem[];
+  items: RouteItem[];
 };
 
-// Assignment list — summary only, same list+action pattern as Plan Visits.
-// Who a plan belongs to and when is never decided here; "Assign"/
-// "Reassign" navigates to the dedicated /plans/assign/[planId] page, which
+// Assignment list — summary only, same list+action pattern as Plan Routes.
+// Who a route belongs to and when is never decided here; "Assign"/
+// "Reassign" navigates to the dedicated /routes/assign/[routeId] page, which
 // is the only place that actually writes.
 export function AssignmentList({
-  plans,
+  routes,
   dict,
 }: {
-  plans: PlanGroup[];
-  dict: Dictionary["plansPage"];
+  routes: RouteGroup[];
+  dict: Dictionary["routesPage"];
 }) {
-  if (plans.length === 0) {
-    return <p className="text-sm text-muted-foreground">{dict.noPlansYet}</p>;
+  if (routes.length === 0) {
+    return <p className="text-sm text-muted-foreground">{dict.noRoutesYet}</p>;
   }
 
   return (
     <div className="flex flex-col gap-3">
-      {plans.map((plan) => {
-        const hasCompleted = plan.items.some((item) => item.status === "COMPLETED");
-        const hasActionable = plan.items.some(
+      {routes.map((route) => {
+        const hasCompleted = route.items.some((item) => item.status === "COMPLETED");
+        const hasActionable = route.items.some(
           (item) => item.status === "PENDING" || item.status === "MISSED",
         );
-        const reassignBlocked = hasCompleted && plan.visitorName !== null;
+        const reassignBlocked = hasCompleted && route.visitorName !== null;
         const buttonLabel = reassignBlocked
           ? hasActionable
             ? dict.manageAssignmentAction
             : dict.viewAction
-          : plan.visitorName
+          : route.visitorName
             ? dict.reassignAction
             : dict.assignAction;
 
         return (
           <div
-            key={plan.id}
+            key={route.id}
             className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border p-4"
           >
             <div className="flex flex-col gap-1">
               <h3 className="text-sm font-semibold">
-                {plan.visitorName ?? dict.unassignedLabel}
-                {plan.date ? ` — ${formatDate(new Date(plan.date))}` : ` (${dict.noDateYet})`}
+                {route.visitorName ?? dict.unassignedLabel}
+                {route.date ? ` — ${formatDate(new Date(route.date))}` : ` (${dict.noDateYet})`}
               </h3>
               <Badge variant="secondary" className="w-fit">
-                {plan.items.length} {dict.itemsCountSuffix}
+                {route.items.length} {dict.itemsCountSuffix}
               </Badge>
-              {plan.items.length > 0 ? (
+              {route.items.length > 0 ? (
                 <div className="flex flex-col text-xs text-muted-foreground">
-                  {plan.items.map((item) => (
+                  {route.items.map((item) => (
                     <span key={item.id}>
                       {item.center.name} ({item.center.code})
                     </span>
@@ -75,7 +75,11 @@ export function AssignmentList({
               ) : null}
             </div>
 
-            <Button render={<Link href={`/plans/assign/${plan.id}`} />} variant="outline" size="sm">
+            <Button
+              render={<Link href={`/routes/assign/${route.id}`} />}
+              variant="outline"
+              size="sm"
+            >
               {buttonLabel}
             </Button>
           </div>

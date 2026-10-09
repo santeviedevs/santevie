@@ -7,9 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 
-import { cancelPlanItemAction, type PlanFormState } from "../actions";
+import { cancelRouteItemAction, type RouteFormState } from "../actions";
 
-type PlanItem = {
+type RouteItem = {
   id: string;
   status: "PENDING" | "COMPLETED" | "CANCELLED" | "MISSED";
   center: { name: string; code: string };
@@ -22,25 +22,25 @@ const STATUS_VARIANT = {
   MISSED: "destructive",
 } as const;
 
-// A plan whose date has already started — content is locked (no add,
+// A route whose date has already started — content is locked (no add,
 // remove or reorder), but a still-pending/missed item can still be
 // cancelled.
-export function PlanLockedView({
+export function RouteLockedView({
   items,
   dict,
 }: {
-  items: PlanItem[];
-  dict: Dictionary["plansPage"];
+  items: RouteItem[];
+  dict: Dictionary["routesPage"];
 }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  function cancelItem(planItemId: string) {
+  function cancelItem(routeItemId: string) {
     setError(null);
     startTransition(async () => {
       const formData = new FormData();
-      formData.set("planItemId", planItemId);
-      const result: PlanFormState = await cancelPlanItemAction({ error: null }, formData);
+      formData.set("routeItemId", routeItemId);
+      const result: RouteFormState = await cancelRouteItemAction({ error: null }, formData);
       if (result.error) {
         setError(result.error);
         return;

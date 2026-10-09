@@ -29,7 +29,7 @@ export type AssignableActivity = {
   owner: { id: string; name: string } | null;
 };
 
-// Same list+action pattern as Plans > Assignment. Only a PLANNED activity can
+// Same list+action pattern as Routes > Assign Routes. Only a PLANNED activity can
 // be (re)assigned — the server enforces that too; here a finished or
 // cancelled one simply shows no controls.
 export function ActivityAssignmentList({
