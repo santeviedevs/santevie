@@ -75,6 +75,20 @@ export function listActiveClientsForSelection() {
   });
 }
 
+// S3-06's visit-planning client picker — active clients within a specific
+// set of territory ids (the delegate's permitted territories). Kept
+// separate from listActiveClientsForSelection above rather than widening
+// that function's shape, since its existing callers (order/visit pickers)
+// don't need territory-scoping and shouldn't have their payload shape
+// changed for a different feature's requirement.
+export function listActiveClientsForTerritories(territoryIds: string[]) {
+  return prisma.client.findMany({
+    where: { status: "ACTIVE", territoryId: { in: territoryIds } },
+    select: { id: true, name: true, code: true, territoryId: true },
+    orderBy: { name: "asc" },
+  });
+}
+
 export function listClientTypes() {
   return prisma.clientType.findMany({ select: { id: true, code: true, name: true } });
 }
@@ -106,6 +120,13 @@ type ClientUpdateData = {
   hospital?: Omit<Prisma.HospitalUpdateWithoutClientInput, never>;
 };
 
+// `upsert`, not `update` — a plain `update` throws P2025 whenever the
+// extension row doesn't already exist, which happens both when a client's
+// type is switched (Doctor <-> Hospital, no extension of the new type yet)
+// and for pre-S2-02 seed data that was never given an extension row at all
+// for whatever type it's labeled with. `upsert`'s create branch covers both
+// cases the same way createClientWithExtension already does on first
+// creation.
 export function updateClientWithExtension(
   id: string,
   data: ClientUpdateData,
@@ -114,8 +135,37 @@ export function updateClientWithExtension(
     where: { id },
     data: {
       ...data.client,
-      ...(data.doctor ? { doctor: { update: data.doctor } } : {}),
-      ...(data.hospital ? { hospital: { update: data.hospital } } : {}),
+      ...(data.doctor
+        ? {
+            doctor: {
+              // The cast is safe: client-service.ts only ever builds this
+              // object from plain scalar fields (never a
+              // FieldUpdateOperationsInput like `{ increment: 1 }`), so it
+              // satisfies the Create shape too — Prisma's Update type is
+              // just wider than what's actually ever passed here.
+              upsert: {
+                create: {
+                  ...data.doctor,
+                  createdBy: data.doctor.updatedBy,
+                } as Prisma.DoctorCreateWithoutClientInput,
+                update: data.doctor,
+              },
+            },
+          }
+        : {}),
+      ...(data.hospital
+        ? {
+            hospital: {
+              upsert: {
+                create: {
+                  ...data.hospital,
+                  createdBy: data.hospital.updatedBy,
+                } as Prisma.HospitalCreateWithoutClientInput,
+                update: data.hospital,
+              },
+            },
+          }
+        : {}),
     },
     include: listInclude,
   });

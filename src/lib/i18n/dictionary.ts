@@ -30,6 +30,12 @@ export type Dictionary = {
     calendar: string;
     attendanceGroup: string;
     checkInOut: string;
+    attendanceRules: string;
+    attendanceAdmin: string;
+    plans: string;
+    activitiesGroup: string;
+    activities: string;
+    followUps: string;
   };
   header: {
     signOut: string;
@@ -300,6 +306,9 @@ export type Dictionary = {
     timeoutBody: string;
     lowAccuracyTitle: string;
     lowAccuracyBody: string;
+    borderlineAccuracyTitle: string;
+    borderlineAccuracyBody: string;
+    continueAnyway: string;
     tryAgain: string;
     // Plain strings, not functions: this whole object is passed as a prop
     // into CheckInOutCard, a Client Component — a function anywhere in
@@ -361,6 +370,173 @@ export type Dictionary = {
     save: string;
     saving: string;
     updated: string;
+  };
+  // S3-04's single Attendance Rules screen — one list (every version,
+  // scoped to the viewer) plus one form with a scope-type selector
+  // (territory / team / individual).
+  attendanceRulesPage: {
+    title: string;
+    columnScope: string;
+    columnTarget: string;
+    columnExpectedStart: string;
+    columnLateGrace: string;
+    columnMinimumWorked: string;
+    columnCreatedAt: string;
+    scopeTerritory: string;
+    scopeTeam: string;
+    scopeIndividual: string;
+    noResults: string;
+  };
+  attendanceRuleForm: {
+    scopeLabel: string;
+    scopeTerritory: string;
+    scopeTeam: string;
+    scopeIndividual: string;
+    territoryLabel: string;
+    teamOwnerLabel: string;
+    individualLabel: string;
+    expectedStartLabel: string;
+    lateGraceLabel: string;
+    minimumWorkedLabel: string;
+    save: string;
+    saving: string;
+    created: string;
+  };
+  // S3-05's attendance administration screen — scoped list + map + Excel
+  // export + daily team view, reused across the list, detail and
+  // daily-team-view pages, and the filter bar component.
+  attendanceAdminPage: {
+    title: string;
+    employeeLabel: string;
+    anyEmployee: string;
+    territoryLabel: string;
+    anyTerritory: string;
+    dateFromLabel: string;
+    dateToLabel: string;
+    statusLabel: string;
+    anyStatus: string;
+    clearFilters: string;
+    columnDate: string;
+    columnEmployee: string;
+    columnTerritory: string;
+    columnStatus: string;
+    columnSessions: string;
+    checkInLabel: string;
+    checkOutLabel: string;
+    accuracyColumn: string;
+    needsReviewHint: string;
+    dailyTeamView: string;
+    export: string;
+    noResults: string;
+  };
+  // S3-06's single-screen daily visit planner — one plan per delegate per
+  // date, reordered in place rather than through a separate edit screen.
+  plansPage: {
+    title: string;
+    tabPlanVisits: string;
+    tabAssignment: string;
+    tabMyVisits: string;
+    planVisitsTitle: string;
+    assignmentTitle: string;
+    myVisitsTitle: string;
+    myselfOption: string;
+    newPlan: string;
+    noPlansYet: string;
+    noDateYet: string;
+    unassignedLabel: string;
+    noClientsYet: string;
+    searchPlaceholder: string;
+    noMatches: string;
+    anyTerritory: string;
+    remove: string;
+    locked: string;
+    clientAdded: string;
+    clientRemoved: string;
+    assignedByPrefix: string;
+    markComplete: string;
+    markCancelled: string;
+    visitCompleted: string;
+    visitCancelled: string;
+    assignToLabel: string;
+    dateLabel: string;
+    assignAction: string;
+    reassignAction: string;
+    planAssigned: string;
+    planReassigned: string;
+    cancelAssignment: string;
+    assignmentCancelled: string;
+    hasCompletedHint: string;
+    itemsCountSuffix: string;
+    backToPlanVisits: string;
+    editAction: string;
+    save: string;
+    saving: string;
+    planSaved: string;
+    newPlanPageTitle: string;
+    manageAssignmentAction: string;
+    viewAction: string;
+    backToAssignment: string;
+  };
+  // S3-07's marketing activity planning and follow-ups — one screen
+  // combining the pending/overdue widget, the create form, and the month
+  // calendar; plus a flat my-follow-ups list and a supervisor team view.
+  activitiesPage: {
+    title: string;
+    myFollowUps: string;
+    followUpsHeading: string;
+    newActivity: string;
+    typeLabel: string;
+    typeCampaign: string;
+    typeEvent: string;
+    typeOther: string;
+    dateLabel: string;
+    targetLabel: string;
+    targetClient: string;
+    targetTerritory: string;
+    notesLabel: string;
+    save: string;
+    saving: string;
+    activityCreated: string;
+    noFollowUps: string;
+    overdue: string;
+    markDone: string;
+    followUpCompleted: string;
+    teamOverdue: string;
+    dueDateColumn: string;
+    targetColumn: string;
+    today: string;
+    activitiesThisMonth: string;
+    noActivitiesThisMonth: string;
+    addFollowUp: string;
+    followUpCreated: string;
+    cancel: string;
+    tabActivityList: string;
+    tabAssignment: string;
+    tabCalendar: string;
+    tabMyActivities: string;
+    tabMyFollowUps: string;
+    tabTeamFollowUps: string;
+    activityListTitle: string;
+    myActivitiesTitle: string;
+    newActivityPageTitle: string;
+    newActivityButton: string;
+    noActivities: string;
+    unassignedLabel: string;
+    assignedToPrefix: string;
+    assignToLabel: string;
+    assignAction: string;
+    reassignAction: string;
+    viewAction: string;
+    activityAssigned: string;
+    noActivitiesToAssign: string;
+    statusPlanned: string;
+    statusDone: string;
+    statusCancelled: string;
+    markActivityDone: string;
+    markActivityCancelled: string;
+    activityUpdated: string;
+    filterAll: string;
+    filterUnassigned: string;
   };
   // The Calendar screen: a month-grid view of the viewer's own holidays,
   // weekly-offs and leave status, plus a Holidays tab (the same
@@ -584,6 +760,12 @@ const en: Dictionary = {
     calendar: "Calendar",
     attendanceGroup: "Attendance",
     checkInOut: "Check-In/Out",
+    attendanceRules: "Attendance Rules",
+    attendanceAdmin: "Attendance Reports",
+    plans: "Visit Plan",
+    activitiesGroup: "Marketing",
+    activities: "Activities",
+    followUps: "Follow-Ups",
   },
   header: {
     signOut: "Sign out",
@@ -806,6 +988,10 @@ const en: Dictionary = {
     timeoutBody: "Move to an area with a clearer view of the sky and try again.",
     lowAccuracyTitle: "Location isn't precise enough",
     lowAccuracyBody: "Move outdoors or away from buildings, then try again.",
+    borderlineAccuracyTitle: "Location accuracy is borderline",
+    borderlineAccuracyBody:
+      "You can continue, but this will be flagged for your supervisor to review. Move outdoors for a better fix if possible.",
+    continueAnyway: "Continue anyway",
     tryAgain: "Try again",
     checkedInToast: "Checked in successfully.",
     checkedOutToast: "Checked out successfully.",
@@ -858,6 +1044,163 @@ const en: Dictionary = {
     save: "Save",
     saving: "Saving...",
     updated: "Working days updated",
+  },
+  attendanceRulesPage: {
+    title: "Attendance Rules",
+    columnScope: "Scope",
+    columnTarget: "Target",
+    columnExpectedStart: "Expected start",
+    columnLateGrace: "Late grace (min)",
+    columnMinimumWorked: "Minimum worked (min)",
+    columnCreatedAt: "Created",
+    scopeTerritory: "Territory",
+    scopeTeam: "Team",
+    scopeIndividual: "Individual",
+    noResults: "No attendance rules found.",
+  },
+  attendanceRuleForm: {
+    scopeLabel: "Scope",
+    scopeTerritory: "Territory",
+    scopeTeam: "Team",
+    scopeIndividual: "Individual",
+    territoryLabel: "Territory",
+    teamOwnerLabel: "Applies to your entire downstream team",
+    individualLabel: "Delegate",
+    expectedStartLabel: "Expected start time",
+    lateGraceLabel: "Late grace period (minutes)",
+    minimumWorkedLabel: "Minimum worked minutes",
+    save: "Save rule",
+    saving: "Saving...",
+    created: "Attendance rule created",
+  },
+  attendanceAdminPage: {
+    title: "Attendance",
+    employeeLabel: "Employee",
+    anyEmployee: "All employees",
+    territoryLabel: "Territory",
+    anyTerritory: "All territories",
+    dateFromLabel: "From date",
+    dateToLabel: "To date",
+    statusLabel: "Status",
+    anyStatus: "Any status",
+    clearFilters: "Clear filters",
+    columnDate: "Date",
+    columnEmployee: "Employee",
+    columnTerritory: "Territory",
+    columnStatus: "Status",
+    columnSessions: "Sessions",
+    checkInLabel: "Check-In",
+    checkOutLabel: "Check-Out",
+    accuracyColumn: "GPS Accuracy",
+    needsReviewHint:
+      "This record has a GPS fix between 50m and 100m accuracy — borderline enough to flag for review, not reliable enough to accept without a second look.",
+    dailyTeamView: "Daily Team View",
+    export: "Export to Excel",
+    noResults: "No attendance records found.",
+  },
+  plansPage: {
+    title: "Visit Plan",
+    tabPlanVisits: "Plan Visits",
+    tabAssignment: "Assignment",
+    tabMyVisits: "My Visits",
+    planVisitsTitle: "Plan Visits",
+    assignmentTitle: "Assignment",
+    myVisitsTitle: "My Visits",
+    myselfOption: "Myself",
+    newPlan: "New plan",
+    noPlansYet: "No plans yet.",
+    noDateYet: "No date yet",
+    unassignedLabel: "Not assigned to anyone",
+    noClientsYet: "No clients added yet.",
+    searchPlaceholder: "Search by name or code...",
+    noMatches: "No matching clients.",
+    anyTerritory: "Any territory",
+    remove: "Remove",
+    locked: "This plan's date has started, so it's locked and can no longer be edited.",
+    clientAdded: "Client added to plan",
+    clientRemoved: "Client removed from plan",
+    assignedByPrefix: "Assigned by",
+    markComplete: "Mark completed",
+    markCancelled: "Cancel",
+    visitCompleted: "Visit marked completed",
+    visitCancelled: "Visit cancelled",
+    assignToLabel: "Assign to",
+    dateLabel: "Date",
+    assignAction: "Assign",
+    reassignAction: "Reassign",
+    planAssigned: "Plan assigned",
+    planReassigned: "Plan reassigned",
+    cancelAssignment: "Cancel assignment",
+    assignmentCancelled: "Assignment cancelled",
+    hasCompletedHint: "This plan already has completed visits, so it can no longer be reassigned.",
+    itemsCountSuffix: "clients",
+    backToPlanVisits: "Back to Plan Visits",
+    editAction: "Edit",
+    save: "Save",
+    saving: "Saving...",
+    planSaved: "Plan saved",
+    newPlanPageTitle: "New plan",
+    manageAssignmentAction: "Manage assignment",
+    viewAction: "View",
+    backToAssignment: "Back to Assignment",
+  },
+  activitiesPage: {
+    title: "Marketing Activities",
+    myFollowUps: "My Follow-Ups",
+    followUpsHeading: "Pending follow-ups",
+    newActivity: "New activity",
+    typeLabel: "Type",
+    typeCampaign: "Campaign",
+    typeEvent: "Event",
+    typeOther: "Other",
+    dateLabel: "Date",
+    targetLabel: "Applies to",
+    targetClient: "A client",
+    targetTerritory: "A territory",
+    notesLabel: "Notes",
+    save: "Save",
+    saving: "Saving...",
+    activityCreated: "Activity created",
+    noFollowUps: "No follow-ups.",
+    overdue: "Overdue",
+    markDone: "Mark done",
+    followUpCompleted: "Follow-up completed",
+    teamOverdue: "Team Overdue Follow-Ups",
+    dueDateColumn: "Due date",
+    targetColumn: "Client / Territory",
+    today: "Today",
+    activitiesThisMonth: "Activities this month",
+    noActivitiesThisMonth: "No activities this month.",
+    addFollowUp: "Add follow-up",
+    followUpCreated: "Follow-up created",
+    cancel: "Cancel",
+    tabActivityList: "Activity list",
+    tabAssignment: "Assignment",
+    tabCalendar: "Calendar",
+    tabMyActivities: "My activities",
+    tabMyFollowUps: "My follow-ups",
+    tabTeamFollowUps: "Team follow-ups",
+    activityListTitle: "Marketing Activities",
+    myActivitiesTitle: "My Activities",
+    newActivityPageTitle: "New activity",
+    newActivityButton: "New activity",
+    noActivities: "No activities yet.",
+    unassignedLabel: "Unassigned",
+    assignedToPrefix: "Assigned to",
+    assignToLabel: "Assign to",
+    assignAction: "Assign",
+    reassignAction: "Reassign",
+    viewAction: "View",
+    activityAssigned: "Activity assigned",
+    noActivitiesToAssign: "No activities to assign.",
+    statusPlanned: "Planned",
+    statusDone: "Done",
+    statusCancelled: "Cancelled",
+    markActivityDone: "Mark done",
+    markActivityCancelled: "Cancel",
+    activityUpdated: "Activity updated",
+    filterAll: "All",
+    filterUnassigned: "Unassigned only",
   },
   calendarPage: {
     tabCalendar: "Calendar",
@@ -1058,6 +1401,12 @@ const fr: Dictionary = {
     calendar: "Calendrier",
     attendanceGroup: "Présence",
     checkInOut: "Pointage",
+    attendanceRules: "Règles de présence",
+    attendanceAdmin: "Rapports de présence",
+    plans: "Plan de visite",
+    activitiesGroup: "Marketing",
+    activities: "Activités",
+    followUps: "Suivis",
   },
   header: {
     signOut: "Se déconnecter",
@@ -1281,6 +1630,10 @@ const fr: Dictionary = {
     timeoutBody: "Déplacez-vous vers un endroit avec une meilleure vue du ciel, puis réessayez.",
     lowAccuracyTitle: "La position n'est pas assez précise",
     lowAccuracyBody: "Déplacez-vous à l'extérieur ou loin des bâtiments, puis réessayez.",
+    borderlineAccuracyTitle: "La précision de la position est limite",
+    borderlineAccuracyBody:
+      "Vous pouvez continuer, mais cela sera signalé à votre superviseur pour examen. Déplacez-vous à l'extérieur pour une meilleure précision si possible.",
+    continueAnyway: "Continuer quand même",
     tryAgain: "Réessayer",
     checkedInToast: "Arrivée pointée avec succès.",
     checkedOutToast: "Départ pointé avec succès.",
@@ -1333,6 +1686,163 @@ const fr: Dictionary = {
     save: "Enregistrer",
     saving: "Enregistrement...",
     updated: "Jours ouvrés mis à jour",
+  },
+  attendanceRulesPage: {
+    title: "Règles de présence",
+    columnScope: "Portée",
+    columnTarget: "Cible",
+    columnExpectedStart: "Heure d'arrivée attendue",
+    columnLateGrace: "Tolérance retard (min)",
+    columnMinimumWorked: "Minimum travaillé (min)",
+    columnCreatedAt: "Créée le",
+    scopeTerritory: "Territoire",
+    scopeTeam: "Équipe",
+    scopeIndividual: "Individuel",
+    noResults: "Aucune règle de présence trouvée.",
+  },
+  attendanceRuleForm: {
+    scopeLabel: "Portée",
+    scopeTerritory: "Territoire",
+    scopeTeam: "Équipe",
+    scopeIndividual: "Individuel",
+    territoryLabel: "Territoire",
+    teamOwnerLabel: "S'applique à toute votre équipe (vos subordonnés)",
+    individualLabel: "Délégué",
+    expectedStartLabel: "Heure d'arrivée attendue",
+    lateGraceLabel: "Tolérance retard (minutes)",
+    minimumWorkedLabel: "Minutes travaillées minimum",
+    save: "Enregistrer la règle",
+    saving: "Enregistrement...",
+    created: "Règle de présence créée",
+  },
+  attendanceAdminPage: {
+    title: "Présence",
+    employeeLabel: "Employé",
+    anyEmployee: "Tous les employés",
+    territoryLabel: "Territoire",
+    anyTerritory: "Tous les territoires",
+    dateFromLabel: "Du",
+    dateToLabel: "Au",
+    statusLabel: "Statut",
+    anyStatus: "Tout statut",
+    clearFilters: "Effacer les filtres",
+    columnDate: "Date",
+    columnEmployee: "Employé",
+    columnTerritory: "Territoire",
+    columnStatus: "Statut",
+    columnSessions: "Sessions",
+    checkInLabel: "Arrivée",
+    checkOutLabel: "Départ",
+    accuracyColumn: "Précision GPS",
+    needsReviewHint:
+      "Cet enregistrement a une précision GPS entre 50m et 100m — assez limite pour être signalé, pas assez fiable pour être accepté sans vérification.",
+    dailyTeamView: "Vue quotidienne de l'équipe",
+    export: "Exporter vers Excel",
+    noResults: "Aucun enregistrement de présence trouvé.",
+  },
+  plansPage: {
+    title: "Plan de visite",
+    tabPlanVisits: "Planifier des visites",
+    tabAssignment: "Affectation",
+    tabMyVisits: "Mes visites",
+    planVisitsTitle: "Planifier des visites",
+    assignmentTitle: "Affectation",
+    myVisitsTitle: "Mes visites",
+    myselfOption: "Moi-même",
+    newPlan: "Nouveau plan",
+    noPlansYet: "Aucun plan pour le moment.",
+    noDateYet: "Pas encore de date",
+    unassignedLabel: "Non affecté",
+    noClientsYet: "Aucun client ajouté pour le moment.",
+    searchPlaceholder: "Rechercher par nom ou code...",
+    noMatches: "Aucun client correspondant.",
+    anyTerritory: "Tous les territoires",
+    remove: "Retirer",
+    locked: "La date de ce plan a commencé, il est donc verrouillé et ne peut plus être modifié.",
+    clientAdded: "Client ajouté au plan",
+    clientRemoved: "Client retiré du plan",
+    assignedByPrefix: "Assigné par",
+    markComplete: "Marquer comme terminé",
+    markCancelled: "Annuler",
+    visitCompleted: "Visite marquée comme terminée",
+    visitCancelled: "Visite annulée",
+    assignToLabel: "Affecter à",
+    dateLabel: "Date",
+    assignAction: "Affecter",
+    reassignAction: "Réaffecter",
+    planAssigned: "Plan affecté",
+    planReassigned: "Plan réaffecté",
+    cancelAssignment: "Annuler l'affectation",
+    assignmentCancelled: "Affectation annulée",
+    hasCompletedHint: "Ce plan a déjà des visites terminées, il ne peut donc plus être réaffecté.",
+    itemsCountSuffix: "clients",
+    backToPlanVisits: "Retour à Planifier des visites",
+    editAction: "Modifier",
+    save: "Enregistrer",
+    saving: "Enregistrement...",
+    planSaved: "Plan enregistré",
+    newPlanPageTitle: "Nouveau plan",
+    manageAssignmentAction: "Gérer l'affectation",
+    viewAction: "Voir",
+    backToAssignment: "Retour à l'affectation",
+  },
+  activitiesPage: {
+    title: "Activités marketing",
+    myFollowUps: "Mes suivis",
+    followUpsHeading: "Suivis en attente",
+    newActivity: "Nouvelle activité",
+    typeLabel: "Type",
+    typeCampaign: "Campagne",
+    typeEvent: "Événement",
+    typeOther: "Autre",
+    dateLabel: "Date",
+    targetLabel: "S'applique à",
+    targetClient: "Un client",
+    targetTerritory: "Un territoire",
+    notesLabel: "Notes",
+    save: "Enregistrer",
+    saving: "Enregistrement...",
+    activityCreated: "Activité créée",
+    noFollowUps: "Aucun suivi.",
+    overdue: "En retard",
+    markDone: "Marquer comme fait",
+    followUpCompleted: "Suivi terminé",
+    teamOverdue: "Suivis en retard de l'équipe",
+    dueDateColumn: "Échéance",
+    targetColumn: "Client / Territoire",
+    today: "Aujourd'hui",
+    activitiesThisMonth: "Activités ce mois-ci",
+    noActivitiesThisMonth: "Aucune activité ce mois-ci.",
+    addFollowUp: "Ajouter un suivi",
+    followUpCreated: "Suivi créé",
+    cancel: "Annuler",
+    tabActivityList: "Liste des activités",
+    tabAssignment: "Affectation",
+    tabCalendar: "Calendrier",
+    tabMyActivities: "Mes activités",
+    tabMyFollowUps: "Mes suivis",
+    tabTeamFollowUps: "Suivis de l'équipe",
+    activityListTitle: "Activités marketing",
+    myActivitiesTitle: "Mes activités",
+    newActivityPageTitle: "Nouvelle activité",
+    newActivityButton: "Nouvelle activité",
+    noActivities: "Aucune activité pour le moment.",
+    unassignedLabel: "Non affectée",
+    assignedToPrefix: "Affectée à",
+    assignToLabel: "Affecter à",
+    assignAction: "Affecter",
+    reassignAction: "Réaffecter",
+    viewAction: "Voir",
+    activityAssigned: "Activité affectée",
+    noActivitiesToAssign: "Aucune activité à affecter.",
+    statusPlanned: "Planifiée",
+    statusDone: "Terminée",
+    statusCancelled: "Annulée",
+    markActivityDone: "Marquer comme faite",
+    markActivityCancelled: "Annuler",
+    activityUpdated: "Activité mise à jour",
+    filterAll: "Toutes",
+    filterUnassigned: "Non affectées seulement",
   },
   calendarPage: {
     tabCalendar: "Calendrier",

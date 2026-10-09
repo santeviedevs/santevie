@@ -22,16 +22,32 @@ type NavKey =
   | "calendar"
   | "attendanceGroup"
   | "checkInOut"
+  | "attendanceRules"
+  | "attendanceAdmin"
   | "team"
   | "leavesGroup"
   | "myLeaves"
   | "teamLeaves"
   | "clients"
   | "products"
+  | "plans"
+  | "activitiesGroup"
+  | "activities"
+  | "followUps"
   | "installGuide";
 
-export type NavChildDef = { href: string; key: NavKey; permission?: Permission };
-export type NavChild = { href: string; label: string; permission?: Permission };
+export type NavChildDef = {
+  href: string;
+  key: NavKey;
+  permission?: Permission;
+  anyPermission?: Permission[];
+};
+export type NavChild = {
+  href: string;
+  label: string;
+  permission?: Permission;
+  anyPermission?: Permission[];
+};
 
 export type NavItemDef = {
   // Present on a plain item, absent on a group (a group navigates via its
@@ -101,6 +117,16 @@ export const NAV_ITEM_DEFS: NavItemDef[] = [
         key: "checkInOut",
         permission: "attendance:check-in",
       },
+      {
+        href: "/attendance-rules",
+        key: "attendanceRules",
+        permission: "attendance-rules:manage",
+      },
+      {
+        href: "/admin/attendance",
+        key: "attendanceAdmin",
+        anyPermission: ["reports:view-team", "reports:view-all"],
+      },
     ],
   },
   {
@@ -119,6 +145,15 @@ export const NAV_ITEM_DEFS: NavItemDef[] = [
   },
   { href: "/admin/clients", key: "clients", icon: Stethoscope, permission: "clients:manage" },
   { href: "/admin/products", key: "products", icon: Package, permission: "products:manage" },
+  { href: "/plans", key: "plans", icon: CalendarDays, permission: "plans:respond-own" },
+  {
+    key: "activitiesGroup",
+    icon: CalendarDays,
+    children: [
+      { href: "/activities", key: "activities", permission: "activities:respond-own" },
+      { href: "/activities/follow-ups", key: "followUps", permission: "activities:respond-own" },
+    ],
+  },
 ];
 
 export const SECONDARY_NAV_ITEM_DEFS: NavItemDef[] = [

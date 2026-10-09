@@ -2,7 +2,7 @@ import { DEFAULT_PAGE_SIZE, type PagedResult, toSkipTake } from "@/lib/paginatio
 import {
   type CheckInInput,
   type CheckOutInput,
-  MAX_ACCEPTABLE_ACCURACY_METERS,
+  MAX_REJECTABLE_ACCURACY_METERS,
 } from "@/lib/schemas/attendance";
 import {
   type AttendanceSessionRow,
@@ -13,6 +13,7 @@ import {
   upsertAttendanceDay,
 } from "@/server/repositories/attendance-repository";
 import { findUserById } from "@/server/repositories/user-repository";
+import { deriveAndPersistAttendanceStatus } from "@/server/services/attendance-status-service";
 import { isWorkingDay } from "@/server/services/working-day-service";
 
 export class UserNotFoundError extends Error {
@@ -54,6 +55,23 @@ export class LocationAccuracyTooLowError extends Error {
   constructor() {
     super("That location fix isn't precise enough. Move to an open area and try again.");
     this.name = "LocationAccuracyTooLowError";
+  }
+}
+
+// Event-driven status derivation: fired right after a check-in or
+// check-out actually writes, so LATE/INCOMPLETE/NEEDS_REVIEW/PRESENT stay
+// live on the Attendance row the moment something changes, rather than
+// waiting for a report screen to be opened or a nightly job to run. Never
+// allowed to fail the check-in/check-out itself — a bug in rule resolution
+// is a secondary-feature problem, not a reason to block someone from
+// recording their attendance. ABSENT/NON_WORKING are deliberately not
+// handled here — there's no check-in/check-out event for a day nobody
+// showed up to, so those stay a separate, still-undecided design question.
+async function deriveStatusSafely(userId: string, date: Date, actorId: string): Promise<void> {
+  try {
+    await deriveAndPersistAttendanceStatus(userId, date, actorId);
+  } catch (error) {
+    console.error("Attendance status derivation failed after a check-in/check-out event", error);
   }
 }
 
@@ -184,7 +202,11 @@ export async function checkIn(
   if (requiresLocation && !hasLocation) {
     throw new LocationRequiredError();
   }
-  if (hasLocation && input.accuracy! > MAX_ACCEPTABLE_ACCURACY_METERS) {
+  // Only rejects above the higher ceiling now — a fix between the two
+  // thresholds is accepted and stored, with NEEDS_REVIEW (derived in
+  // attendance-status-service.ts) flagging it for a supervisor afterward
+  // rather than blocking the delegate outright.
+  if (hasLocation && input.accuracy! > MAX_REJECTABLE_ACCURACY_METERS) {
     throw new LocationAccuracyTooLowError();
   }
 
@@ -203,6 +225,8 @@ export async function checkIn(
     createdBy: user.id,
     updatedBy: user.id,
   });
+
+  await deriveStatusSafely(user.id, today, user.id);
 
   return toSessionSummary(created);
 }
@@ -234,7 +258,11 @@ export async function checkOut(
   if (requiresLocation && !hasLocation) {
     throw new LocationRequiredError();
   }
-  if (hasLocation && input.accuracy! > MAX_ACCEPTABLE_ACCURACY_METERS) {
+  // Only rejects above the higher ceiling now — a fix between the two
+  // thresholds is accepted and stored, with NEEDS_REVIEW (derived in
+  // attendance-status-service.ts) flagging it for a supervisor afterward
+  // rather than blocking the delegate outright.
+  if (hasLocation && input.accuracy! > MAX_REJECTABLE_ACCURACY_METERS) {
     throw new LocationAccuracyTooLowError();
   }
 
@@ -247,6 +275,8 @@ export async function checkOut(
       hasLocation && input.deviceTimestamp ? new Date(input.deviceTimestamp) : undefined,
     updatedBy: user.id,
   });
+
+  await deriveStatusSafely(user.id, today, user.id);
 
   return toSessionSummary(updated);
 }

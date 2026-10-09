@@ -1,11 +1,18 @@
 import { z } from "zod";
 
-// The GPS fix's own confidence radius (meters) a check-in must be within to
-// be trusted — not a distance to anything else, just a quality gate on the
-// fix itself. Shared between the client (so a bad fix is caught before
-// submitting) and the server (which never trusts the client's judgment
-// alone and re-checks this exact threshold).
+// Three-tier GPS accuracy gate, shared between the client (so a bad fix is
+// caught before submitting) and the server (which never trusts the
+// client's judgment alone and re-checks the same thresholds):
+//   - accuracy <= MAX_ACCEPTABLE_ACCURACY_METERS: clean accept, no flag.
+//   - MAX_ACCEPTABLE_ACCURACY_METERS < accuracy <= MAX_REJECTABLE_ACCURACY_METERS:
+//     accepted, but attendance-status-service.ts's NEEDS_REVIEW check (an
+//     unconditional `accuracy > MAX_ACCEPTABLE_ACCURACY_METERS`) already
+//     flags anything in this band for a supervisor to look at — no change
+//     needed there, it was always written for this two-threshold shape.
+//   - accuracy > MAX_REJECTABLE_ACCURACY_METERS: rejected outright, same as
+//     before this tier was introduced — too unreliable to record at all.
 export const MAX_ACCEPTABLE_ACCURACY_METERS = 50;
+export const MAX_REJECTABLE_ACCURACY_METERS = 100;
 
 const latitude = z.number().min(-90).max(90);
 const longitude = z.number().min(-180).max(180);

@@ -46,6 +46,19 @@ export function upsertAttendanceDay(
   });
 }
 
+// S3-04: persists the derived status for a day-level Attendance row. Always
+// an unconditional write — deriveAndPersistAttendanceStatus is itself
+// idempotent (same inputs always produce the same status), so writing the
+// same value again on a re-run is harmless, not something that needs a
+// "did it change" guard.
+export function updateAttendanceStatus(
+  id: string,
+  status: Prisma.AttendanceUpdateInput["status"],
+  actorId: string,
+): Promise<Prisma.AttendanceGetPayload<object>> {
+  return prisma.attendance.update({ where: { id }, data: { status, updatedBy: actorId } });
+}
+
 export function createSession(
   data: Prisma.AttendanceSessionCreateInput,
 ): Promise<AttendanceSessionRow> {
