@@ -32,9 +32,9 @@ const detailInclude = {
   centers: {
     include: {
       roleAtCenter: true,
-      client: { select: { id: true, code: true, name: true, status: true, type: true } },
+      center: { select: { id: true, code: true, name: true, status: true, type: true } },
     },
-    orderBy: { client: { name: "asc" } },
+    orderBy: { center: { name: "asc" } },
   },
   _count: { select: { centers: true } },
 } satisfies Prisma.PersonInclude;
@@ -51,8 +51,8 @@ function buildWhere(filters: PersonFilters): Prisma.PersonWhereInput {
     ...(filters.specializationId ? { specializationId: filters.specializationId } : {}),
     ...(filters.territoryId ? { territoryId: filters.territoryId } : {}),
     ...(filters.status ? { status: filters.status } : {}),
-    ...(filters.clientTypeId
-      ? { centers: { some: { client: { typeId: filters.clientTypeId } } } }
+    ...(filters.centerTypeId
+      ? { centers: { some: { center: { typeId: filters.centerTypeId } } } }
       : {}),
     ...(filters.q
       ? {
@@ -88,7 +88,7 @@ export function findPersonById(id: string): Promise<PersonDetailRow | null> {
 export function findPersonCenterLinks(personId: string) {
   return prisma.personCenter.findMany({
     where: { personId },
-    select: { clientId: true, roleAtCenterId: true },
+    select: { centerId: true, roleAtCenterId: true },
   });
 }
 
@@ -138,7 +138,7 @@ export function findCenterRolesByIds(ids: string[]) {
 }
 
 export function findCentersByIds(ids: string[]) {
-  return prisma.client.findMany({
+  return prisma.center.findMany({
     where: { id: { in: ids } },
     select: { id: true, status: true },
   });
@@ -184,7 +184,7 @@ export async function nextPersonCodeNumber(): Promise<number> {
 
 // --- Writes ---
 
-export type PersonCenterData = { clientId: string; roleAtCenterId: string };
+export type PersonCenterData = { centerId: string; roleAtCenterId: string };
 
 type PersonWriteData = {
   name: string;
@@ -225,11 +225,11 @@ export function updatePersonWithCenters(
 ): Promise<PersonDetailRow> {
   return prisma.$transaction(async (tx) => {
     await tx.personCenter.deleteMany({
-      where: { personId: id, clientId: { notIn: centers.map((c) => c.clientId) } },
+      where: { personId: id, centerId: { notIn: centers.map((c) => c.centerId) } },
     });
     for (const center of centers) {
       await tx.personCenter.upsert({
-        where: { personId_clientId: { personId: id, clientId: center.clientId } },
+        where: { personId_centerId: { personId: id, centerId: center.centerId } },
         update: { roleAtCenterId: center.roleAtCenterId, updatedBy: actorId },
         create: { personId: id, ...center, createdBy: actorId, updatedBy: actorId },
       });

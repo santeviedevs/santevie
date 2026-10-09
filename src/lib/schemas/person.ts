@@ -18,9 +18,9 @@ const mobile = z
   .max(20, "Mobile number is too long")
   .regex(/^[0-9+()\-\s]+$/, "Mobile number may only contain digits, spaces, +, - and ()");
 
-// One Person<->Center link. `clientId` is the Center (the Client model).
+// One Person<->Center link. `centerId` is the Center (the Center model).
 export const personCenterSchema = z.object({
-  clientId: id("Select a center"),
+  centerId: id("Select a center"),
   roleAtCenterId: id("Select a role at this center"),
 });
 export type PersonCenterInput = z.infer<typeof personCenterSchema>;
@@ -28,14 +28,14 @@ export type PersonCenterInput = z.infer<typeof personCenterSchema>;
 const centers = z.array(personCenterSchema).superRefine((items, ctx) => {
   const seen = new Set<string>();
   items.forEach((item, index) => {
-    if (seen.has(item.clientId)) {
+    if (seen.has(item.centerId)) {
       ctx.addIssue({
         code: "custom",
-        path: [index, "clientId"],
+        path: [index, "centerId"],
         message: "This center is already associated with the person.",
       });
     }
-    seen.add(item.clientId);
+    seen.add(item.centerId);
   });
 });
 
@@ -56,7 +56,7 @@ export type CreatePersonInput = z.infer<typeof createPersonSchema>;
 export const updatePersonSchema = createPersonSchema.extend({
   id: id("Missing person id"),
   // Absent means "leave as-is"; present is an explicit set, same convention
-  // as UpdateClientInput.
+  // as UpdateCenterInput.
   status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
 });
 export type UpdatePersonInput = z.infer<typeof updatePersonSchema>;
@@ -78,7 +78,7 @@ export const createLookupSchema = z.object({
 export type CreateLookupInput = z.infer<typeof createLookupSchema>;
 
 // A Center as offered by the association editor's picker. `typeName` is the
-// existing Center Type (ClientType) name.
+// existing Center Type (CenterType) name.
 export type CenterOption = { id: string; code: string; name: string; typeName: string };
 
 export const personFiltersSchema = z
@@ -86,9 +86,9 @@ export const personFiltersSchema = z
     q: z.string().trim().optional(),
     personTypeId: z.string().optional(),
     specializationId: z.string().optional(),
-    // Center Type = the existing ClientType, matched through the Person's
+    // Center Type = the existing CenterType, matched through the Person's
     // associated Centers.
-    clientTypeId: z.string().optional(),
+    centerTypeId: z.string().optional(),
     territoryId: z.string().optional(),
     status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
   })

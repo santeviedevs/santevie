@@ -1,5 +1,5 @@
 import { isPlanEditable } from "@/lib/schemas/plan";
-import { findClientById } from "@/server/repositories/client-repository";
+import { findCenterById } from "@/server/repositories/center-repository";
 import {
   assignPlanRow,
   cancelPendingPlanItems,
@@ -7,7 +7,7 @@ import {
   createPlanRow,
   deletePlanItem,
   deletePlanRow,
-  findActiveClientIdsForVisitorOnDate,
+  findActiveCenterIdsForVisitorOnDate,
   findAssignablePlans,
   findEditablePlans,
   findPlanById,
@@ -29,17 +29,17 @@ export class PlanEditCutoffError extends Error {
   }
 }
 
-export class ClientOutsideTerritoryError extends Error {
+export class CenterOutsideTerritoryError extends Error {
   constructor() {
-    super("One or more clients are outside the visitor's permitted territories.");
-    this.name = "ClientOutsideTerritoryError";
+    super("One or more centers are outside the visitor's permitted territories.");
+    this.name = "CenterOutsideTerritoryError";
   }
 }
 
-export class DuplicateClientOnPlanError extends Error {
+export class DuplicateCenterOnPlanError extends Error {
   constructor() {
-    super("This client is already planned for this visitor on this date.");
-    this.name = "DuplicateClientOnPlanError";
+    super("This center is already planned for this visitor on this date.");
+    this.name = "DuplicateCenterOnPlanError";
   }
 }
 
@@ -63,10 +63,10 @@ export class PlanNotOwnedError extends Error {
   }
 }
 
-export class ClientNotFoundError extends Error {
+export class CenterNotFoundError extends Error {
   constructor() {
-    super("Client not found.");
-    this.name = "ClientNotFoundError";
+    super("Center not found.");
+    this.name = "CenterNotFoundError";
   }
 }
 
@@ -111,7 +111,7 @@ export type PlanItemSummary = {
   // PENDING/COMPLETED/CANCELLED as actually stored; MISSED is never
   // stored — see the PlanItemStatus enum comment in schema.prisma.
   status: "PENDING" | "COMPLETED" | "CANCELLED" | "MISSED";
-  client: { id: string; name: string; code: string; territoryId: string | null };
+  center: { id: string; name: string; code: string; territoryId: string | null };
 };
 
 export type PlanGroupSummary = {
@@ -160,11 +160,11 @@ async function toGroupSummaries(plans: PlanWithItems[]): Promise<PlanGroupSummar
       id: item.id,
       sequence: item.sequence,
       status: itemDisplayStatus(item.status, plan.date),
-      client: {
-        id: item.client.id,
-        name: item.client.name,
-        code: item.client.code,
-        territoryId: item.client.territoryId,
+      center: {
+        id: item.center.id,
+        name: item.center.name,
+        code: item.center.code,
+        territoryId: item.center.territoryId,
       },
     })),
   }));
@@ -243,8 +243,8 @@ export async function reorderPlanItems(
 
 // The single "Save" action on the Plan Visits editor — nothing about a
 // plan's content is written until this runs. Takes the editor's whole
-// desired client list (in order) and diffs it against what's actually
-// stored: clients no longer in the list get removed, new ones get
+// desired center list (in order) and diffs it against what's actually
+// stored: centers no longer in the list get removed, new ones get
 // created, everyone kept gets resequenced to match. `planId: null` covers
 // a brand-new plan — created here, in the same call, only once there's
 // actually something to save (so "New plan" never leaves a bare, empty
@@ -253,7 +253,7 @@ export async function reorderPlanItems(
 // only PENDING/MISSED ones are ever part of the editable set.
 export async function savePlanContent(
   planId: string | null,
-  clientIdsInOrder: string[],
+  centerIdsInOrder: string[],
   actorId: string,
   actorRoleName: string,
 ): Promise<string> {
@@ -271,27 +271,27 @@ export async function savePlanContent(
     : new Set<string>();
 
   const editableExistingItems = (plan?.items ?? []).filter((item) => item.status === "PENDING");
-  const existingClientIds = new Set(editableExistingItems.map((item) => item.client.id));
-  const keepClientIds = new Set(clientIdsInOrder.filter((id) => existingClientIds.has(id)));
-  const toRemove = editableExistingItems.filter((item) => !keepClientIds.has(item.client.id));
-  const toAddClientIds = clientIdsInOrder.filter((id) => !existingClientIds.has(id));
+  const existingCenterIds = new Set(editableExistingItems.map((item) => item.center.id));
+  const keepCenterIds = new Set(centerIdsInOrder.filter((id) => existingCenterIds.has(id)));
+  const toRemove = editableExistingItems.filter((item) => !keepCenterIds.has(item.center.id));
+  const toAddCenterIds = centerIdsInOrder.filter((id) => !existingCenterIds.has(id));
 
-  const clientsToAdd = await Promise.all(toAddClientIds.map((id) => findClientById(id)));
-  for (const client of clientsToAdd) {
-    if (!client) throw new ClientNotFoundError();
-    if (!client.territoryId || !permittedTerritoryIds.has(client.territoryId)) {
-      throw new ClientOutsideTerritoryError();
+  const centersToAdd = await Promise.all(toAddCenterIds.map((id) => findCenterById(id)));
+  for (const center of centersToAdd) {
+    if (!center) throw new CenterNotFoundError();
+    if (!center.territoryId || !permittedTerritoryIds.has(center.territoryId)) {
+      throw new CenterOutsideTerritoryError();
     }
   }
 
   if (plan?.userId && plan.date) {
-    const activeElsewhere = await findActiveClientIdsForVisitorOnDate(
+    const activeElsewhere = await findActiveCenterIdsForVisitorOnDate(
       plan.userId,
       plan.date,
       plan.id,
     );
-    if (toAddClientIds.some((id) => activeElsewhere.has(id))) {
-      throw new DuplicateClientOnPlanError();
+    if (toAddCenterIds.some((id) => activeElsewhere.has(id))) {
+      throw new DuplicateCenterOnPlanError();
     }
   }
 
@@ -299,17 +299,17 @@ export async function savePlanContent(
 
   await Promise.all(toRemove.map((item) => deletePlanItem(item.id)));
 
-  const existingByClientId = new Map(editableExistingItems.map((item) => [item.client.id, item]));
+  const existingByCenterId = new Map(editableExistingItems.map((item) => [item.center.id, item]));
   await Promise.all(
-    clientIdsInOrder.map(async (clientId, sequence) => {
-      const existing = existingByClientId.get(clientId);
+    centerIdsInOrder.map(async (centerId, sequence) => {
+      const existing = existingByCenterId.get(centerId);
       if (existing) {
         await updatePlanItemSequence(existing.id, sequence, actorId);
         return;
       }
       await createPlanItem({
         plan: { connect: { id: resolvedPlanId } },
-        client: { connect: { id: clientId } },
+        center: { connect: { id: centerId } },
         sequence,
         createdBy: actorId,
         updatedBy: actorId,
@@ -366,15 +366,15 @@ async function assertItemsFitTerritoryAndNoDuplicates(
 ): Promise<void> {
   const [permittedTerritoryIds, activeElsewhere] = await Promise.all([
     getPermittedTerritoryIds(targetUserId),
-    findActiveClientIdsForVisitorOnDate(targetUserId, date, plan.id),
+    findActiveCenterIdsForVisitorOnDate(targetUserId, date, plan.id),
   ]);
 
   for (const item of plan.items) {
-    if (!item.client.territoryId || !permittedTerritoryIds.has(item.client.territoryId)) {
-      throw new ClientOutsideTerritoryError();
+    if (!item.center.territoryId || !permittedTerritoryIds.has(item.center.territoryId)) {
+      throw new CenterOutsideTerritoryError();
     }
-    if (activeElsewhere.has(item.client.id)) {
-      throw new DuplicateClientOnPlanError();
+    if (activeElsewhere.has(item.center.id)) {
+      throw new DuplicateCenterOnPlanError();
     }
   }
 }

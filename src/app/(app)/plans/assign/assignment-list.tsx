@@ -8,7 +8,7 @@ import type { Dictionary } from "@/lib/i18n/dictionary";
 type PlanItem = {
   id: string;
   status: "PENDING" | "COMPLETED" | "CANCELLED" | "MISSED";
-  client: { name: string; code: string };
+  center: { name: string; code: string };
 };
 type PlanGroup = {
   id: string;
@@ -65,7 +65,7 @@ export function AssignmentList({
                 <div className="flex flex-col text-xs text-muted-foreground">
                   {plan.items.map((item) => (
                     <span key={item.id}>
-                      {item.client.name} ({item.client.code})
+                      {item.center.name} ({item.center.code})
                     </span>
                   ))}
                 </div>

@@ -11,7 +11,7 @@ export const PERMISSIONS = [
   "users:manage",
   "roles:manage",
   "territories:manage",
-  "clients:manage",
+  "centers:manage",
   "persons:manage",
   "products:manage",
   "targets:manage",
@@ -51,7 +51,7 @@ export const ROLE_PERMISSIONS: Record<RoleName, readonly Permission[]> = {
   ADMIN: PERMISSIONS,
   MANAGER: [
     "territories:manage",
-    "clients:manage",
+    "centers:manage",
     "persons:manage",
     "products:manage",
     "targets:manage",

@@ -8,9 +8,9 @@ import type {
   UpdatePersonInput,
 } from "@/lib/schemas/person";
 import {
-  listActiveClientsForSelection,
-  listClientTypes,
-} from "@/server/repositories/client-repository";
+  listActiveCentersForSelection,
+  listCenterTypes,
+} from "@/server/repositories/center-repository";
 import {
   countPersons,
   createLookup,
@@ -133,7 +133,7 @@ export type PersonSummary = {
 };
 
 export type PersonCenterView = {
-  clientId: string;
+  centerId: string;
   code: string;
   name: string;
   typeName: string;
@@ -175,11 +175,11 @@ function toDetail(row: PersonDetailRow): PersonDetail {
     ...toSummary(row),
     territoryStatus: row.territory.status,
     centers: row.centers.map((link) => ({
-      clientId: link.client.id,
-      code: link.client.code,
-      name: link.client.name,
-      typeName: link.client.type.name,
-      centerStatus: link.client.status,
+      centerId: link.center.id,
+      code: link.center.code,
+      name: link.center.name,
+      typeName: link.center.type.name,
+      centerStatus: link.center.status,
       roleAtCenterId: link.roleAtCenter.id,
       roleName: link.roleAtCenter.name,
     })),
@@ -210,27 +210,27 @@ export type PersonFormOptions = {
 // Centers may have been deactivated since, and the form still has to be able
 // to display what the Person currently holds.
 export async function getPersonFormOptions(current?: PersonDetail): Promise<PersonFormOptions> {
-  const [personTypes, specializations, centerRoles, territories, clients, clientTypes] =
+  const [personTypes, specializations, centerRoles, territories, activeCenters, centerTypes] =
     await Promise.all([
       listPersonTypes(),
       listSpecializations(),
       listCenterRoles(),
       listActiveTerritoryOptions(),
-      listActiveClientsForSelection(),
-      listClientTypes(),
+      listActiveCentersForSelection(),
+      listCenterTypes(),
     ]);
-  const typeNameById = new Map(clientTypes.map((t) => [t.id, t.name]));
+  const typeNameById = new Map(centerTypes.map((t) => [t.id, t.name]));
 
-  const centers: CenterOption[] = clients.map((c) => ({
+  const centers: CenterOption[] = activeCenters.map((c) => ({
     id: c.id,
     code: c.code,
     name: c.name,
     typeName: typeNameById.get(c.typeId) ?? "",
   }));
   for (const link of current?.centers ?? []) {
-    if (!centers.some((c) => c.id === link.clientId)) {
+    if (!centers.some((c) => c.id === link.centerId)) {
       centers.push({
-        id: link.clientId,
+        id: link.centerId,
         code: link.code,
         name: link.name,
         typeName: link.typeName,
@@ -247,13 +247,13 @@ export async function getPersonFormOptions(current?: PersonDetail): Promise<Pers
 }
 
 export async function getPersonFilterOptions() {
-  const [personTypes, specializations, clientTypes, territories] = await Promise.all([
+  const [personTypes, specializations, centerTypes, territories] = await Promise.all([
     listPersonTypes(),
     listSpecializations(),
-    listClientTypes(),
+    listCenterTypes(),
     listActiveTerritoryOptions(),
   ]);
-  return { personTypes, specializations, clientTypes, territories };
+  return { personTypes, specializations, centerTypes, territories };
 }
 
 // --- Lookup create-or-select ---
@@ -300,7 +300,7 @@ async function assertReferences(
   input: References,
   current: {
     territoryId?: string;
-    centers: { clientId: string; roleAtCenterId: string }[];
+    centers: { centerId: string; roleAtCenterId: string }[];
   },
 ): Promise<void> {
   if (!(await findPersonTypeById(input.personTypeId))) {
@@ -318,22 +318,22 @@ async function assertReferences(
 
   const seen = new Set<string>();
   for (const center of input.centers) {
-    if (seen.has(center.clientId)) throw new DuplicatePersonCenterError();
-    seen.add(center.clientId);
+    if (seen.has(center.centerId)) throw new DuplicatePersonCenterError();
+    seen.add(center.centerId);
   }
 
-  const clientIds = input.centers.map((c) => c.clientId);
+  const centerIds = input.centers.map((c) => c.centerId);
   const roleIds = [...new Set(input.centers.map((c) => c.roleAtCenterId))];
-  const [clients, roles] = await Promise.all([
-    clientIds.length ? findCentersByIds(clientIds) : Promise.resolve([]),
+  const [centers, roles] = await Promise.all([
+    centerIds.length ? findCentersByIds(centerIds) : Promise.resolve([]),
     roleIds.length ? findCenterRolesByIds(roleIds) : Promise.resolve([]),
   ]);
-  if (clients.length !== clientIds.length) throw new InvalidPersonReferenceError("center");
+  if (centers.length !== centerIds.length) throw new InvalidPersonReferenceError("center");
   if (roles.length !== roleIds.length) throw new InvalidPersonReferenceError("role at center");
 
-  const alreadyLinked = new Set(current.centers.map((c) => c.clientId));
-  for (const client of clients) {
-    if (client.status === "INACTIVE" && !alreadyLinked.has(client.id)) {
+  const alreadyLinked = new Set(current.centers.map((c) => c.centerId));
+  for (const center of centers) {
+    if (center.status === "INACTIVE" && !alreadyLinked.has(center.id)) {
       throw new InactivePersonReferenceError("center");
     }
   }

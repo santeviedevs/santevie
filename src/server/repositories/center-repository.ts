@@ -1,5 +1,5 @@
 import { toSkipTake } from "@/lib/pagination";
-import type { ClientFilters } from "@/lib/schemas/client";
+import type { CenterFilters } from "@/lib/schemas/center";
 import { prisma } from "@/server/db";
 
 import type { Prisma } from "../../../generated/prisma/client";
@@ -17,11 +17,11 @@ const listInclude = {
     },
   },
   hospital: true,
-} satisfies Prisma.ClientInclude;
+} satisfies Prisma.CenterInclude;
 
-export type ClientWithRelations = Prisma.ClientGetPayload<{ include: typeof listInclude }>;
+export type CenterWithRelations = Prisma.CenterGetPayload<{ include: typeof listInclude }>;
 
-function buildWhere(filters: ClientFilters): Prisma.ClientWhereInput {
+function buildWhere(filters: CenterFilters): Prisma.CenterWhereInput {
   return {
     ...(filters.typeId ? { typeId: filters.typeId } : {}),
     ...(filters.territoryId ? { territoryId: filters.territoryId } : {}),
@@ -38,8 +38,8 @@ function buildWhere(filters: ClientFilters): Prisma.ClientWhereInput {
   };
 }
 
-export function findClients(filters: ClientFilters): Promise<ClientWithRelations[]> {
-  return prisma.client.findMany({
+export function findCenters(filters: CenterFilters): Promise<CenterWithRelations[]> {
+  return prisma.center.findMany({
     where: buildWhere(filters),
     include: listInclude,
     orderBy: { name: "asc" },
@@ -47,86 +47,86 @@ export function findClients(filters: ClientFilters): Promise<ClientWithRelations
   });
 }
 
-export function countClients(filters: ClientFilters): Promise<number> {
-  return prisma.client.count({ where: buildWhere(filters) });
+export function countCenters(filters: CenterFilters): Promise<number> {
+  return prisma.center.count({ where: buildWhere(filters) });
 }
 
-export function findClientById(id: string): Promise<ClientWithRelations | null> {
-  return prisma.client.findUnique({ where: { id }, include: listInclude });
+export function findCenterById(id: string): Promise<CenterWithRelations | null> {
+  return prisma.center.findUnique({ where: { id }, include: listInclude });
 }
 
-// Clients selectable for a *new* visit or order — active only. Inactive
-// clients must stay out of this list while remaining fully readable via
-// findClientById/findClients for history and admin screens.
-export function listActiveClientsForSelection() {
-  return prisma.client.findMany({
+// Centers selectable for a *new* visit or order — active only. Inactive
+// centers must stay out of this list while remaining fully readable via
+// findCenterById/findCenters for history and admin screens.
+export function listActiveCentersForSelection() {
+  return prisma.center.findMany({
     where: { status: "ACTIVE" },
     select: { id: true, name: true, code: true, typeId: true },
     orderBy: { name: "asc" },
   });
 }
 
-// S3-06's visit-planning client picker — active clients within a specific
+// S3-06's visit-planning center picker — active centers within a specific
 // set of territory ids (the delegate's permitted territories). Kept
-// separate from listActiveClientsForSelection above rather than widening
+// separate from listActiveCentersForSelection above rather than widening
 // that function's shape, since its existing callers (order/visit pickers)
 // don't need territory-scoping and shouldn't have their payload shape
 // changed for a different feature's requirement.
-export function listActiveClientsForTerritories(territoryIds: string[]) {
-  return prisma.client.findMany({
+export function listActiveCentersForTerritories(territoryIds: string[]) {
+  return prisma.center.findMany({
     where: { status: "ACTIVE", territoryId: { in: territoryIds } },
     select: { id: true, name: true, code: true, territoryId: true },
     orderBy: { name: "asc" },
   });
 }
 
-export function listClientTypes() {
-  return prisma.clientType.findMany({ select: { id: true, code: true, name: true } });
+export function listCenterTypes() {
+  return prisma.centerType.findMany({ select: { id: true, code: true, name: true } });
 }
 
-type ClientCreateData = {
-  client: Omit<Prisma.ClientCreateInput, "hospital">;
-  hospital?: Omit<Prisma.HospitalCreateWithoutClientInput, never>;
+type CenterCreateData = {
+  center: Omit<Prisma.CenterCreateInput, "hospital">;
+  hospital?: Omit<Prisma.HospitalCreateWithoutCenterInput, never>;
 };
 
-// A Client and its Hospital extension are written in one transaction
-// — a failure partway through must never leave a Client row with no
+// A Center and its Hospital extension are written in one transaction
+// — a failure partway through must never leave a Center row with no
 // extension row (or vice versa), since the extension is what makes the
-// Client usable as the type it claims to be.
-export function createClientWithExtension(data: ClientCreateData): Promise<ClientWithRelations> {
-  return prisma.client.create({
+// Center usable as the type it claims to be.
+export function createCenterWithExtension(data: CenterCreateData): Promise<CenterWithRelations> {
+  return prisma.center.create({
     data: {
-      ...data.client,
+      ...data.center,
       ...(data.hospital ? { hospital: { create: data.hospital } } : {}),
     },
     include: listInclude,
   });
 }
 
-type ClientUpdateData = {
-  client: Omit<Prisma.ClientUpdateInput, "hospital">;
-  hospital?: Omit<Prisma.HospitalUpdateWithoutClientInput, never>;
+type CenterUpdateData = {
+  center: Omit<Prisma.CenterUpdateInput, "hospital">;
+  hospital?: Omit<Prisma.HospitalUpdateWithoutCenterInput, never>;
 };
 
 // `upsert`, not `update` — a plain `update` throws P2025 whenever the
-// extension row doesn't already exist, which happens both when a client's
+// extension row doesn't already exist, which happens both when a center's
 // type is switched (e.g. to Hospital, no extension of the new type yet)
 // and for pre-S2-02 seed data that was never given an extension row at all
 // for whatever type it's labeled with. `upsert`'s create branch covers both
-// cases the same way createClientWithExtension already does on first
+// cases the same way createCenterWithExtension already does on first
 // creation.
-export function updateClientWithExtension(
+export function updateCenterWithExtension(
   id: string,
-  data: ClientUpdateData,
-): Promise<ClientWithRelations> {
-  return prisma.client.update({
+  data: CenterUpdateData,
+): Promise<CenterWithRelations> {
+  return prisma.center.update({
     where: { id },
     data: {
-      ...data.client,
+      ...data.center,
       ...(data.hospital
         ? {
             hospital: {
-              // The cast below is safe: client-service.ts only ever builds
+              // The cast below is safe: center-service.ts only ever builds
               // this object from plain scalar fields (never a
               // FieldUpdateOperationsInput like `{ increment: 1 }`), so it
               // satisfies the Create shape too — Prisma's Update type is
@@ -135,7 +135,7 @@ export function updateClientWithExtension(
                 create: {
                   ...data.hospital,
                   createdBy: data.hospital.updatedBy,
-                } as Prisma.HospitalCreateWithoutClientInput,
+                } as Prisma.HospitalCreateWithoutCenterInput,
                 update: data.hospital,
               },
             },

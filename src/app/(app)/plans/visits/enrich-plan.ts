@@ -1,4 +1,4 @@
-import { listActiveClientsForTerritories } from "@/server/repositories/client-repository";
+import { listActiveCentersForTerritories } from "@/server/repositories/center-repository";
 import { getPermittedTerritoryIds, type PlanGroupSummary } from "@/server/services/plan-service";
 import {
   listActiveTerritoryOptions,
@@ -6,7 +6,7 @@ import {
 } from "@/server/services/territory-service";
 
 // Shared between the Plan Visits list page and the dedicated single-plan
-// page — each plan's client picker is scoped to its own territory owner
+// page — each plan's center picker is scoped to its own territory owner
 // (the creator while unassigned, the visitor once assigned), so this has
 // to run per-plan, not once for the whole page.
 export async function enrichPlanForVisits(
@@ -18,7 +18,7 @@ export async function enrichPlanForVisits(
     ? await getPermittedTerritoryIds(territoryOwnerId)
     : new Set<string>();
   const territories = allTerritories.filter((territory) => permittedTerritoryIds.has(territory.id));
-  const availableClients = await listActiveClientsForTerritories([...permittedTerritoryIds]);
+  const availableCenters = await listActiveCentersForTerritories([...permittedTerritoryIds]);
 
   return {
     id: plan.id,
@@ -27,11 +27,11 @@ export async function enrichPlanForVisits(
     editable: plan.editable,
     items: plan.items,
     territories: territories.map((territory) => ({ id: territory.id, label: territory.label })),
-    availableClients: availableClients.map((client) => ({
-      id: client.id,
-      name: client.name,
-      code: client.code,
-      territoryId: client.territoryId,
+    availableCenters: availableCenters.map((center) => ({
+      id: center.id,
+      name: center.name,
+      code: center.code,
+      territoryId: center.territoryId,
     })),
   };
 }
@@ -46,15 +46,15 @@ export async function getAllTerritoryOptions(): Promise<TerritoryOption[]> {
 export async function enrichNewPlanDraft(actorId: string, allTerritories: TerritoryOption[]) {
   const permittedTerritoryIds = await getPermittedTerritoryIds(actorId);
   const territories = allTerritories.filter((territory) => permittedTerritoryIds.has(territory.id));
-  const availableClients = await listActiveClientsForTerritories([...permittedTerritoryIds]);
+  const availableCenters = await listActiveCentersForTerritories([...permittedTerritoryIds]);
 
   return {
     territories: territories.map((territory) => ({ id: territory.id, label: territory.label })),
-    availableClients: availableClients.map((client) => ({
-      id: client.id,
-      name: client.name,
-      code: client.code,
-      territoryId: client.territoryId,
+    availableCenters: availableCenters.map((center) => ({
+      id: center.id,
+      name: center.name,
+      code: center.code,
+      territoryId: center.territoryId,
     })),
   };
 }

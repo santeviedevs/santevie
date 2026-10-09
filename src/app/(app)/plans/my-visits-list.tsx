@@ -20,7 +20,7 @@ type PlanItem = {
   id: string;
   sequence: number;
   status: "PENDING" | "COMPLETED" | "CANCELLED" | "MISSED";
-  client: { id: string; name: string; code: string };
+  center: { id: string; name: string; code: string };
 };
 type PlanGroup = {
   id: string;
@@ -116,7 +116,7 @@ export function MyVisitsList({
           </div>
 
           {plan.items.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{dict.noClientsYet}</p>
+            <p className="text-sm text-muted-foreground">{dict.noCentersYet}</p>
           ) : (
             <ol className="flex flex-col gap-2">
               {plan.items.map((item, index) => {
@@ -130,7 +130,7 @@ export function MyVisitsList({
                       {index + 1}.
                     </span>
                     <span className="col-span-2 col-start-2 row-start-1 min-w-0 break-words font-medium">
-                      {item.client.name} ({item.client.code})
+                      {item.center.name} ({item.center.code})
                     </span>
                     <Badge
                       variant={STATUS_VARIANT[item.status]}

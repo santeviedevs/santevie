@@ -48,14 +48,14 @@ export default async function SinglePlanPage({ params }: SinglePlanPageProps) {
       {enrichedPlan.editable ? (
         <PlanDraftEditor
           planId={enrichedPlan.id}
-          initialClientIds={enrichedPlan.items
+          initialCenterIds={enrichedPlan.items
             .filter((item) => item.status === "PENDING")
-            .map((item) => item.client.id)}
+            .map((item) => item.center.id)}
           readOnlyItems={enrichedPlan.items.filter(
             (item): item is typeof item & { status: "COMPLETED" | "CANCELLED" } =>
               item.status === "COMPLETED" || item.status === "CANCELLED",
           )}
-          availableClients={enrichedPlan.availableClients}
+          availableCenters={enrichedPlan.availableCenters}
           territories={enrichedPlan.territories}
           dict={t}
         />

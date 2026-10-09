@@ -20,7 +20,7 @@ import { TerritoryPicker, type TerritoryPickerOption } from "../territories/terr
 type Option = { id: string; name: string };
 
 type FilterKey =
-  "q" | "personTypeId" | "specializationId" | "clientTypeId" | "territoryId" | "status";
+  "q" | "personTypeId" | "specializationId" | "centerTypeId" | "territoryId" | "status";
 
 function FilterSelect({
   id,
@@ -64,7 +64,7 @@ function FilterSelect({
 export function PersonFilters({
   personTypes,
   specializations,
-  clientTypes,
+  centerTypes,
   territories,
   filters,
   dict,
@@ -72,7 +72,7 @@ export function PersonFilters({
 }: {
   personTypes: Option[];
   specializations: Option[];
-  clientTypes: Option[];
+  centerTypes: Option[];
   territories: TerritoryPickerOption[];
   filters: PersonFiltersValue;
   dict: Dictionary["persons"];
@@ -110,7 +110,7 @@ export function PersonFilters({
       q: inputRef.current?.value ?? "",
       personTypeId: filters.personTypeId ?? "",
       specializationId: filters.specializationId ?? "",
-      clientTypeId: filters.clientTypeId ?? "",
+      centerTypeId: filters.centerTypeId ?? "",
       territoryId: filters.territoryId ?? "",
       status: filters.status ?? "",
       ...Object.fromEntries(
@@ -146,7 +146,7 @@ export function PersonFilters({
     filters.q ||
     filters.personTypeId ||
     filters.specializationId ||
-    filters.clientTypeId ||
+    filters.centerTypeId ||
     filters.territoryId ||
     filters.status,
   );
@@ -187,12 +187,12 @@ export function PersonFilters({
       />
 
       <FilterSelect
-        id="clientTypeId"
+        id="centerTypeId"
         label={dict.centerTypeFilterLabel}
         anyLabel={dict.anyCenterType}
-        options={toOptions(clientTypes)}
-        value={filters.clientTypeId ?? ""}
-        onChange={(value) => applyFilters({ clientTypeId: value })}
+        options={toOptions(centerTypes)}
+        value={filters.centerTypeId ?? ""}
+        onChange={(value) => applyFilters({ centerTypeId: value })}
       />
 
       <TerritoryPicker

@@ -183,58 +183,58 @@ async function main() {
     },
   });
 
-  const clientTypes = new Map<string, string>();
+  const centerTypes = new Map<string, string>();
   for (const [code, name] of [
     ["CLINIC", "Clinic"],
     ["HOSPITAL", "Hospital"],
     ["CHEMIST", "Chemist"],
     ["PHARMACY", "Pharmacy"],
   ]) {
-    const clientType = await prisma.clientType.upsert({
+    const centerType = await prisma.centerType.upsert({
       where: { code },
       update: {},
       create: { code, name },
     });
-    clientTypes.set(code, clientType.id);
+    centerTypes.set(code, centerType.id);
   }
 
   // Codes namespaced away from "CL-0001"/"CL-0002" deliberately — this seed
-  // runs against a shared dev database that already has client records at
+  // runs against a shared dev database that already has center records at
   // those codes from earlier stories, with types the original (pre-S2-02)
   // seed assigned. Reusing them here would silently attach a Hospital/
-  // Doctor extension to whatever pre-existing client already holds that
+  // Doctor extension to whatever pre-existing center already holds that
   // code, regardless of its actual type — exactly the bug this comment is
   // here to prevent a repeat of.
-  const hospitalClient = await prisma.client.upsert({
+  const hospitalCenter = await prisma.center.upsert({
     where: { code: "CL-HOSP-0001" },
     update: {},
     create: {
       code: "CL-HOSP-0001",
       name: "Sample Clinic",
-      typeId: clientTypes.get("HOSPITAL")!,
+      typeId: centerTypes.get("HOSPITAL")!,
       territoryId: territory.id,
       latitude: 0.0487,
       longitude: 18.2603,
     },
   });
-  if (hospitalClient.typeId !== clientTypes.get("HOSPITAL")) {
+  if (hospitalCenter.typeId !== centerTypes.get("HOSPITAL")) {
     throw new Error(
-      `Seed conflict: client CL-HOSP-0001 already exists with a different typeId (${hospitalClient.typeId}); refusing to attach a Hospital extension to it.`,
+      `Seed conflict: center CL-HOSP-0001 already exists with a different typeId (${hospitalCenter.typeId}); refusing to attach a Hospital extension to it.`,
     );
   }
   await prisma.hospital.upsert({
-    where: { clientId: hospitalClient.id },
+    where: { centerId: hospitalCenter.id },
     update: {},
-    create: { clientId: hospitalClient.id, hospitalCategory: "Centre Médical" },
+    create: { centerId: hospitalCenter.id, hospitalCategory: "Centre Médical" },
   });
 
-  await prisma.client.upsert({
+  await prisma.center.upsert({
     where: { code: "CL-CLINIC-0001" },
     update: {},
     create: {
       code: "CL-CLINIC-0001",
       name: "Sample Clinic Center",
-      typeId: clientTypes.get("CLINIC")!,
+      typeId: centerTypes.get("CLINIC")!,
       territoryId: territory.id,
     },
   });
@@ -320,7 +320,7 @@ async function main() {
   // "PR-0001" Product row from the original (pre-S2-03) seed, under the old
   // single-price shape. Reusing that code here would upsert against it with
   // an empty `update: {}` and silently leave its stale name/price in place
-  // — exactly the bug the identical comment on the Client seed above is
+  // — exactly the bug the identical comment on the Center seed above is
   // there to prevent a repeat of.
   for (const [code, name, categoryCode, grossPrice, netPrice] of [
     ["PR-ALS-0001", "AGGUPLAX (CLOPIDOGREL) 75 mg", "ANTIPARASITIC", 3.334, 3.0],

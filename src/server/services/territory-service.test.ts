@@ -84,7 +84,7 @@ beforeEach(() => {
   });
   countTerritories.mockResolvedValue(0);
   countTerritoryDependents.mockResolvedValue({
-    activeClients: 0,
+    activeCenters: 0,
     activeUsers: 0,
     activeAssignments: 0,
   });
@@ -272,7 +272,7 @@ describe("updateTerritoryEntry", () => {
 
   it("rejects deactivation while active dependents remain", async () => {
     countTerritoryDependents.mockResolvedValueOnce({
-      activeClients: 1,
+      activeCenters: 1,
       activeUsers: 0,
       activeAssignments: 0,
     });

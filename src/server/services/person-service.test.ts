@@ -37,9 +37,9 @@ vi.mock("@/server/repositories/person-repository", () => ({
   listCenterRoles: vi.fn(),
 }));
 
-vi.mock("@/server/repositories/client-repository", () => ({
-  listActiveClientsForSelection: vi.fn(),
-  listClientTypes: vi.fn(),
+vi.mock("@/server/repositories/center-repository", () => ({
+  listActiveCentersForSelection: vi.fn(),
+  listCenterTypes: vi.fn(),
 }));
 
 const findTerritoryById = vi.fn();
@@ -83,7 +83,7 @@ const detailRow = (overrides: Record<string, unknown> = {}) => ({
   territory: territoryRow,
   centers: [
     {
-      client: {
+      center: {
         id: "c-1",
         code: "CL-1",
         name: "Hospital X",
@@ -102,7 +102,7 @@ const baseInput = {
   personTypeId: "pt-1",
   specializationId: "sp-1",
   territoryId: "ter-1",
-  centers: [{ clientId: "c-1", roleAtCenterId: "r-1" }],
+  centers: [{ centerId: "c-1", roleAtCenterId: "r-1" }],
 };
 
 beforeEach(() => {
@@ -159,8 +159,8 @@ describe("createPerson", () => {
         {
           ...baseInput,
           centers: [
-            { clientId: "c-1", roleAtCenterId: "r-1" },
-            { clientId: "c-1", roleAtCenterId: "r-2" },
+            { centerId: "c-1", roleAtCenterId: "r-1" },
+            { centerId: "c-1", roleAtCenterId: "r-2" },
           ],
         },
         "actor-1",
@@ -176,8 +176,8 @@ describe("createPerson", () => {
     ]);
     findCenterRolesByIds.mockResolvedValue([{ id: "r-1" }, { id: "r-2" }]);
     const centers = [
-      { clientId: "c-1", roleAtCenterId: "r-1" },
-      { clientId: "c-2", roleAtCenterId: "r-2" },
+      { centerId: "c-1", roleAtCenterId: "r-1" },
+      { centerId: "c-2", roleAtCenterId: "r-2" },
     ];
 
     await createPerson({ ...baseInput, centers }, "actor-1");
@@ -226,7 +226,7 @@ describe("updatePerson", () => {
       specializationId: "sp-1",
       territoryId: "ter-1",
     });
-    findPersonCenterLinks.mockResolvedValue([{ clientId: "c-1", roleAtCenterId: "r-1" }]);
+    findPersonCenterLinks.mockResolvedValue([{ centerId: "c-1", roleAtCenterId: "r-1" }]);
   });
 
   it("never sends a code, so it stays immutable", async () => {
@@ -239,7 +239,7 @@ describe("updatePerson", () => {
 
   it("passes the replaced association set, including changed roles", async () => {
     findCenterRolesByIds.mockResolvedValue([{ id: "r-9" }]);
-    const centers = [{ clientId: "c-1", roleAtCenterId: "r-9" }];
+    const centers = [{ centerId: "c-1", roleAtCenterId: "r-9" }];
 
     await updatePerson({ ...updateInput, centers }, "actor-1");
 
@@ -267,8 +267,8 @@ describe("updatePerson", () => {
         {
           ...updateInput,
           centers: [
-            { clientId: "c-1", roleAtCenterId: "r-1" },
-            { clientId: "c-2", roleAtCenterId: "r-1" },
+            { centerId: "c-1", roleAtCenterId: "r-1" },
+            { centerId: "c-2", roleAtCenterId: "r-1" },
           ],
         },
         "actor-1",
@@ -300,7 +300,7 @@ describe("listPersons", () => {
   it("is organisation-wide: filters go straight to the query with no user scope", async () => {
     findPersons.mockResolvedValue([detailRow()]);
     countPersons.mockResolvedValue(1);
-    const filters = { page: 1, pageSize: 5, q: "dr", clientTypeId: "ct-1" };
+    const filters = { page: 1, pageSize: 5, q: "dr", centerTypeId: "ct-1" };
 
     const result = await listPersons(filters);
 

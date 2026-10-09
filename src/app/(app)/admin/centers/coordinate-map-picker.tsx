@@ -22,7 +22,7 @@ const OSM_STYLE = {
   layers: [{ id: "osm", type: "raster" as const, source: "osm" }],
 };
 
-// Falls back to the DRC's rough center when the client has no coordinates
+// Falls back to the DRC's rough center when the center has no coordinates
 // yet, so the picker still opens on a sensible view rather than the
 // (0,0) null-island default.
 const DEFAULT_CENTER = { latitude: -4.0383, longitude: 21.7587, zoom: 4.5 };

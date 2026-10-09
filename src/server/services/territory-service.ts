@@ -64,9 +64,9 @@ export class DuplicateTerritoryPathError extends Error {
 }
 
 export class TerritoryInUseError extends Error {
-  constructor(activeClients: number, activeUsers: number, activeAssignments: number) {
+  constructor(activeCenters: number, activeUsers: number, activeAssignments: number) {
     const parts = [
-      activeClients > 0 ? `${activeClients} active client${activeClients === 1 ? "" : "s"}` : null,
+      activeCenters > 0 ? `${activeCenters} active center${activeCenters === 1 ? "" : "s"}` : null,
       activeUsers > 0 ? `${activeUsers} active user${activeUsers === 1 ? "" : "s"}` : null,
       activeAssignments > 0
         ? `${activeAssignments} territory assignment${activeAssignments === 1 ? "" : "s"}`
@@ -153,7 +153,7 @@ function toOption(row: TerritoryRow): TerritoryOption {
   };
 }
 
-// For the flat picker used by User/Client forms/filters and the
+// For the flat picker used by User/Center forms/filters and the
 // assignment screen — a Territory is now a single pre-resolved unit to
 // pick, not something to assemble level by level.
 export async function listActiveTerritoryOptions(): Promise<TerritoryOption[]> {
@@ -373,11 +373,11 @@ export async function updateTerritoryEntry(
   const pathKey = buildPathKey(path);
 
   if (input.status === "INACTIVE") {
-    const { activeClients, activeUsers, activeAssignments } = await countTerritoryDependents(
+    const { activeCenters, activeUsers, activeAssignments } = await countTerritoryDependents(
       input.id,
     );
-    if (activeClients > 0 || activeUsers > 0 || activeAssignments > 0) {
-      throw new TerritoryInUseError(activeClients, activeUsers, activeAssignments);
+    if (activeCenters > 0 || activeUsers > 0 || activeAssignments > 0) {
+      throw new TerritoryInUseError(activeCenters, activeUsers, activeAssignments);
     }
   }
 

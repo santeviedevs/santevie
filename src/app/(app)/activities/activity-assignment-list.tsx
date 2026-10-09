@@ -24,7 +24,7 @@ export type AssignableActivity = {
   type: string;
   date: string;
   status: string;
-  client: { name: string; code: string } | null;
+  center: { name: string; code: string } | null;
   territory: { code: string } | null;
   owner: { id: string; name: string } | null;
 };
@@ -91,8 +91,8 @@ function AssignmentRow({
         <Badge variant="secondary">{activity.type}</Badge>
         <span className="text-sm font-medium">
           {formatDate(new Date(activity.date))} —{" "}
-          {activity.client
-            ? `${activity.client.name} (${activity.client.code})`
+          {activity.center
+            ? `${activity.center.name} (${activity.center.code})`
             : activity.territory?.code}
         </span>
         <Badge variant="outline">{activity.status}</Badge>

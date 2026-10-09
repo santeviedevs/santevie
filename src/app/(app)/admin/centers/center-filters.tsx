@@ -15,25 +15,25 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Dictionary } from "@/lib/i18n/dictionary";
-import type { ClientFilters as ClientFiltersValue } from "@/lib/schemas/client";
+import type { CenterFilters as CenterFiltersValue } from "@/lib/schemas/center";
 
 import { TerritoryPicker, type TerritoryPickerOption } from "../territories/territory-picker";
 
-type ClientType = { id: string; name: string };
+type CenterType = { id: string; name: string };
 
 type FilterKey = "q" | "typeId" | "territoryId" | "status" | "missingCoordinates";
 
-export function ClientFilters({
+export function CenterFilters({
   types,
   territories,
   filters,
   dict,
   territoryDict,
 }: {
-  types: ClientType[];
+  types: CenterType[];
   territories: TerritoryPickerOption[];
-  filters: ClientFiltersValue;
-  dict: Dictionary["clientFilters"];
+  filters: CenterFiltersValue;
+  dict: Dictionary["centerFilters"];
   territoryDict: Dictionary["territory"];
 }) {
   const router = useRouter();

@@ -41,7 +41,7 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
     q: firstValue(params.q),
     personTypeId: firstValue(params.personTypeId),
     specializationId: firstValue(params.specializationId),
-    clientTypeId: firstValue(params.clientTypeId),
+    centerTypeId: firstValue(params.centerTypeId),
     territoryId: firstValue(params.territoryId),
     status: firstValue(params.status),
     page: firstValue(params.page),
@@ -68,7 +68,7 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
       <PersonFilters
         personTypes={filterOptions.personTypes}
         specializations={filterOptions.specializations}
-        clientTypes={filterOptions.clientTypes}
+        centerTypes={filterOptions.centerTypes}
         territories={filterOptions.territories}
         filters={filters}
         dict={t}

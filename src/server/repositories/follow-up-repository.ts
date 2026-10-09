@@ -8,7 +8,7 @@ const listInclude = {
       id: true,
       type: true,
       date: true,
-      client: { select: { id: true, name: true } },
+      center: { select: { id: true, name: true } },
       territory: { select: { id: true, code: true } },
     },
   },

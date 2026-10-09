@@ -115,7 +115,7 @@ export default async function PersonDetailPage({ params }: PersonDetailPageProps
           </TableHeader>
           <TableBody>
             {person.centers.map((center) => (
-              <TableRow key={center.clientId}>
+              <TableRow key={center.centerId}>
                 <TableCell>
                   {center.name} ({center.code})
                 </TableCell>

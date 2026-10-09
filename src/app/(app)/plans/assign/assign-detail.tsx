@@ -21,7 +21,7 @@ import { assignPlanAction, cancelPlanAssignmentAction, type PlanFormState } from
 type PlanItem = {
   id: string;
   status: "PENDING" | "COMPLETED" | "CANCELLED" | "MISSED";
-  client: { name: string; code: string };
+  center: { name: string; code: string };
 };
 type AssignableUser = { id: string; label: string };
 
@@ -103,14 +103,14 @@ export function AssignDetail({
               className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
             >
               <span>
-                {item.client.name} ({item.client.code})
+                {item.center.name} ({item.center.code})
               </span>
               <Badge variant={STATUS_VARIANT[item.status]}>{item.status}</Badge>
             </li>
           ))}
         </ol>
       ) : (
-        <p className="text-sm text-muted-foreground">{dict.noClientsYet}</p>
+        <p className="text-sm text-muted-foreground">{dict.noCentersYet}</p>
       )}
 
       {reassignBlocked ? (

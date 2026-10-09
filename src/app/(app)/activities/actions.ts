@@ -70,7 +70,7 @@ export async function createActivityAction(
   const parsed = createActivitySchema.safeParse({
     type: formData.get("type"),
     date: formData.get("date"),
-    clientId: formData.get("clientId") || undefined,
+    centerId: formData.get("centerId") || undefined,
     territoryId: formData.get("territoryId") || undefined,
     notes: formData.get("notes") || undefined,
   });

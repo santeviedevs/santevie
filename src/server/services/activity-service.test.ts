@@ -48,7 +48,7 @@ function activity(overrides: Record<string, unknown> = {}) {
     date: new Date("2026-10-10T00:00:00.000Z"),
     status: "PLANNED",
     notes: null,
-    client: null,
+    center: null,
     territory: null,
     ownerId: null,
     owner: null,
@@ -68,7 +68,7 @@ describe("createActivity", () => {
     createActivityRow.mockResolvedValue(activity());
 
     await createActivity(
-      { type: "CAMPAIGN", date: "2026-10-10", clientId: "client-1" },
+      { type: "CAMPAIGN", date: "2026-10-10", centerId: "center-1" },
       "manager-1",
     );
 

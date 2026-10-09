@@ -12,7 +12,7 @@ const valid = {
   personTypeId: "pt-1",
   specializationId: "sp-1",
   territoryId: "ter-1",
-  centers: [{ clientId: "c-1", roleAtCenterId: "r-1" }],
+  centers: [{ centerId: "c-1", roleAtCenterId: "r-1" }],
 };
 
 describe("createPersonSchema", () => {
@@ -39,8 +39,8 @@ describe("createPersonSchema", () => {
     const twice = createPersonSchema.safeParse({
       ...valid,
       centers: [
-        { clientId: "c-1", roleAtCenterId: "r-1" },
-        { clientId: "c-1", roleAtCenterId: "r-2" },
+        { centerId: "c-1", roleAtCenterId: "r-1" },
+        { centerId: "c-1", roleAtCenterId: "r-2" },
       ],
     });
     expect(twice.success).toBe(false);
@@ -48,8 +48,8 @@ describe("createPersonSchema", () => {
     const distinct = createPersonSchema.safeParse({
       ...valid,
       centers: [
-        { clientId: "c-1", roleAtCenterId: "r-1" },
-        { clientId: "c-2", roleAtCenterId: "r-2" },
+        { centerId: "c-1", roleAtCenterId: "r-1" },
+        { centerId: "c-2", roleAtCenterId: "r-2" },
       ],
     });
     expect(distinct.success).toBe(true);
@@ -57,7 +57,7 @@ describe("createPersonSchema", () => {
 
   it("requires a role for every association", () => {
     expect(
-      createPersonSchema.safeParse({ ...valid, centers: [{ clientId: "c-1", roleAtCenterId: "" }] })
+      createPersonSchema.safeParse({ ...valid, centers: [{ centerId: "c-1", roleAtCenterId: "" }] })
         .success,
     ).toBe(false);
   });

@@ -41,7 +41,7 @@ export default async function EditPersonPage({ params }: EditPersonPageProps) {
           territoryId: person.territory.id,
           status: person.status,
           centers: person.centers.map((c) => ({
-            clientId: c.clientId,
+            centerId: c.centerId,
             roleAtCenterId: c.roleAtCenterId,
           })),
         }}

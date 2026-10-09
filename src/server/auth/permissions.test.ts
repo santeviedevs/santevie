@@ -16,7 +16,7 @@ const EXPECTED: Record<(typeof ROLES)[number], Permission[]> = {
   ADMIN: [...PERMISSIONS],
   MANAGER: [
     "territories:manage",
-    "clients:manage",
+    "centers:manage",
     "persons:manage",
     "products:manage",
     "targets:manage",

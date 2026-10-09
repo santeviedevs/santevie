@@ -5,11 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getServerDictionary } from "@/lib/i18n/server";
 import { requirePermission } from "@/server/auth/require-permission";
-import { getClient } from "@/server/services/client-service";
+import { getCenter } from "@/server/services/center-service";
 
 export const dynamic = "force-dynamic";
 
-type ClientDetailPageProps = {
+type CenterDetailPageProps = {
   params: Promise<{ id: string }>;
 };
 
@@ -22,26 +22,26 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export default async function ClientDetailPage({ params }: ClientDetailPageProps) {
-  await requirePermission("clients:manage");
+export default async function CenterDetailPage({ params }: CenterDetailPageProps) {
+  await requirePermission("centers:manage");
 
   const { id } = await params;
-  const [client, dict] = await Promise.all([getClient(id), getServerDictionary()]);
+  const [center, dict] = await Promise.all([getCenter(id), getServerDictionary()]);
 
-  if (!client) {
+  if (!center) {
     notFound();
   }
 
-  const t = dict.clientDetailPage;
-  const formDict = dict.clientForm;
+  const t = dict.centerDetailPage;
+  const formDict = dict.centerForm;
   const notProvided = <span className="text-muted-foreground">{t.notProvided}</span>;
 
-  const territoryPath = client.territory
+  const territoryPath = center.territory
     ? [
-        client.territory.province.name,
-        client.territory.ville?.name,
-        client.territory.commune?.name,
-        client.territory.quartier?.name,
+        center.territory.province.name,
+        center.territory.ville?.name,
+        center.territory.commune?.name,
+        center.territory.quartier?.name,
       ]
         .filter(Boolean)
         .join(" › ")
@@ -50,42 +50,42 @@ export default async function ClientDetailPage({ params }: ClientDetailPageProps
   return (
     <div className="flex flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">{dict.viewClientTitle(client.name)}</h1>
+        <h1 className="text-xl font-semibold">{dict.viewCenterTitle(center.name)}</h1>
         <div className="flex gap-2">
-          <Button render={<Link href="/admin/clients" />} variant="ghost">
+          <Button render={<Link href="/admin/centers" />} variant="ghost">
             {t.backToList}
           </Button>
-          <Button render={<Link href={`/admin/clients/${client.id}/edit`} />}>
-            {t.editClient}
+          <Button render={<Link href={`/admin/centers/${center.id}/edit`} />}>
+            {t.editCenter}
           </Button>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="outline">{client.type.name}</Badge>
-        <Badge variant={client.status === "ACTIVE" ? "default" : "secondary"}>
-          {client.status === "ACTIVE"
-            ? dict.clientsPage.statusActive
-            : dict.clientsPage.statusInactive}
+        <Badge variant="outline">{center.type.name}</Badge>
+        <Badge variant={center.status === "ACTIVE" ? "default" : "secondary"}>
+          {center.status === "ACTIVE"
+            ? dict.centersPage.statusActive
+            : dict.centersPage.statusInactive}
         </Badge>
-        {!client.hasCoordinates ? (
-          <Badge variant="destructive">{dict.clientsPage.missingCoordinates}</Badge>
+        {!center.hasCoordinates ? (
+          <Badge variant="destructive">{dict.centersPage.missingCoordinates}</Badge>
         ) : null}
       </div>
 
       <section className="flex flex-col gap-4 rounded-md border border-border p-4">
         <h2 className="text-sm font-medium">{t.detailsSectionLabel}</h2>
         <div className="grid grid-cols-2 gap-4">
-          <Field label={formDict.code} value={client.code} />
-          <Field label={formDict.name} value={client.name} />
-          <Field label={t.responsiblePerson} value={client.responsiblePerson ?? notProvided} />
-          <Field label={t.contact} value={client.contact ?? notProvided} />
-          <Field label={t.address} value={client.address ?? notProvided} />
+          <Field label={formDict.code} value={center.code} />
+          <Field label={formDict.name} value={center.name} />
+          <Field label={t.responsiblePerson} value={center.responsiblePerson ?? notProvided} />
+          <Field label={t.contact} value={center.contact ?? notProvided} />
+          <Field label={t.address} value={center.address ?? notProvided} />
           <Field
             label={formDict.coordinatesLabel}
             value={
-              client.hasCoordinates
-                ? `${client.latitude?.toFixed(6)}, ${client.longitude?.toFixed(6)}`
+              center.hasCoordinates
+                ? `${center.latitude?.toFixed(6)}, ${center.longitude?.toFixed(6)}`
                 : notProvided
             }
           />
@@ -93,13 +93,13 @@ export default async function ClientDetailPage({ params }: ClientDetailPageProps
         </div>
       </section>
 
-      {client.hospital ? (
+      {center.hospital ? (
         <section className="flex flex-col gap-4 rounded-md border border-border p-4">
           <h2 className="text-sm font-medium">{formDict.hospitalSectionLabel}</h2>
           <div className="grid grid-cols-2 gap-4">
             <Field
               label={formDict.hospitalCategory}
-              value={client.hospital.hospitalCategory ?? notProvided}
+              value={center.hospital.hospitalCategory ?? notProvided}
             />
           </div>
         </section>

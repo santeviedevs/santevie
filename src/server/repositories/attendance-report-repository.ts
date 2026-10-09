@@ -33,7 +33,7 @@ function buildWhere(
   // Combined into one `user` object deliberately — two separate spreads
   // each keyed `user` would let the second silently overwrite the first
   // rather than both conditions applying together (same pitfall noted in
-  // client-repository.ts's buildWhere).
+  // center-repository.ts's buildWhere).
   const userCondition: Prisma.AttendanceWhereInput["user"] = {
     ...(userIds ? { id: { in: userIds } } : {}),
     ...(filters.territoryId ? { territoryId: filters.territoryId } : {}),

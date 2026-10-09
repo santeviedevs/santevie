@@ -38,7 +38,7 @@ type CommitResult = {
 type Stage = "idle" | "previewing" | "previewed" | "importing" | "done";
 
 type ImportWizardProps = {
-  entity: "territories" | "clients" | "products";
+  entity: "territories" | "centers" | "products";
   backHref: string;
   dict: Dictionary["importPage"];
 };
@@ -127,7 +127,7 @@ async function downloadBlob(response: Response, fallbackName: string): Promise<v
   URL.revokeObjectURL(url);
 }
 
-// One shared wizard for territories/clients/products (S2-05) — download a
+// One shared wizard for territories/centers/products (S2-05) — download a
 // template, upload a filled one, preview what it would do, then confirm.
 // The file is kept in state and re-sent unchanged on confirm rather than
 // held server-side between requests, since the whole app stays stateless

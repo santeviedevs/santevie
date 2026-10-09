@@ -4,7 +4,7 @@ import type { Prisma } from "../../../generated/prisma/client";
 
 const planInclude = {
   items: {
-    include: { client: { select: { id: true, name: true, code: true, territoryId: true } } },
+    include: { center: { select: { id: true, name: true, code: true, territoryId: true } } },
     orderBy: { sequence: "asc" },
   },
 } satisfies Prisma.PlanInclude;
@@ -132,12 +132,12 @@ export function deletePlanRow(id: string): Promise<Prisma.PlanGetPayload<object>
 }
 
 // The duplicate-prevention check (per-visitor, per-date, global across all
-// of that visitor's plans) — every client already actively planned
+// of that visitor's plans) — every center already actively planned
 // (PENDING or COMPLETED; CANCELLED doesn't count as "still planned") for
 // this visitor on this date, across every plan, optionally excluding one
 // plan's own items (so checking a plan against itself during assignment
 // doesn't self-conflict).
-export async function findActiveClientIdsForVisitorOnDate(
+export async function findActiveCenterIdsForVisitorOnDate(
   visitorId: string,
   date: Date,
   excludePlanId?: string,
@@ -147,7 +147,7 @@ export async function findActiveClientIdsForVisitorOnDate(
       status: { in: ["PENDING", "COMPLETED"] },
       plan: { userId: visitorId, date, ...(excludePlanId ? { id: { not: excludePlanId } } : {}) },
     },
-    select: { clientId: true },
+    select: { centerId: true },
   });
-  return new Set(items.map((item) => item.clientId));
+  return new Set(items.map((item) => item.centerId));
 }

@@ -2,21 +2,21 @@
 
 import { revalidatePath } from "next/cache";
 
-import { createClientSchema, updateClientSchema } from "@/lib/schemas/client";
+import { createCenterSchema, updateCenterSchema } from "@/lib/schemas/center";
 import { requirePermission, SessionExpiredError } from "@/server/auth/require-permission";
 import {
-  ClientTypeMismatchError,
-  createClient,
-  DuplicateClientCodeError,
+  CenterTypeMismatchError,
+  createCenter,
+  DuplicateCenterCodeError,
   InactiveTerritoryError,
-  updateClient,
-} from "@/server/services/client-service";
+  updateCenter,
+} from "@/server/services/center-service";
 
-export type ClientFormState = { error: string | null; sessionExpired?: boolean };
+export type CenterFormState = { error: string | null; sessionExpired?: boolean };
 
-async function requireClientsManage() {
+async function requireCentersManage() {
   try {
-    return await requirePermission("clients:manage");
+    return await requirePermission("centers:manage");
   } catch (error) {
     if (error instanceof SessionExpiredError) {
       return null;
@@ -27,9 +27,9 @@ async function requireClientsManage() {
 
 function messageFor(error: unknown): string {
   if (
-    error instanceof DuplicateClientCodeError ||
+    error instanceof DuplicateCenterCodeError ||
     error instanceof InactiveTerritoryError ||
-    error instanceof ClientTypeMismatchError
+    error instanceof CenterTypeMismatchError
   ) {
     return error.message;
   }
@@ -72,38 +72,38 @@ function readCommon(formData: FormData) {
   };
 }
 
-export async function createClientAction(
-  _prevState: ClientFormState,
+export async function createCenterAction(
+  _prevState: CenterFormState,
   formData: FormData,
-): Promise<ClientFormState> {
-  const session = await requireClientsManage();
+): Promise<CenterFormState> {
+  const session = await requireCentersManage();
   if (!session) return { error: null, sessionExpired: true };
 
-  const parsed = createClientSchema.safeParse(readCommon(formData));
+  const parsed = createCenterSchema.safeParse(readCommon(formData));
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check the highlighted fields." };
   }
 
   try {
-    await createClient(parsed.data, session.user.id);
+    await createCenter(parsed.data, session.user.id);
   } catch (error) {
     return { error: messageFor(error) };
   }
 
-  revalidatePath("/admin/clients");
+  revalidatePath("/admin/centers");
   return { error: null };
 }
 
-export async function updateClientAction(
-  _prevState: ClientFormState,
+export async function updateCenterAction(
+  _prevState: CenterFormState,
   formData: FormData,
-): Promise<ClientFormState> {
-  const session = await requireClientsManage();
+): Promise<CenterFormState> {
+  const session = await requireCentersManage();
   if (!session) return { error: null, sessionExpired: true };
 
   const status = formData.get("status");
 
-  const parsed = updateClientSchema.safeParse({
+  const parsed = updateCenterSchema.safeParse({
     id: formData.get("id"),
     ...readCommon(formData),
     status: status === "ACTIVE" || status === "INACTIVE" ? status : undefined,
@@ -113,11 +113,11 @@ export async function updateClientAction(
   }
 
   try {
-    await updateClient(parsed.data, session.user.id);
+    await updateCenter(parsed.data, session.user.id);
   } catch (error) {
     return { error: messageFor(error) };
   }
 
-  revalidatePath("/admin/clients");
+  revalidatePath("/admin/centers");
   return { error: null };
 }

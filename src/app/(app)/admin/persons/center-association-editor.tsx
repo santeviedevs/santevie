@@ -19,7 +19,7 @@ import { createLookupOption } from "./create-lookup-option";
 
 // The Person <-> Center association editor: pick a Center, pick the role the
 // Person holds at *that* Center, add the row. A Center can only appear once
-// (mirrors the database's unique(personId, clientId)); the server re-checks.
+// (mirrors the database's unique(personId, centerId)); the server re-checks.
 export function CenterAssociationEditor({
   centers,
   roles: initialRoles,
@@ -52,12 +52,12 @@ export function CenterAssociationEditor({
       setError(dict.centerAndRoleRequired);
       return;
     }
-    if (value.some((row) => row.clientId === centerId)) {
+    if (value.some((row) => row.centerId === centerId)) {
       setError(dict.centerAlreadyAdded);
       return;
     }
     setError(null);
-    onChange([...value, { clientId: centerId, roleAtCenterId: roleId }]);
+    onChange([...value, { centerId: centerId, roleAtCenterId: roleId }]);
     setCenterId(null);
     setRoleId(null);
   }
@@ -122,10 +122,10 @@ export function CenterAssociationEditor({
           </TableHeader>
           <TableBody>
             {value.map((row) => {
-              const center = centerById.get(row.clientId);
+              const center = centerById.get(row.centerId);
               return (
-                <TableRow key={row.clientId}>
-                  <TableCell>{center ? `${center.name} (${center.code})` : row.clientId}</TableCell>
+                <TableRow key={row.centerId}>
+                  <TableCell>{center ? `${center.name} (${center.code})` : row.centerId}</TableCell>
                   <TableCell>{center?.typeName ?? "—"}</TableCell>
                   <TableCell>{roleName(row.roleAtCenterId)}</TableCell>
                   <TableCell className="text-right">
@@ -134,7 +134,7 @@ export function CenterAssociationEditor({
                       variant="ghost"
                       size="sm"
                       disabled={disabled}
-                      onClick={() => onChange(value.filter((r) => r.clientId !== row.clientId))}
+                      onClick={() => onChange(value.filter((r) => r.centerId !== row.centerId))}
                     >
                       {dict.remove}
                     </Button>

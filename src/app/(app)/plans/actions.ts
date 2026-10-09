@@ -19,10 +19,10 @@ import {
   assignPlan,
   cancelPlanAssignment,
   cancelPlanItem,
-  ClientNotFoundError,
-  ClientOutsideTerritoryError,
+  CenterNotFoundError,
+  CenterOutsideTerritoryError,
   completePlanItem,
-  DuplicateClientOnPlanError,
+  DuplicateCenterOnPlanError,
   PlanEditCutoffError,
   PlanHasCompletedItemsError,
   PlanNotAuthorizedError,
@@ -73,12 +73,12 @@ async function requirePlansRespondOwn() {
 function mapPlanError(error: unknown): string {
   if (
     error instanceof PlanEditCutoffError ||
-    error instanceof ClientOutsideTerritoryError ||
-    error instanceof DuplicateClientOnPlanError ||
+    error instanceof CenterOutsideTerritoryError ||
+    error instanceof DuplicateCenterOnPlanError ||
     error instanceof PlanNotAuthorizedError ||
     error instanceof PlanNotOwnedError ||
     error instanceof PlanHasCompletedItemsError ||
-    error instanceof ClientNotFoundError
+    error instanceof CenterNotFoundError
   ) {
     return error.message;
   }
@@ -93,7 +93,7 @@ function revalidateAllPlanScreens() {
 
 // The Plan Visits editor's one write — nothing about a plan's content is
 // persisted until this runs. `planId` empty means "create a new plan";
-// `clientIdsInOrder` is the editor's whole local draft, in order. Only
+// `centerIdsInOrder` is the editor's whole local draft, in order. Only
 // reachable from Plan Visits (new-plan and edit-plan pages).
 export async function savePlanAction(
   _prevState: PlanFormState,
@@ -105,7 +105,7 @@ export async function savePlanAction(
   const planId = formData.get("planId");
   const parsed = savePlanContentSchema.safeParse({
     planId: planId ? planId : null,
-    clientIdsInOrder: formData.getAll("clientIdsInOrder"),
+    centerIdsInOrder: formData.getAll("centerIdsInOrder"),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check the highlighted fields." };
@@ -115,7 +115,7 @@ export async function savePlanAction(
   try {
     savedPlanId = await savePlanContent(
       parsed.data.planId ?? null,
-      parsed.data.clientIdsInOrder,
+      parsed.data.centerIdsInOrder,
       session.user.id,
       session.user.roleName,
     );

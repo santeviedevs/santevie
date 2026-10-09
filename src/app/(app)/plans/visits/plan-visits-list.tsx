@@ -8,7 +8,7 @@ import type { Dictionary } from "@/lib/i18n/dictionary";
 type PlanItem = {
   id: string;
   status: "PENDING" | "COMPLETED" | "CANCELLED" | "MISSED";
-  client: { name: string; code: string };
+  center: { name: string; code: string };
 };
 type PlanGroup = {
   id: string;
@@ -26,7 +26,7 @@ const STATUS_VARIANT = {
 } as const;
 
 // Plan Visits list — summary only, same list+Edit pattern as every other
-// CRUD screen in this app (e.g. admin/clients). All content editing
+// CRUD screen in this app (e.g. admin/centers). All content editing
 // (add/remove/reorder, the Save-gated draft) happens on the dedicated
 // /plans/visits/[planId] page, not here.
 export function PlanVisitsList({
@@ -78,7 +78,7 @@ export function PlanVisitsList({
                 <div className="flex flex-col text-xs text-muted-foreground">
                   {plan.items.map((item) => (
                     <span key={item.id}>
-                      {item.client.name} ({item.client.code})
+                      {item.center.name} ({item.center.code})
                     </span>
                   ))}
                 </div>

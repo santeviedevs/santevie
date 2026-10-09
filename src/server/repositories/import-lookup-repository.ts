@@ -5,24 +5,24 @@ import { prisma } from "@/server/db";
 // actually stores. Centralized here rather than scattered across each
 // entity's own repository, since these only exist for import.
 
-export function findClientTypeByCode(code: string) {
-  return prisma.clientType.findUnique({ where: { code } });
+export function findCenterTypeByCode(code: string) {
+  return prisma.centerType.findUnique({ where: { code } });
 }
 
 export function findProductCategoryByCode(code: string) {
   return prisma.productCategory.findUnique({ where: { code } });
 }
 
-// Client import references an existing Territory by its own auto-generated
+// Center import references an existing Territory by its own auto-generated
 // code (e.g. "TER-00013") — never creates one implicitly, same as
-// clientType/category. Only the dedicated territory importer creates new
+// centerType/category. Only the dedicated territory importer creates new
 // territories, resolving/creating geography by name instead.
 export function findTerritoryByCode(code: string) {
   return prisma.territory.findUnique({ where: { code }, select: { id: true } });
 }
 
-export function findClientByCode(code: string) {
-  return prisma.client.findUnique({ where: { code }, select: { id: true, code: true } });
+export function findCenterByCode(code: string) {
+  return prisma.center.findUnique({ where: { code }, select: { id: true, code: true } });
 }
 
 export function findProductByCode(code: string) {

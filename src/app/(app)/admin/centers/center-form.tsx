@@ -19,43 +19,43 @@ import {
 import { Switch } from "@/components/ui/switch";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import {
-  type CreateClientInput,
-  createClientSchema,
-  type UpdateClientInput,
-  updateClientSchema,
-} from "@/lib/schemas/client";
+  type CreateCenterInput,
+  createCenterSchema,
+  type UpdateCenterInput,
+  updateCenterSchema,
+} from "@/lib/schemas/center";
 
 import { TerritoryPicker, type TerritoryPickerOption } from "../territories/territory-picker";
-import { type ClientFormState, createClientAction, updateClientAction } from "./actions";
+import { type CenterFormState, createCenterAction, updateCenterAction } from "./actions";
 import { CoordinateMapPicker } from "./coordinate-map-picker";
 
-type ClientType = { id: string; code: string; name: string };
+type CenterType = { id: string; code: string; name: string };
 
-type ClientFormProps = {
+type CenterFormProps = {
   mode: "create" | "edit";
   options: {
-    types: ClientType[];
+    types: CenterType[];
     territories: TerritoryPickerOption[];
   };
-  defaultValues?: Partial<UpdateClientInput>;
-  dict: Dictionary["clientForm"];
+  defaultValues?: Partial<UpdateCenterInput>;
+  dict: Dictionary["centerForm"];
   territoryDict: Dictionary["territory"];
 };
 
-export function ClientForm({ mode, options, defaultValues, dict, territoryDict }: ClientFormProps) {
+export function CenterForm({ mode, options, defaultValues, dict, territoryDict }: CenterFormProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
   const [formError, setFormError] = useState<string | null>(null);
 
-  const schema = mode === "create" ? createClientSchema : updateClientSchema;
+  const schema = mode === "create" ? createCenterSchema : updateCenterSchema;
   const {
     register,
     handleSubmit,
     setValue,
     control,
     formState: { errors },
-  } = useForm<CreateClientInput | UpdateClientInput>({
+  } = useForm<CreateCenterInput | UpdateCenterInput>({
     resolver: zodResolver(schema),
     defaultValues,
   });
@@ -69,7 +69,7 @@ export function ClientForm({ mode, options, defaultValues, dict, territoryDict }
   const selectedType = options.types.find((t) => t.id === typeId);
   const typeCode = selectedType?.code;
 
-  const onSubmit = (values: CreateClientInput | UpdateClientInput) => {
+  const onSubmit = (values: CreateCenterInput | UpdateCenterInput) => {
     setFormError(null);
     startTransition(async () => {
       const formData = new FormData();
@@ -97,8 +97,8 @@ export function ClientForm({ mode, options, defaultValues, dict, territoryDict }
         formData.set("status", values.status);
       }
 
-      const action = mode === "create" ? createClientAction : updateClientAction;
-      const result: ClientFormState = await action({ error: null }, formData);
+      const action = mode === "create" ? createCenterAction : updateCenterAction;
+      const result: CenterFormState = await action({ error: null }, formData);
 
       if (result.sessionExpired) {
         router.push(`/login?callbackUrl=${encodeURIComponent(pathname)}`);
@@ -110,8 +110,8 @@ export function ClientForm({ mode, options, defaultValues, dict, territoryDict }
         return;
       }
 
-      toast.success(mode === "create" ? dict.clientCreated : dict.clientUpdated);
-      router.push("/admin/clients");
+      toast.success(mode === "create" ? dict.centerCreated : dict.centerUpdated);
+      router.push("/admin/centers");
       router.refresh();
     });
   };
@@ -247,7 +247,7 @@ export function ClientForm({ mode, options, defaultValues, dict, territoryDict }
       {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
 
       <Button type="submit" disabled={isPending}>
-        {isPending ? dict.saving : mode === "create" ? dict.createClient : dict.saveChanges}
+        {isPending ? dict.saving : mode === "create" ? dict.createCenter : dict.saveChanges}
       </Button>
     </form>
   );

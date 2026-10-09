@@ -1,26 +1,26 @@
 import type { PagedResult } from "@/lib/pagination";
-import type { ClientFilters, CreateClientInput, UpdateClientInput } from "@/lib/schemas/client";
+import type { CenterFilters, CreateCenterInput, UpdateCenterInput } from "@/lib/schemas/center";
 import {
-  type ClientWithRelations,
-  countClients,
-  createClientWithExtension,
-  findClientById,
-  findClients,
-  listActiveClientsForSelection as listActiveClientsForSelectionRow,
-  listClientTypes,
-  updateClientWithExtension,
-} from "@/server/repositories/client-repository";
+  type CenterWithRelations,
+  countCenters,
+  createCenterWithExtension,
+  findCenterById,
+  findCenters,
+  listActiveCentersForSelection as listActiveCentersForSelectionRow,
+  listCenterTypes,
+  updateCenterWithExtension,
+} from "@/server/repositories/center-repository";
 import { findTerritoryById } from "@/server/repositories/territory-repository";
 import { listActiveTerritoryOptions } from "@/server/services/territory-service";
 
-export class DuplicateClientCodeError extends Error {
+export class DuplicateCenterCodeError extends Error {
   constructor() {
-    super("A client with this code already exists.");
-    this.name = "DuplicateClientCodeError";
+    super("A center with this code already exists.");
+    this.name = "DuplicateCenterCodeError";
   }
 }
 
-// A Client can never be assigned to a Territory that is itself inactive
+// A Center can never be assigned to a Territory that is itself inactive
 // (S2-02: "validate ... that the territory is active").
 export class InactiveTerritoryError extends Error {
   constructor() {
@@ -31,10 +31,10 @@ export class InactiveTerritoryError extends Error {
 
 // A request claiming `hospital` fields under a type that isn't HOSPITAL —
 // never trusted just because the form's discriminant said so.
-export class ClientTypeMismatchError extends Error {
+export class CenterTypeMismatchError extends Error {
   constructor() {
-    super("The submitted details do not match the selected client type.");
-    this.name = "ClientTypeMismatchError";
+    super("The submitted details do not match the selected center type.");
+    this.name = "CenterTypeMismatchError";
   }
 }
 
@@ -49,7 +49,7 @@ function isUniqueConstraintViolation(error: unknown): error is { code: string } 
 
 function mapUniqueConstraintError(error: unknown): never {
   if (isUniqueConstraintViolation(error)) {
-    throw new DuplicateClientCodeError();
+    throw new DuplicateCenterCodeError();
   }
   throw error;
 }
@@ -60,7 +60,7 @@ async function assertTerritoryActive(territoryId: string | null | undefined): Pr
   if (!territory || territory.status === "INACTIVE") throw new InactiveTerritoryError();
 }
 
-export type ClientSummary = {
+export type CenterSummary = {
   id: string;
   code: string;
   name: string;
@@ -83,77 +83,77 @@ export type ClientSummary = {
   hospital: { id: string; hospitalCategory: string | null } | null;
 };
 
-function toSummary(client: ClientWithRelations): ClientSummary {
-  const latitude = client.latitude === null ? null : Number(client.latitude);
-  const longitude = client.longitude === null ? null : Number(client.longitude);
+function toSummary(center: CenterWithRelations): CenterSummary {
+  const latitude = center.latitude === null ? null : Number(center.latitude);
+  const longitude = center.longitude === null ? null : Number(center.longitude);
   return {
-    id: client.id,
-    code: client.code,
-    name: client.name,
-    responsiblePerson: client.responsiblePerson,
-    contact: client.contact,
-    address: client.address,
+    id: center.id,
+    code: center.code,
+    name: center.name,
+    responsiblePerson: center.responsiblePerson,
+    contact: center.contact,
+    address: center.address,
     latitude,
     longitude,
-    status: client.status,
+    status: center.status,
     hasCoordinates: latitude !== null && longitude !== null,
-    type: { id: client.type.id, code: client.type.code, name: client.type.name },
-    territory: client.territory,
-    hospital: client.hospital
-      ? { id: client.hospital.id, hospitalCategory: client.hospital.hospitalCategory }
+    type: { id: center.type.id, code: center.type.code, name: center.type.name },
+    territory: center.territory,
+    hospital: center.hospital
+      ? { id: center.hospital.id, hospitalCategory: center.hospital.hospitalCategory }
       : null,
   };
 }
 
-export async function listClients(filters: ClientFilters): Promise<PagedResult<ClientSummary>> {
-  const [clients, total] = await Promise.all([findClients(filters), countClients(filters)]);
-  return { items: clients.map(toSummary), total, page: filters.page, pageSize: filters.pageSize };
+export async function listCenters(filters: CenterFilters): Promise<PagedResult<CenterSummary>> {
+  const [centers, total] = await Promise.all([findCenters(filters), countCenters(filters)]);
+  return { items: centers.map(toSummary), total, page: filters.page, pageSize: filters.pageSize };
 }
 
-export async function getClient(id: string): Promise<ClientSummary | null> {
-  const client = await findClientById(id);
-  return client ? toSummary(client) : null;
+export async function getCenter(id: string): Promise<CenterSummary | null> {
+  const center = await findCenterById(id);
+  return center ? toSummary(center) : null;
 }
 
-export async function listActiveClientsForSelection() {
-  return listActiveClientsForSelectionRow();
+export async function listActiveCentersForSelection() {
+  return listActiveCentersForSelectionRow();
 }
 
-export async function getClientFormOptions() {
-  const [types, territories] = await Promise.all([listClientTypes(), listActiveTerritoryOptions()]);
+export async function getCenterFormOptions() {
+  const [types, territories] = await Promise.all([listCenterTypes(), listActiveTerritoryOptions()]);
   return { types, territories };
 }
 
-// Confirms the requested extension matches the selected ClientType's code —
+// Confirms the requested extension matches the selected CenterType's code —
 // never trusts the shape of the submitted input alone (a form could claim
 // `hospital` fields while `typeId` actually resolves to CHEMIST).
 async function resolveTypeCode(typeId: string): Promise<string> {
-  const types = await listClientTypes();
+  const types = await listCenterTypes();
   const type = types.find((t) => t.id === typeId);
-  if (!type) throw new ClientTypeMismatchError();
+  if (!type) throw new CenterTypeMismatchError();
   return type.code;
 }
 
 function assertExtensionMatchesType(
   typeCode: string,
-  input: Pick<CreateClientInput, "hospital">,
+  input: Pick<CreateCenterInput, "hospital">,
 ): void {
-  if (typeCode === "HOSPITAL" && !input.hospital) throw new ClientTypeMismatchError();
-  if (typeCode !== "HOSPITAL" && input.hospital) throw new ClientTypeMismatchError();
+  if (typeCode === "HOSPITAL" && !input.hospital) throw new CenterTypeMismatchError();
+  if (typeCode !== "HOSPITAL" && input.hospital) throw new CenterTypeMismatchError();
 }
 
-export async function createClient(
-  input: CreateClientInput,
+export async function createCenter(
+  input: CreateCenterInput,
   actorId: string,
-): Promise<ClientSummary> {
+): Promise<CenterSummary> {
   await assertTerritoryActive(input.territoryId);
   const typeCode = await resolveTypeCode(input.typeId);
   assertExtensionMatchesType(typeCode, input);
 
-  let created: ClientWithRelations;
+  let created: CenterWithRelations;
   try {
-    created = await createClientWithExtension({
-      client: {
+    created = await createCenterWithExtension({
+      center: {
         code: input.code,
         name: input.name,
         responsiblePerson: input.responsiblePerson ?? null,
@@ -182,18 +182,18 @@ export async function createClient(
   return toSummary(created);
 }
 
-export async function updateClient(
-  input: UpdateClientInput,
+export async function updateCenter(
+  input: UpdateCenterInput,
   actorId: string,
-): Promise<ClientSummary> {
+): Promise<CenterSummary> {
   await assertTerritoryActive(input.territoryId);
   const typeCode = await resolveTypeCode(input.typeId);
   assertExtensionMatchesType(typeCode, input);
 
-  let updated: ClientWithRelations;
+  let updated: CenterWithRelations;
   try {
-    updated = await updateClientWithExtension(input.id, {
-      client: {
+    updated = await updateCenterWithExtension(input.id, {
+      center: {
         code: input.code,
         name: input.name,
         responsiblePerson: input.responsiblePerson ?? null,

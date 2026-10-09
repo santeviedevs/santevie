@@ -1,21 +1,21 @@
-import { createClientSchema, updateClientSchema } from "@/lib/schemas/client";
+import { createCenterSchema, updateCenterSchema } from "@/lib/schemas/center";
 import {
-  findClientByCode,
-  findClientTypeByCode,
+  findCenterByCode,
+  findCenterTypeByCode,
   findTerritoryByCode,
 } from "@/server/repositories/import-lookup-repository";
-import { createClient, updateClient } from "@/server/services/client-service";
+import { createCenter, updateCenter } from "@/server/services/center-service";
 
 import type { ImportProgress, ImportRowOutcome, ImportSummary } from "./types";
 import { summarize } from "./types";
 
 // `territory` holds a Territory's own auto-generated code (e.g.
-// "TER-00013") — client import references an existing Territory, it never
+// "TER-00013") — center import references an existing Territory, it never
 // creates one; only the dedicated territory importer does that.
-export const CLIENT_IMPORT_COLUMNS = [
+export const CENTER_IMPORT_COLUMNS = [
   "code",
   "name",
-  "clientType",
+  "centerType",
   "responsiblePerson",
   "contact",
   "address",
@@ -25,7 +25,7 @@ export const CLIENT_IMPORT_COLUMNS = [
   "hospitalCategory",
 ] as const;
 
-type ResolvedClientInput = {
+type ResolvedCenterInput = {
   code: string;
   name: string;
   typeId: string;
@@ -71,20 +71,20 @@ async function resolveOptionalCode(
 async function resolveRow(
   row: Record<string, string>,
   rowNumber: number,
-): Promise<ImportRowOutcome<ResolvedClientInput>> {
+): Promise<ImportRowOutcome<ResolvedCenterInput>> {
   const errors: string[] = [];
 
   const code = (row.code ?? "").trim();
   const name = (row.name ?? "").trim();
-  const typeCode = (row.clientType ?? "").trim();
+  const typeCode = (row.centerType ?? "").trim();
 
   let typeId = "";
   let resolvedTypeCode = "";
   if (!typeCode) {
-    errors.push("Client type is required.");
+    errors.push("Center type is required.");
   } else {
-    const type = await findClientTypeByCode(typeCode);
-    if (!type) errors.push(`Client type "${typeCode}" not found.`);
+    const type = await findCenterTypeByCode(typeCode);
+    if (!type) errors.push(`Center type "${typeCode}" not found.`);
     else {
       typeId = type.id;
       resolvedTypeCode = type.code;
@@ -107,7 +107,7 @@ async function resolveRow(
   const latitude = toNumberOrNull(row.latitude ?? "");
   const longitude = toNumberOrNull(row.longitude ?? "");
 
-  const existing = code ? await findClientByCode(code) : null;
+  const existing = code ? await findCenterByCode(code) : null;
 
   const candidate = {
     code,
@@ -121,7 +121,7 @@ async function resolveRow(
     territoryId,
     hospital: hospital ?? undefined,
   };
-  const schema = existing ? updateClientSchema : createClientSchema;
+  const schema = existing ? updateCenterSchema : createCenterSchema;
   const parsed = schema.safeParse(existing ? { ...candidate, id: existing.id } : candidate);
   if (!parsed.success) {
     for (const issue of parsed.error.issues) errors.push(issue.message);
@@ -131,7 +131,7 @@ async function resolveRow(
     return { row: rowNumber, action: "reject", errors };
   }
 
-  const data: ResolvedClientInput = {
+  const data: ResolvedCenterInput = {
     code,
     name,
     typeId,
@@ -148,7 +148,7 @@ async function resolveRow(
     : { row: rowNumber, action: "create", data };
 }
 
-export async function previewClientImport(
+export async function previewCenterImport(
   rows: Record<string, string>[],
   _actorId?: string,
   onProgress?: ImportProgress,
@@ -165,13 +165,13 @@ export async function previewClientImport(
 // steps total) — resolving is itself a full pass over every row, so
 // reporting only the write pass would jump from 0% to 50% the instant
 // resolving finishes.
-export async function commitClientImport(
+export async function commitCenterImport(
   rows: Record<string, string>[],
   actorId: string,
   onProgress?: ImportProgress,
 ): Promise<{ summary: ImportSummary }> {
   const totalSteps = rows.length * 2;
-  const outcomes = await previewClientImport(rows, undefined, (done) =>
+  const outcomes = await previewCenterImport(rows, undefined, (done) =>
     onProgress?.(done, totalSteps),
   );
   let created = 0;
@@ -180,7 +180,7 @@ export async function commitClientImport(
 
   for (const outcome of outcomes) {
     if (outcome.action === "create") {
-      await createClient(
+      await createCenter(
         {
           code: outcome.data.code,
           name: outcome.data.name,
@@ -197,7 +197,7 @@ export async function commitClientImport(
       );
       created += 1;
     } else if (outcome.action === "update") {
-      await updateClient(
+      await updateCenter(
         {
           id: outcome.id,
           code: outcome.data.code,
