@@ -13,7 +13,7 @@ import { type ActivityFormState, completeFollowUpAction } from "./actions";
 type FollowUp = {
   id: string;
   dueDate: Date;
-  activity: { type: string; client: { name: string } | null; territory: { code: string } | null };
+  activity: { type: string; center: { name: string } | null; territory: { code: string } | null };
 };
 
 export function FollowUpsWidget({
@@ -53,7 +53,7 @@ export function FollowUpsWidget({
               <Badge variant="destructive">{dict.overdue}</Badge>
             ) : null}
             <span className="text-sm">
-              {followUp.activity.client?.name ?? followUp.activity.territory?.code ?? "—"} —{" "}
+              {followUp.activity.center?.name ?? followUp.activity.territory?.code ?? "—"} —{" "}
               {formatDate(followUp.dueDate)}
             </span>
           </div>

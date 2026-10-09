@@ -20,14 +20,14 @@ import type { Dictionary } from "@/lib/i18n/dictionary";
 import { type ActivityFormState, createActivityAction } from "./actions";
 
 type Option = { id: string; label: string };
-type Target = "client" | "territory";
+type Target = "center" | "territory";
 
 export function ActivityForm({
-  clients,
+  centers,
   territories,
   dict,
 }: {
-  clients: Option[];
+  centers: Option[];
   territories: Option[];
   dict: Dictionary["activitiesPage"];
 }) {
@@ -36,8 +36,8 @@ export function ActivityForm({
   const [error, setError] = useState<string | null>(null);
 
   const [type, setType] = useState<"CAMPAIGN" | "EVENT" | "OTHER">("CAMPAIGN");
-  const [target, setTarget] = useState<Target>("client");
-  const [clientId, setClientId] = useState(clients[0]?.id ?? "");
+  const [target, setTarget] = useState<Target>("center");
+  const [centerId, setCenterId] = useState(centers[0]?.id ?? "");
   const [territoryId, setTerritoryId] = useState(territories[0]?.id ?? "");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
@@ -50,7 +50,7 @@ export function ActivityForm({
       formData.set("type", type);
       formData.set("date", date);
       formData.set("notes", notes);
-      if (target === "client") formData.set("clientId", clientId);
+      if (target === "center") formData.set("centerId", centerId);
       if (target === "territory") formData.set("territoryId", territoryId);
 
       const result: ActivityFormState = await createActivityAction({ error: null }, formData);
@@ -103,35 +103,35 @@ export function ActivityForm({
         <Label htmlFor="target">{dict.targetLabel}</Label>
         <Select
           items={[
-            { value: "client", label: dict.targetClient },
+            { value: "center", label: dict.targetCenter },
             { value: "territory", label: dict.targetTerritory },
           ]}
           value={target}
-          onValueChange={(value) => setTarget((value ?? "client") as Target)}
+          onValueChange={(value) => setTarget((value ?? "center") as Target)}
           disabled={isPending}
         >
           <SelectTrigger id="target" className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="client">{dict.targetClient}</SelectItem>
+            <SelectItem value="center">{dict.targetCenter}</SelectItem>
             <SelectItem value="territory">{dict.targetTerritory}</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      {target === "client" ? (
+      {target === "center" ? (
         <Select
-          items={clients.map((c) => ({ value: c.id, label: c.label }))}
-          value={clientId}
-          onValueChange={(value) => setClientId(value ?? "")}
+          items={centers.map((c) => ({ value: c.id, label: c.label }))}
+          value={centerId}
+          onValueChange={(value) => setCenterId(value ?? "")}
           disabled={isPending}
         >
           <SelectTrigger className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {clients.map((c) => (
+            {centers.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.label}
               </SelectItem>

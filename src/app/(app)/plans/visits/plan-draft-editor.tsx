@@ -26,12 +26,12 @@ import type { Dictionary } from "@/lib/i18n/dictionary";
 
 import { type PlanFormState, savePlanAction } from "../actions";
 
-type ClientOption = { id: string; name: string; code: string; territoryId: string | null };
+type CenterOption = { id: string; name: string; code: string; territoryId: string | null };
 type TerritoryOption = { id: string; label: string };
 type ReadOnlyItem = {
   id: string;
   status: "COMPLETED" | "CANCELLED";
-  client: { name: string; code: string };
+  center: { name: string; code: string };
 };
 
 const ANY_TERRITORY = "__any__";
@@ -45,60 +45,60 @@ const READONLY_STATUS_VARIANT = {
 // still-editable one. Everything here is local draft state; nothing is
 // written until Save runs. COMPLETED/CANCELLED items from an existing plan
 // are shown read-only alongside the draft but are never part of it — the
-// service never touches them regardless of what's in clientIdsInOrder.
+// service never touches them regardless of what's in centerIdsInOrder.
 export function PlanDraftEditor({
   planId,
-  initialClientIds,
+  initialCenterIds,
   readOnlyItems,
-  availableClients,
+  availableCenters,
   territories,
   dict,
 }: {
   planId: string | null;
-  initialClientIds: string[];
+  initialCenterIds: string[];
   readOnlyItems: ReadOnlyItem[];
-  availableClients: ClientOption[];
+  availableCenters: CenterOption[];
   territories: TerritoryOption[];
   dict: Dictionary["plansPage"];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [draftClientIds, setDraftClientIds] = useState<string[]>(initialClientIds);
+  const [draftCenterIds, setDraftCenterIds] = useState<string[]>(initialCenterIds);
   const [query, setQuery] = useState("");
   const [territoryId, setTerritoryId] = useState(ANY_TERRITORY);
 
-  const clientById = useMemo(
-    () => new Map(availableClients.map((client) => [client.id, client])),
-    [availableClients],
+  const centerById = useMemo(
+    () => new Map(availableCenters.map((center) => [center.id, center])),
+    [availableCenters],
   );
 
-  const draftClientIdSet = useMemo(() => new Set(draftClientIds), [draftClientIds]);
-  const filteredClients = useMemo(() => {
+  const draftCenterIdSet = useMemo(() => new Set(draftCenterIds), [draftCenterIds]);
+  const filteredCenters = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return availableClients
-      .filter((client) => !draftClientIdSet.has(client.id))
-      .filter((client) => territoryId === ANY_TERRITORY || client.territoryId === territoryId)
+    return availableCenters
+      .filter((center) => !draftCenterIdSet.has(center.id))
+      .filter((center) => territoryId === ANY_TERRITORY || center.territoryId === territoryId)
       .filter(
-        (client) =>
+        (center) =>
           q.length === 0 ||
-          client.name.toLowerCase().includes(q) ||
-          client.code.toLowerCase().includes(q),
+          center.name.toLowerCase().includes(q) ||
+          center.code.toLowerCase().includes(q),
       )
       .slice(0, 20);
-  }, [availableClients, draftClientIdSet, territoryId, query]);
+  }, [availableCenters, draftCenterIdSet, territoryId, query]);
 
-  function addClient(clientId: string) {
+  function addCenter(centerId: string) {
     setQuery("");
-    setDraftClientIds((current) => [...current, clientId]);
+    setDraftCenterIds((current) => [...current, centerId]);
   }
 
-  function removeClient(clientId: string) {
-    setDraftClientIds((current) => current.filter((id) => id !== clientId));
+  function removeCenter(centerId: string) {
+    setDraftCenterIds((current) => current.filter((id) => id !== centerId));
   }
 
   function move(index: number, direction: -1 | 1) {
-    setDraftClientIds((current) => {
+    setDraftCenterIds((current) => {
       const next = [...current];
       const target = index + direction;
       if (target < 0 || target >= next.length) return current;
@@ -112,7 +112,7 @@ export function PlanDraftEditor({
     startTransition(async () => {
       const formData = new FormData();
       if (planId) formData.set("planId", planId);
-      draftClientIds.forEach((clientId) => formData.append("clientIdsInOrder", clientId));
+      draftCenterIds.forEach((centerId) => formData.append("centerIdsInOrder", centerId));
       const result: PlanFormState = await savePlanAction({ error: null }, formData);
       if (result.error) {
         setError(result.error);
@@ -133,7 +133,7 @@ export function PlanDraftEditor({
               className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
             >
               <span>
-                {item.client.name} ({item.client.code})
+                {item.center.name} ({item.center.code})
               </span>
               <Badge variant={READONLY_STATUS_VARIANT[item.status]}>{item.status}</Badge>
             </li>
@@ -141,19 +141,19 @@ export function PlanDraftEditor({
         </ol>
       ) : null}
 
-      {draftClientIds.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{dict.noClientsYet}</p>
+      {draftCenterIds.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{dict.noCentersYet}</p>
       ) : (
         <ol className="flex flex-col gap-2">
-          {draftClientIds.map((clientId, index) => {
-            const client = clientById.get(clientId);
+          {draftCenterIds.map((centerId, index) => {
+            const center = centerById.get(centerId);
             return (
               <li
-                key={clientId}
+                key={centerId}
                 className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
               >
                 <span>
-                  {index + 1}. {client ? `${client.name} (${client.code})` : clientId}
+                  {index + 1}. {center ? `${center.name} (${center.code})` : centerId}
                 </span>
                 <div className="flex gap-1">
                   <Button
@@ -169,7 +169,7 @@ export function PlanDraftEditor({
                     type="button"
                     variant="outline"
                     size="sm"
-                    disabled={isPending || index === draftClientIds.length - 1}
+                    disabled={isPending || index === draftCenterIds.length - 1}
                     onClick={() => move(index, 1)}
                   >
                     ↓
@@ -179,7 +179,7 @@ export function PlanDraftEditor({
                     variant="destructive"
                     size="sm"
                     disabled={isPending}
-                    onClick={() => removeClient(clientId)}
+                    onClick={() => removeCenter(centerId)}
                   >
                     {dict.remove}
                   </Button>
@@ -216,12 +216,12 @@ export function PlanDraftEditor({
           value={null}
           inputValue={query}
           onInputValueChange={setQuery}
-          onValueChange={(clientId: string | null) => {
-            if (clientId) addClient(clientId);
+          onValueChange={(centerId: string | null) => {
+            if (centerId) addCenter(centerId);
           }}
-          itemToStringLabel={(clientId: string) => {
-            const client = clientById.get(clientId);
-            return client ? `${client.name} (${client.code})` : "";
+          itemToStringLabel={(centerId: string) => {
+            const center = centerById.get(centerId);
+            return center ? `${center.name} (${center.code})` : "";
           }}
           autoHighlight
         >
@@ -231,9 +231,9 @@ export function PlanDraftEditor({
           </ComboboxInputGroup>
           <ComboboxContent>
             <ComboboxEmpty>{dict.noMatches}</ComboboxEmpty>
-            {filteredClients.map((client) => (
-              <ComboboxItem key={client.id} value={client.id}>
-                {client.name} ({client.code})
+            {filteredCenters.map((center) => (
+              <ComboboxItem key={center.id} value={center.id}>
+                {center.name} ({center.code})
               </ComboboxItem>
             ))}
           </ComboboxContent>

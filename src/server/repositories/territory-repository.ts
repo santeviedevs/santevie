@@ -260,7 +260,7 @@ export function countFilteredTerritories(filters: TerritoryFilters): Promise<num
   return prisma.territory.count({ where: buildTerritoryWhere(filters) });
 }
 
-// Active only — for the flat Territory picker used by User/Client forms
+// Active only — for the flat Territory picker used by User/Center forms
 // and the assignment screen: you should never be assigning someone to a
 // Territory that's been deactivated.
 export function listActiveTerritories(): Promise<TerritoryRow[]> {
@@ -273,11 +273,11 @@ export function listActiveTerritories(): Promise<TerritoryRow[]> {
 
 export async function countTerritoryDependents(
   territoryId: string,
-): Promise<{ activeClients: number; activeUsers: number; activeAssignments: number }> {
-  const [activeClients, activeUsers, activeAssignments] = await Promise.all([
-    prisma.client.count({ where: { territoryId, status: "ACTIVE" } }),
+): Promise<{ activeCenters: number; activeUsers: number; activeAssignments: number }> {
+  const [activeCenters, activeUsers, activeAssignments] = await Promise.all([
+    prisma.center.count({ where: { territoryId, status: "ACTIVE" } }),
     prisma.user.count({ where: { territoryId, status: "ACTIVE" } }),
     prisma.userTerritoryAssignment.count({ where: { territoryId, user: { status: "ACTIVE" } } }),
   ]);
-  return { activeClients, activeUsers, activeAssignments };
+  return { activeCenters, activeUsers, activeAssignments };
 }

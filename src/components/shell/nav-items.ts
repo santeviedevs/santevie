@@ -1,4 +1,5 @@
 import {
+  Building2,
   Calendar,
   CalendarDays,
   HelpCircle,
@@ -28,7 +29,8 @@ type NavKey =
   | "leavesGroup"
   | "myLeaves"
   | "teamLeaves"
-  | "clients"
+  | "centers"
+  | "persons"
   | "products"
   | "plans"
   | "activitiesGroup"
@@ -143,7 +145,8 @@ export const NAV_ITEM_DEFS: NavItemDef[] = [
       { href: "/leaves/team", key: "teamLeaves", permission: "leave:view-team" },
     ],
   },
-  { href: "/admin/clients", key: "clients", icon: Stethoscope, permission: "clients:manage" },
+  { href: "/admin/centers", key: "centers", icon: Building2, permission: "centers:manage" },
+  { href: "/admin/persons", key: "persons", icon: Stethoscope, permission: "persons:manage" },
   { href: "/admin/products", key: "products", icon: Package, permission: "products:manage" },
   { href: "/plans", key: "plans", icon: CalendarDays, permission: "plans:respond-own" },
   {

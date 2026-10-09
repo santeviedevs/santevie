@@ -2,7 +2,7 @@ import { createImportBatch } from "@/server/repositories/import-batch-repository
 
 import type { ImportSummary } from "./import/types";
 
-export type ImportEntityType = "TERRITORY" | "CLIENT" | "PRODUCT";
+export type ImportEntityType = "TERRITORY" | "CENTER" | "PRODUCT";
 
 // One audit record per completed import run (S2-05) — separate from each
 // imported row's own createdBy/updatedBy, so "who ran this import and what

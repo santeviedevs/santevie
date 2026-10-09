@@ -68,7 +68,7 @@ export const updateProductSchema = z
     netPrice,
     quantityPerCarton,
     // Absent means "leave as-is"; present is an explicit set, same
-    // convention as UpdateClientInput/UpdateUserInput's status.
+    // convention as UpdateCenterInput/UpdateUserInput's status.
     status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
   })
   .superRefine(checkDiscountCap);

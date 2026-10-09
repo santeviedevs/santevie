@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const findClientById = vi.fn();
-vi.mock("@/server/repositories/client-repository", () => ({ findClientById }));
+const findCenterById = vi.fn();
+vi.mock("@/server/repositories/center-repository", () => ({ findCenterById }));
 
 const assignPlanRow = vi.fn();
 const cancelPendingPlanItems = vi.fn();
@@ -9,7 +9,7 @@ const createPlanItem = vi.fn();
 const createPlanRow = vi.fn();
 const deletePlanItem = vi.fn();
 const deletePlanRow = vi.fn();
-const findActiveClientIdsForVisitorOnDate = vi.fn();
+const findActiveCenterIdsForVisitorOnDate = vi.fn();
 const findAssignablePlans = vi.fn();
 const findEditablePlans = vi.fn();
 const findPlanById = vi.fn();
@@ -25,7 +25,7 @@ vi.mock("@/server/repositories/plan-repository", () => ({
   createPlanRow,
   deletePlanItem,
   deletePlanRow,
-  findActiveClientIdsForVisitorOnDate,
+  findActiveCenterIdsForVisitorOnDate,
   findAssignablePlans,
   findEditablePlans,
   findPlanById,
@@ -58,8 +58,8 @@ const {
   getPlansForContent,
   getMyVisits,
   PlanEditCutoffError,
-  ClientOutsideTerritoryError,
-  DuplicateClientOnPlanError,
+  CenterOutsideTerritoryError,
+  DuplicateCenterOnPlanError,
   PlanNotAuthorizedError,
   PlanNotOwnedError,
   PlanHasCompletedItemsError,
@@ -83,10 +83,10 @@ function plan(overrides: Record<string, unknown> = {}) {
 function item(overrides: Record<string, unknown> = {}) {
   return {
     id: "item-1",
-    clientId: "client-1",
+    centerId: "center-1",
     sequence: 0,
     status: "PENDING",
-    client: { id: "client-1", territoryId: "territory-1" },
+    center: { id: "center-1", territoryId: "territory-1" },
     ...overrides,
   };
 }
@@ -101,7 +101,7 @@ beforeEach(() => {
   createPlanRow.mockResolvedValue({ id: "plan-1" });
   createPlanItem.mockResolvedValue({ id: "item-1", sequence: 0, status: "PENDING" });
   getDownstreamUserIds.mockResolvedValue([]);
-  findActiveClientIdsForVisitorOnDate.mockResolvedValue(new Set());
+  findActiveCenterIdsForVisitorOnDate.mockResolvedValue(new Set());
 });
 
 afterEach(() => {
@@ -109,10 +109,10 @@ afterEach(() => {
 });
 
 describe("savePlanContent — creation", () => {
-  it("creates a bare plan when planId is null and saves the draft's clients onto it", async () => {
-    findClientById.mockResolvedValue({ id: "client-1", territoryId: "territory-1" });
+  it("creates a bare plan when planId is null and saves the draft's centers onto it", async () => {
+    findCenterById.mockResolvedValue({ id: "center-1", territoryId: "territory-1" });
 
-    await expect(savePlanContent(null, ["client-1"], "creator-1", "SUPERVISOR")).resolves.toBe(
+    await expect(savePlanContent(null, ["center-1"], "creator-1", "SUPERVISOR")).resolves.toBe(
       "plan-1",
     );
     expect(createPlanRow).toHaveBeenCalledWith("creator-1");
@@ -120,9 +120,9 @@ describe("savePlanContent — creation", () => {
   });
 
   it("never looks up an existing plan when planId is null", async () => {
-    findClientById.mockResolvedValue({ id: "client-1", territoryId: "territory-1" });
+    findCenterById.mockResolvedValue({ id: "center-1", territoryId: "territory-1" });
 
-    await savePlanContent(null, ["client-1"], "creator-1", "SUPERVISOR");
+    await savePlanContent(null, ["center-1"], "creator-1", "SUPERVISOR");
     expect(findPlanById).not.toHaveBeenCalled();
   });
 });
@@ -173,42 +173,42 @@ describe("savePlanContent — authorization", () => {
 });
 
 describe("savePlanContent — territory and duplicate validation", () => {
-  it("validates new clients against the creator's territories while unassigned", async () => {
+  it("validates new centers against the creator's territories while unassigned", async () => {
     findPlanById.mockResolvedValue(plan());
-    findClientById.mockResolvedValue({ id: "client-1", territoryId: "territory-outside" });
+    findCenterById.mockResolvedValue({ id: "center-1", territoryId: "territory-outside" });
 
     await expect(
-      savePlanContent("plan-1", ["client-1"], "creator-1", "SUPERVISOR"),
-    ).rejects.toThrow(ClientOutsideTerritoryError);
+      savePlanContent("plan-1", ["center-1"], "creator-1", "SUPERVISOR"),
+    ).rejects.toThrow(CenterOutsideTerritoryError);
   });
 
-  it("validates new clients against the visitor's territories once assigned", async () => {
+  it("validates new centers against the visitor's territories once assigned", async () => {
     findPlanById.mockResolvedValue(plan({ userId: "delegate-1", date: TOMORROW }));
     listAssignmentsForUser.mockResolvedValue([]);
     findUserById.mockResolvedValue({ territoryId: "delegate-territory" });
-    findClientById.mockResolvedValue({ id: "client-1", territoryId: "territory-1" });
+    findCenterById.mockResolvedValue({ id: "center-1", territoryId: "territory-1" });
 
-    await expect(savePlanContent("plan-1", ["client-1"], "delegate-1", "DELEGATE")).rejects.toThrow(
-      ClientOutsideTerritoryError,
+    await expect(savePlanContent("plan-1", ["center-1"], "delegate-1", "DELEGATE")).rejects.toThrow(
+      CenterOutsideTerritoryError,
     );
   });
 
-  it("rejects a new client already active for this visitor on this date on a different plan", async () => {
+  it("rejects a new center already active for this visitor on this date on a different plan", async () => {
     findPlanById.mockResolvedValue(plan({ userId: "delegate-1", date: TOMORROW }));
-    findActiveClientIdsForVisitorOnDate.mockResolvedValue(new Set(["client-1"]));
-    findClientById.mockResolvedValue({ id: "client-1", territoryId: "territory-1" });
+    findActiveCenterIdsForVisitorOnDate.mockResolvedValue(new Set(["center-1"]));
+    findCenterById.mockResolvedValue({ id: "center-1", territoryId: "territory-1" });
 
-    await expect(savePlanContent("plan-1", ["client-1"], "delegate-1", "DELEGATE")).rejects.toThrow(
-      DuplicateClientOnPlanError,
+    await expect(savePlanContent("plan-1", ["center-1"], "delegate-1", "DELEGATE")).rejects.toThrow(
+      DuplicateCenterOnPlanError,
     );
   });
 
   it("never runs the cross-plan duplicate check while unassigned (no date to check against)", async () => {
     findPlanById.mockResolvedValue(plan());
-    findClientById.mockResolvedValue({ id: "client-1", territoryId: "territory-1" });
+    findCenterById.mockResolvedValue({ id: "center-1", territoryId: "territory-1" });
 
-    await savePlanContent("plan-1", ["client-1"], "creator-1", "SUPERVISOR");
-    expect(findActiveClientIdsForVisitorOnDate).not.toHaveBeenCalled();
+    await savePlanContent("plan-1", ["center-1"], "creator-1", "SUPERVISOR");
+    expect(findActiveCenterIdsForVisitorOnDate).not.toHaveBeenCalled();
   });
 });
 
@@ -223,17 +223,17 @@ describe("savePlanContent — diffing against existing items", () => {
   it("resequences a kept item instead of recreating it", async () => {
     findPlanById.mockResolvedValue(plan({ items: [item()] }));
 
-    await savePlanContent("plan-1", ["client-1"], "creator-1", "SUPERVISOR");
+    await savePlanContent("plan-1", ["center-1"], "creator-1", "SUPERVISOR");
     expect(updatePlanItemSequence).toHaveBeenCalledWith("item-1", 0, "creator-1");
     expect(createPlanItem).not.toHaveBeenCalled();
     expect(deletePlanItem).not.toHaveBeenCalled();
   });
 
-  it("creates new items only for clients not already on the plan", async () => {
+  it("creates new items only for centers not already on the plan", async () => {
     findPlanById.mockResolvedValue(plan({ items: [item()] }));
-    findClientById.mockResolvedValue({ id: "client-2", territoryId: "territory-1" });
+    findCenterById.mockResolvedValue({ id: "center-2", territoryId: "territory-1" });
 
-    await savePlanContent("plan-1", ["client-1", "client-2"], "creator-1", "SUPERVISOR");
+    await savePlanContent("plan-1", ["center-1", "center-2"], "creator-1", "SUPERVISOR");
     expect(updatePlanItemSequence).toHaveBeenCalledWith("item-1", 0, "creator-1");
     expect(createPlanItem).toHaveBeenCalledWith(expect.objectContaining({ sequence: 1 }));
   });
@@ -301,24 +301,24 @@ describe("assignPlan — first-time assignment", () => {
 
   it("validates every item's territory against the target before assigning", async () => {
     findPlanById.mockResolvedValue(
-      plan({ items: [item({ client: { id: "client-1", territoryId: "other-territory" } })] }),
+      plan({ items: [item({ center: { id: "center-1", territoryId: "other-territory" } })] }),
     );
     getDownstreamUserIds.mockResolvedValue(["delegate-1"]);
 
     await expect(
       assignPlan("plan-1", "delegate-1", TOMORROW, "supervisor-1", "SUPERVISOR"),
-    ).rejects.toThrow(ClientOutsideTerritoryError);
+    ).rejects.toThrow(CenterOutsideTerritoryError);
     expect(assignPlanRow).not.toHaveBeenCalled();
   });
 
   it("validates no item is already planned for the target on that date elsewhere", async () => {
     findPlanById.mockResolvedValue(plan({ items: [item()] }));
     getDownstreamUserIds.mockResolvedValue(["delegate-1"]);
-    findActiveClientIdsForVisitorOnDate.mockResolvedValue(new Set(["client-1"]));
+    findActiveCenterIdsForVisitorOnDate.mockResolvedValue(new Set(["center-1"]));
 
     await expect(
       assignPlan("plan-1", "delegate-1", TOMORROW, "supervisor-1", "SUPERVISOR"),
-    ).rejects.toThrow(DuplicateClientOnPlanError);
+    ).rejects.toThrow(DuplicateCenterOnPlanError);
   });
 });
 

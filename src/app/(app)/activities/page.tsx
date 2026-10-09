@@ -72,8 +72,8 @@ export default async function ActivitiesPage({ searchParams }: ActivitiesPagePro
                     <Badge variant="secondary">{activity.type}</Badge>
                     <span className="text-sm font-medium">
                       {formatDate(activity.date)} —{" "}
-                      {activity.client
-                        ? `${activity.client.name} (${activity.client.code})`
+                      {activity.center
+                        ? `${activity.center.name} (${activity.center.code})`
                         : activity.territory?.code}
                     </span>
                     <Badge variant="outline">{activity.status}</Badge>

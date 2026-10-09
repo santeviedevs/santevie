@@ -2,6 +2,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { config as loadEnv } from "dotenv";
 
 import { PrismaClient } from "../generated/prisma/client";
+import { slugifyLookupName } from "../src/lib/lookup-slug";
 import { hashPassword } from "../src/server/auth/password";
 import {
   PERMISSIONS,
@@ -182,83 +183,111 @@ async function main() {
     },
   });
 
-  const clientTypes = new Map<string, string>();
+  const centerTypes = new Map<string, string>();
   for (const [code, name] of [
-    ["DOCTOR", "Doctor"],
+    ["CLINIC", "Clinic"],
     ["HOSPITAL", "Hospital"],
     ["CHEMIST", "Chemist"],
     ["PHARMACY", "Pharmacy"],
   ]) {
-    const clientType = await prisma.clientType.upsert({
+    const centerType = await prisma.centerType.upsert({
       where: { code },
       update: {},
       create: { code, name },
     });
-    clientTypes.set(code, clientType.id);
+    centerTypes.set(code, centerType.id);
   }
 
   // Codes namespaced away from "CL-0001"/"CL-0002" deliberately — this seed
-  // runs against a shared dev database that already has client records at
+  // runs against a shared dev database that already has center records at
   // those codes from earlier stories, with types the original (pre-S2-02)
   // seed assigned. Reusing them here would silently attach a Hospital/
-  // Doctor extension to whatever pre-existing client already holds that
+  // Doctor extension to whatever pre-existing center already holds that
   // code, regardless of its actual type — exactly the bug this comment is
   // here to prevent a repeat of.
-  const hospitalClient = await prisma.client.upsert({
+  const hospitalCenter = await prisma.center.upsert({
     where: { code: "CL-HOSP-0001" },
     update: {},
     create: {
       code: "CL-HOSP-0001",
       name: "Sample Clinic",
-      typeId: clientTypes.get("HOSPITAL")!,
+      typeId: centerTypes.get("HOSPITAL")!,
       territoryId: territory.id,
       latitude: 0.0487,
       longitude: 18.2603,
     },
   });
-  if (hospitalClient.typeId !== clientTypes.get("HOSPITAL")) {
+  if (hospitalCenter.typeId !== centerTypes.get("HOSPITAL")) {
     throw new Error(
-      `Seed conflict: client CL-HOSP-0001 already exists with a different typeId (${hospitalClient.typeId}); refusing to attach a Hospital extension to it.`,
+      `Seed conflict: center CL-HOSP-0001 already exists with a different typeId (${hospitalCenter.typeId}); refusing to attach a Hospital extension to it.`,
     );
   }
-  const hospital = await prisma.hospital.upsert({
-    where: { clientId: hospitalClient.id },
+  await prisma.hospital.upsert({
+    where: { centerId: hospitalCenter.id },
     update: {},
-    create: { clientId: hospitalClient.id, hospitalCategory: "Centre Médical" },
+    create: { centerId: hospitalCenter.id, hospitalCategory: "Centre Médical" },
   });
 
-  const doctorClient = await prisma.client.upsert({
-    where: { code: "CL-DOC-0001" },
+  await prisma.center.upsert({
+    where: { code: "CL-CLINIC-0001" },
     update: {},
     create: {
-      code: "CL-DOC-0001",
-      name: "Sample Doctor",
-      typeId: clientTypes.get("DOCTOR")!,
+      code: "CL-CLINIC-0001",
+      name: "Sample Clinic Center",
+      typeId: centerTypes.get("CLINIC")!,
       territoryId: territory.id,
     },
   });
-  if (doctorClient.typeId !== clientTypes.get("DOCTOR")) {
-    throw new Error(
-      `Seed conflict: client CL-DOC-0001 already exists with a different typeId (${doctorClient.typeId}); refusing to attach a Doctor extension to it.`,
-    );
-  }
-  const doctor = await prisma.doctor.upsert({
-    where: { clientId: doctorClient.id },
-    update: {},
-    create: {
-      clientId: doctorClient.id,
-      doctorType: "MÉDECIN",
-      gender: "Homme",
-      department: "GÉNÉRALISTE (G.P)",
-      mobileNo: "810000000",
-    },
-  });
 
-  await prisma.doctorHospital.upsert({
-    where: { doctorId_hospitalId: { doctorId: doctor.id, hospitalId: hospital.id } },
-    update: {},
-    create: { doctorId: doctor.id, hospitalId: hospital.id },
-  });
+  // Initial Person Types. Configurable at runtime (admins can add more from
+  // the Persons form) — these are only the two the client named up front.
+  for (const [code, name] of [
+    ["MEDECIN", "MÉDECIN"],
+    ["INFIRMIER", "INFIRMIER"],
+  ]) {
+    await prisma.personType.upsert({ where: { code }, update: {}, create: { code, name } });
+  }
+
+  // Initial Specializations / Departments, taken from the client's source
+  // data. Configurable at runtime like Person Type — admins can add more
+  // from the Persons form. Distinct from Person Type, Center Type and Role
+  // at Center; per-Center roles are deliberately NOT seeded (no approved
+  // values). The code comes from slugifyLookupName, the same rule the
+  // Persons form uses, so a value later typed into the combobox maps onto
+  // the same row instead of duplicating it.
+  for (const name of [
+    "GÉNÉRALISTE (G.P)",
+    "PÉDIATRE (PED)",
+    "INFIRMIÈRE (NURSE)",
+    "INFIRMIÈRE TITULAIRE (IT) (HEAD NURSE)",
+    "INFIRMIÈRE GÉNÉRALISTE (G.P NURSE)",
+    "CHIRURGIEN (SURGEON)",
+    "MÉDECINE INTERNE (INTERNIST)",
+    "GYNÉCOLOGUE (GYN)",
+    "DENTISTE",
+    "NEUROLOGUE",
+    "STAGIAIRE MÉDECINE (INTERN-DOCTOR)",
+    "SAGE-FEMME (MID-WIFE)",
+    "TECHNICIEN DE LABORATOIRE",
+    "STAGIAIRE INFIRMIÈRE (INTERN-NURSE)",
+    "ORTHOPEDICIEN",
+    "OPHTALMOLOGIST",
+    "PHARMACIEN (PHARMACIST)",
+    "UROLOGUE",
+    "GASTROLOGUE",
+    "CARDIOLOGUE",
+    "ORL (ENT)",
+    "PSYCHOLOGUE",
+    "PHYSIOTHÉRAPEUTE",
+    "PSYCHIATRE",
+  ]) {
+    const code = slugifyLookupName(name);
+    await prisma.specialization.upsert({
+      where: { code },
+      update: {},
+      create: { code, name },
+    });
+  }
 
   // A small starting taxonomy, from our own reading of the price list's
   // generic names — the sheet itself has no category column, and the
@@ -291,7 +320,7 @@ async function main() {
   // "PR-0001" Product row from the original (pre-S2-03) seed, under the old
   // single-price shape. Reusing that code here would upsert against it with
   // an empty `update: {}` and silently leave its stale name/price in place
-  // — exactly the bug the identical comment on the Client seed above is
+  // — exactly the bug the identical comment on the Center seed above is
   // there to prevent a repeat of.
   for (const [code, name, categoryCode, grossPrice, netPrice] of [
     ["PR-ALS-0001", "AGGUPLAX (CLOPIDOGREL) 75 mg", "ANTIPARASITIC", 3.334, 3.0],

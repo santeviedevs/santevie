@@ -104,7 +104,7 @@ export async function previewProductImport(
 }
 
 // Progress spans both the resolve pass and the write pass below (see the
-// same note on commitClientImport) so it doesn't jump straight to 50%.
+// same note on commitCenterImport) so it doesn't jump straight to 50%.
 export async function commitProductImport(
   rows: Record<string, string>[],
   actorId: string,

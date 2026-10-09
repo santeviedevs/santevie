@@ -3,7 +3,7 @@ import { prisma } from "@/server/db";
 import type { Prisma } from "../../../generated/prisma/client";
 
 const listInclude = {
-  client: { select: { id: true, name: true, code: true } },
+  center: { select: { id: true, name: true, code: true } },
   territory: { select: { id: true, code: true } },
   owner: { select: { id: true, name: true } },
 } satisfies Prisma.ActivityInclude;

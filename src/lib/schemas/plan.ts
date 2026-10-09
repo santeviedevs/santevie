@@ -21,12 +21,12 @@ export function isPlanEditable(planDate: Date | null, now: Date = new Date()): b
 
 // The Plan Visits editor's one "Save" action — `planId` empty/absent means
 // "create a new plan," otherwise it's the plan being edited.
-// `clientIdsInOrder` is the editor's entire desired client list, in order;
+// `centerIdsInOrder` is the editor's entire desired center list, in order;
 // the service diffs this against what's actually stored (nothing is
 // written until this is called).
 export const savePlanContentSchema = z.object({
   planId: id.nullish(),
-  clientIdsInOrder: z.array(id),
+  centerIdsInOrder: z.array(id),
 });
 export type SavePlanContentInput = z.infer<typeof savePlanContentSchema>;
 

@@ -46,7 +46,7 @@ function followUp(id: string, dueDate: string, status: "PENDING" | "DONE", owner
       id: "activity-1",
       type: "CAMPAIGN",
       date: new Date(dueDate),
-      client: null,
+      center: null,
       territory: null,
     },
   };

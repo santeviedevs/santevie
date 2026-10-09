@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 // A brand-new plan's editor — fully local until Save, which is the only
 // point anything is actually persisted (see savePlanContent). Nothing
-// exists server-side yet, so there's no plan to fetch: territory/client
+// exists server-side yet, so there's no plan to fetch: territory/center
 // scoping is derived straight from the actor.
 export default async function NewPlanPage() {
   const session = await requirePermission("plans:assign-team");
@@ -31,9 +31,9 @@ export default async function NewPlanPage() {
 
       <PlanDraftEditor
         planId={null}
-        initialClientIds={[]}
+        initialCenterIds={[]}
         readOnlyItems={[]}
-        availableClients={draft.availableClients}
+        availableCenters={draft.availableCenters}
         territories={draft.territories}
         dict={t}
       />

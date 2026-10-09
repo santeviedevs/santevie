@@ -23,7 +23,7 @@ export type FollowUpSummary = {
     id: string;
     type: string;
     date: Date;
-    client: { id: string; name: string } | null;
+    center: { id: string; name: string } | null;
     territory: { id: string; code: string } | null;
   };
 };

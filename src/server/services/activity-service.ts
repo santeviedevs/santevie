@@ -57,7 +57,7 @@ export type ActivitySummary = {
   date: Date;
   status: string;
   notes: string | null;
-  client: { id: string; name: string; code: string } | null;
+  center: { id: string; name: string; code: string } | null;
   territory: { id: string; code: string } | null;
   // Null = created but not yet assigned.
   owner: { id: string; name: string } | null;
@@ -70,7 +70,7 @@ function toSummary(row: ActivityRow): ActivitySummary {
     date: row.date,
     status: row.status,
     notes: row.notes,
-    client: row.client,
+    center: row.center,
     territory: row.territory,
     owner: row.owner,
   };
@@ -86,7 +86,7 @@ export async function createActivity(
     type: input.type,
     date: new Date(input.date),
     notes: input.notes ?? undefined,
-    client: input.clientId ? { connect: { id: input.clientId } } : undefined,
+    center: input.centerId ? { connect: { id: input.centerId } } : undefined,
     territory: input.territoryId ? { connect: { id: input.territoryId } } : undefined,
     createdBy: actorId,
     updatedBy: actorId,

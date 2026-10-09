@@ -12,7 +12,7 @@ import { cancelPlanItemAction, type PlanFormState } from "../actions";
 type PlanItem = {
   id: string;
   status: "PENDING" | "COMPLETED" | "CANCELLED" | "MISSED";
-  client: { name: string; code: string };
+  center: { name: string; code: string };
 };
 
 const STATUS_VARIANT = {
@@ -50,7 +50,7 @@ export function PlanLockedView({
   }
 
   if (items.length === 0) {
-    return <p className="text-sm text-muted-foreground">{dict.noClientsYet}</p>;
+    return <p className="text-sm text-muted-foreground">{dict.noCentersYet}</p>;
   }
 
   return (
@@ -65,7 +65,7 @@ export function PlanLockedView({
             >
               <div className="flex items-center gap-2">
                 <span>
-                  {index + 1}. {item.client.name} ({item.client.code})
+                  {index + 1}. {item.center.name} ({item.center.code})
                 </span>
                 <Badge variant={STATUS_VARIANT[item.status]}>{item.status}</Badge>
               </div>

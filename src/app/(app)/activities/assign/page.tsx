@@ -68,7 +68,7 @@ export default async function ActivityAssignmentPage({ searchParams }: Assignmen
           type: a.type,
           date: a.date.toISOString(),
           status: a.status,
-          client: a.client ? { name: a.client.name, code: a.client.code } : null,
+          center: a.center ? { name: a.center.name, code: a.center.code } : null,
           territory: a.territory ? { code: a.territory.code } : null,
           owner: a.owner,
         }))}

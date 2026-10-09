@@ -12,6 +12,12 @@ enum Status {
   INACTIVE
 }
 
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
 enum OrderStatus {
   DRAFT
   SUBMITTED
@@ -28,7 +34,7 @@ enum AttendanceStatus {
 
 enum ImportEntity {
   TERRITORY
-  CLIENT
+  CENTER
   PRODUCT
 }
 
@@ -299,13 +305,14 @@ model Territory {
   pathKey String @unique
 
   users                User[]
-  clients              Client[]
+  centers              Center[]
   targets              Target[]
   territoryAssignments UserTerritoryAssignment[]
   holidays             Holiday[]
   workingDays          TerritoryWorkingDay[]
   attendanceRules      AttendanceRule[]
   activities           Activity[]
+  persons              Person[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -321,7 +328,7 @@ model Territory {
 // One row per (user, Territory) assignment — the set of Territories a
 // delegate is allowed to work in (S2-04). Distinct from User's own
 // `territoryId` above: that stays a default/display value, but any
-// future work-scoping logic (e.g. restricting which clients a delegate can
+// future work-scoping logic (e.g. restricting which centers a delegate can
 // select) must read from this table instead.
 //
 // A single `territoryId` (not four independent level FKs) is enough now
@@ -350,22 +357,22 @@ model UserTerritoryAssignment {
 
 // --- Master data ---
 
-model ClientType {
+model CenterType {
   id   String @id @default(cuid())
   code String @unique
   name String
 
-  clients Client[]
+  centers Center[]
 
   createdBy String?
   createdAt DateTime @default(now())
   updatedBy String?
   updatedAt DateTime @updatedAt
 
-  @@map("client_types")
+  @@map("center_types")
 }
 
-model Client {
+model Center {
   id                String   @id @default(cuid())
   code              String   @unique
   name              String
@@ -380,10 +387,10 @@ model Client {
   status            Status   @default(ACTIVE)
 
   typeId String
-  type   ClientType @relation(fields: [typeId], references: [id])
+  type   CenterType @relation(fields: [typeId], references: [id])
 
   // Same reasoning as User.territoryId — a Territory already represents
-  // whatever depth this client is known to, so one FK replaces what used
+  // whatever depth this center is known to, so one FK replaces what used
   // to be four independent level fields.
   territoryId String?
   territory   Territory? @relation(fields: [territoryId], references: [id])
@@ -392,14 +399,11 @@ model Client {
   orders     Order[]
   planItems  PlanItem[]
   activities Activity[]
+  persons    PersonCenter[]
 
-  // At most one of these is ever set, matched to `type` — a Doctor client
-  // has a `doctor` row and no `hospital` row, and vice versa. Kept as two
-  // optional one-to-one extensions rather than fields on Client itself so a
-  // Chemist/Pharmacy client (neither Doctor nor Hospital) carries no unused
-  // columns, and so Doctor/Hospital can each grow their own fields later
-  // without widening every other client type's row.
-  doctor   Doctor?
+  // Set only for HOSPITAL-type centers. Kept as an optional one-to-one
+  // extension rather than fields on Center itself so other center types
+  // carry no unused columns.
   hospital Hospital?
 
   createdBy String?
@@ -409,46 +413,19 @@ model Client {
 
   @@index([territoryId, status])
   @@index([typeId, status])
-  @@map("clients")
+  @@map("centers")
 }
 
-// One-to-one extension of Client for the DOCTOR type. A Doctor can be
-// associated with several Hospitals (see DoctorHospital) — that's a
-// separate relation, not a field here, because the source data shows the
-// same doctor visited at multiple hospitals; a single hospitalId would
-// wrongly limit them to one.
-model Doctor {
-  id String @id @default(cuid())
-
-  clientId String @unique
-  client   Client @relation(fields: [clientId], references: [id])
-
-  doctorType String?
-  gender     String?
-  department String?
-  mobileNo   String?
-
-  hospitals DoctorHospital[]
-
-  createdBy String?
-  createdAt DateTime @default(now())
-  updatedBy String?
-  updatedAt DateTime @updatedAt
-
-  @@map("doctors")
-}
-
-// One-to-one extension of Client for the HOSPITAL type.
+// One-to-one extension of Center for the HOSPITAL type.
 model Hospital {
   id String @id @default(cuid())
 
-  clientId String @unique
-  client   Client @relation(fields: [clientId], references: [id])
+  centerId String @unique
+  center   Center @relation(fields: [centerId], references: [id])
 
   hospitalCategory String?
 
-  doctors DoctorHospital[]
-  visits  Visit[]
+  visits Visit[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -458,30 +435,7 @@ model Hospital {
   @@map("hospitals")
 }
 
-// Explicit join model (not an implicit many-to-many), same reasoning as
-// RolePermission: the link itself carries an audit trail of who associated
-// which doctor with which hospital and when. A Doctor visited at several
-// Hospitals gets one Doctor row and several of these, never several Doctor
-// rows for the same person.
-model DoctorHospital {
-  id String @id @default(cuid())
-
-  doctorId String
-  doctor   Doctor @relation(fields: [doctorId], references: [id])
-
-  hospitalId String
-  hospital   Hospital @relation(fields: [hospitalId], references: [id])
-
-  createdBy String?
-  createdAt DateTime @default(now())
-  updatedBy String?
-  updatedAt DateTime @updatedAt
-
-  @@unique([doctorId, hospitalId])
-  @@map("doctor_hospitals")
-}
-
-// Lookup table, same pattern as ClientType — the price list has no
+// Lookup table, same pattern as CenterType — the price list has no
 // classification column at all, so this stays a short seeded list (or
 // left unset on a Product) rather than a fixed enum, until the client
 // confirms an actual taxonomy.
@@ -582,15 +536,12 @@ model Visit {
   delegateId String
   delegate   User   @relation(fields: [delegateId], references: [id])
 
-  clientId String
-  client   Client @relation(fields: [clientId], references: [id])
+  centerId String
+  center   Center @relation(fields: [centerId], references: [id])
 
-  // Which Hospital the visit happened at, when relevant — e.g. "visited
-  // Doctor A at Hospital B" records clientId = Doctor A, hospitalId =
-  // Hospital B. Optional: a visit straight to a Hospital or to a Chemist/
-  // Pharmacy client has no separate hospital to record. When both are set
-  // and the client is a Doctor, the service layer must confirm the pair
-  // exists in DoctorHospital before saving.
+  // Which Hospital the visit happened at, when relevant. Optional: a visit
+  // straight to a Hospital or to a Chemist/Pharmacy center has no separate
+  // hospital to record.
   hospitalId String?
   hospital   Hospital? @relation(fields: [hospitalId], references: [id])
 
@@ -619,8 +570,8 @@ model Order {
   delegateId String
   delegate   User   @relation(fields: [delegateId], references: [id])
 
-  clientId String
-  client   Client @relation(fields: [clientId], references: [id])
+  centerId String
+  center   Center @relation(fields: [centerId], references: [id])
 
   items OrderItem[]
 
@@ -811,7 +762,7 @@ model Target {
 // One row per completed import run — an audit record distinct from each
 // imported row's own createdBy/updatedBy, answering "who ran this import,
 // on what file, with what outcome" without reconstructing it after the
-// fact from individual client/product/territory rows. Write-once: nothing
+// fact from individual center/product/territory rows. Write-once: nothing
 // updates one of these after it's created, but it still carries the
 // standard audit columns per convention (Section 4 of the execution plan).
 model ImportBatch {
@@ -833,7 +784,7 @@ model ImportBatch {
 
 // --- Working calendar (S3-01) ---
 
-// Lookup table, same pattern as ClientType/ProductCategory — no status
+// Lookup table, same pattern as CenterType/ProductCategory — no status
 // field, since deactivating a leave type mid-use isn't a requirement here.
 model LeaveType {
   id   String @id @default(cuid())
@@ -976,8 +927,8 @@ model PlanItem {
   planId String
   plan   Plan   @relation(fields: [planId], references: [id])
 
-  clientId String
-  client   Client @relation(fields: [clientId], references: [id])
+  centerId String
+  center   Center @relation(fields: [centerId], references: [id])
 
   sequence Int
   status   PlanItemStatus @default(PENDING)
@@ -987,17 +938,17 @@ model PlanItem {
   updatedBy String?
   updatedAt DateTime @updatedAt
 
-  // Enforces "no duplicate client on the same plan/date" at the database
+  // Enforces "no duplicate center on the same plan/date" at the database
   // level — the service layer gives a friendlier error before ever hitting
   // this constraint, but the constraint is the actual backstop.
-  @@unique([planId, clientId])
+  @@unique([planId, centerId])
   @@index([planId])
   @@map("plan_items")
 }
 
 // --- Marketing activity planning and follow-ups (S3-07) ---
 
-// Exactly one of clientId/territoryId is set, enforced at the Zod boundary
+// Exactly one of centerId/territoryId is set, enforced at the Zod boundary
 // (src/lib/schemas/activity.ts), not at this level — Prisma has no native
 // "exactly one of" column constraint.
 model Activity {
@@ -1007,8 +958,8 @@ model Activity {
   status ActivityStatus @default(PLANNED)
   notes  String?
 
-  clientId String?
-  client   Client? @relation(fields: [clientId], references: [id])
+  centerId String?
+  center   Center? @relation(fields: [centerId], references: [id])
 
   territoryId String?
   territory   Territory? @relation(fields: [territoryId], references: [id])
@@ -1055,4 +1006,120 @@ model FollowUp {
   @@index([ownerId])
   @@index([dueDate])
   @@map("follow_ups")
+}
+
+// --- Persons (doctors, nurses, other professionals) ---
+
+// Configurable lookup, same shape as CenterType — never a TypeScript enum.
+// `code` is derived from the name (uppercase, accent-free slug), so it also
+// acts as the case-insensitive uniqueness guard when an admin types a new
+// value into the create-or-select combobox.
+model PersonType {
+  id   String @id @default(cuid())
+  code String @unique
+  name String
+
+  persons Person[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("person_types")
+}
+
+// Professional specialization / department — separate from PersonType and
+// from PersonCenterRole. Seeded from the client's source data (see
+// prisma/seed.ts); admins can add more from the Persons form.
+model Specialization {
+  id   String @id @default(cuid())
+  code String @unique
+  name String
+
+  persons Person[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("specializations")
+}
+
+// The role a Person holds at one specific Center — a property of the
+// Person<->Center relationship (PersonCenter), never of the Person itself.
+// Values are not business-confirmed; admins create them as needed.
+model PersonCenterRole {
+  id   String @id @default(cuid())
+  code String @unique
+  name String
+
+  personCenters PersonCenter[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("person_center_roles")
+}
+
+// `code` is backend-generated (PER-00001, from the person_code_seq
+// Postgres sequence created in the migration) and immutable once written.
+// `territoryId` is the Person's own Territory — independent of any
+// associated Center's.
+model Person {
+  id     String  @id @default(cuid())
+  code   String  @unique
+  name   String
+  gender Gender?
+  mobile String?
+  status Status  @default(ACTIVE)
+
+  personTypeId String
+  personType   PersonType @relation(fields: [personTypeId], references: [id])
+
+  specializationId String
+  specialization   Specialization @relation(fields: [specializationId], references: [id])
+
+  territoryId String
+  territory   Territory @relation(fields: [territoryId], references: [id])
+
+  centers PersonCenter[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@index([personTypeId, status])
+  @@index([specializationId, status])
+  @@index([territoryId, status])
+  @@index([name])
+  @@map("persons")
+}
+
+// Many-to-many join between Person and Center (the Center model), carrying
+// the per-association role.
+model PersonCenter {
+  id String @id @default(cuid())
+
+  personId String
+  person   Person @relation(fields: [personId], references: [id])
+
+  centerId String
+  center   Center @relation(fields: [centerId], references: [id])
+
+  roleAtCenterId String
+  roleAtCenter   PersonCenterRole @relation(fields: [roleAtCenterId], references: [id])
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([personId, centerId])
+  @@index([centerId])
+  @@map("person_centers")
 }

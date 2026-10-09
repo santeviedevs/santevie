@@ -1,0 +1,254 @@
+"use client";
+
+import { zodResolver } from "@hookform/resolvers/zod";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+import { useForm, useWatch } from "react-hook-form";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import type { Dictionary } from "@/lib/i18n/dictionary";
+import {
+  type CreateCenterInput,
+  createCenterSchema,
+  type UpdateCenterInput,
+  updateCenterSchema,
+} from "@/lib/schemas/center";
+
+import { TerritoryPicker, type TerritoryPickerOption } from "../territories/territory-picker";
+import { type CenterFormState, createCenterAction, updateCenterAction } from "./actions";
+import { CoordinateMapPicker } from "./coordinate-map-picker";
+
+type CenterType = { id: string; code: string; name: string };
+
+type CenterFormProps = {
+  mode: "create" | "edit";
+  options: {
+    types: CenterType[];
+    territories: TerritoryPickerOption[];
+  };
+  defaultValues?: Partial<UpdateCenterInput>;
+  dict: Dictionary["centerForm"];
+  territoryDict: Dictionary["territory"];
+};
+
+export function CenterForm({ mode, options, defaultValues, dict, territoryDict }: CenterFormProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [isPending, startTransition] = useTransition();
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const schema = mode === "create" ? createCenterSchema : updateCenterSchema;
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    control,
+    formState: { errors },
+  } = useForm<CreateCenterInput | UpdateCenterInput>({
+    resolver: zodResolver(schema),
+    defaultValues,
+  });
+
+  const typeId = useWatch({ control, name: "typeId" });
+  const territoryId = useWatch({ control, name: "territoryId" });
+  const latitude = useWatch({ control, name: "latitude" });
+  const longitude = useWatch({ control, name: "longitude" });
+  const status = useWatch({ control, name: "status" });
+
+  const selectedType = options.types.find((t) => t.id === typeId);
+  const typeCode = selectedType?.code;
+
+  const onSubmit = (values: CreateCenterInput | UpdateCenterInput) => {
+    setFormError(null);
+    startTransition(async () => {
+      const formData = new FormData();
+      if ("id" in values && values.id) formData.set("id", values.id);
+      formData.set("code", values.code);
+      formData.set("name", values.name);
+      formData.set("typeId", values.typeId);
+      if (typeCode) formData.set("typeCode", typeCode);
+      if (values.responsiblePerson) {
+        formData.set("responsiblePerson", values.responsiblePerson);
+      }
+      if (values.contact) formData.set("contact", values.contact);
+      if (values.address) formData.set("address", values.address);
+      if (values.latitude !== null && values.latitude !== undefined) {
+        formData.set("latitude", String(values.latitude));
+      }
+      if (values.longitude !== null && values.longitude !== undefined) {
+        formData.set("longitude", String(values.longitude));
+      }
+      if (values.territoryId) formData.set("territoryId", values.territoryId);
+      if (typeCode === "HOSPITAL" && values.hospital?.hospitalCategory) {
+        formData.set("hospitalCategory", values.hospital.hospitalCategory);
+      }
+      if (mode === "edit" && "status" in values && values.status) {
+        formData.set("status", values.status);
+      }
+
+      const action = mode === "create" ? createCenterAction : updateCenterAction;
+      const result: CenterFormState = await action({ error: null }, formData);
+
+      if (result.sessionExpired) {
+        router.push(`/login?callbackUrl=${encodeURIComponent(pathname)}`);
+        return;
+      }
+
+      if (result.error) {
+        setFormError(result.error);
+        return;
+      }
+
+      toast.success(mode === "create" ? dict.centerCreated : dict.centerUpdated);
+      router.push("/admin/centers");
+      router.refresh();
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="flex max-w-md flex-col gap-4" noValidate>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="code">
+          {dict.code} <span className="text-destructive">*</span>
+        </Label>
+        <Input id="code" disabled={isPending} {...register("code")} />
+        {errors.code ? <p className="text-sm text-destructive">{errors.code.message}</p> : null}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="name">
+          {dict.name} <span className="text-destructive">*</span>
+        </Label>
+        <Input id="name" disabled={isPending} {...register("name")} />
+        {errors.name ? <p className="text-sm text-destructive">{errors.name.message}</p> : null}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="typeId">
+          {dict.type} <span className="text-destructive">*</span>
+        </Label>
+        <Select
+          items={options.types.map((type) => ({ value: type.id, label: type.name }))}
+          value={typeId ?? ""}
+          onValueChange={(value) => {
+            if (value) setValue("typeId", value, { shouldValidate: true });
+          }}
+          disabled={isPending}
+        >
+          <SelectTrigger id="typeId" className="w-full">
+            <SelectValue placeholder={dict.selectType} />
+          </SelectTrigger>
+          <SelectContent>
+            {options.types.map((type) => (
+              <SelectItem key={type.id} value={type.id}>
+                {type.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {errors.typeId ? <p className="text-sm text-destructive">{errors.typeId.message}</p> : null}
+      </div>
+
+      {typeCode === "HOSPITAL" ? (
+        <div className="flex flex-col gap-4 rounded-md border border-border p-3">
+          <Label>{dict.hospitalSectionLabel}</Label>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="hospitalCategory">{dict.hospitalCategory}</Label>
+            <Input
+              id="hospitalCategory"
+              disabled={isPending}
+              {...register("hospital.hospitalCategory")}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="responsiblePerson">{dict.responsiblePerson}</Label>
+        <Input id="responsiblePerson" disabled={isPending} {...register("responsiblePerson")} />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="contact">{dict.contact}</Label>
+        <Input id="contact" disabled={isPending} {...register("contact")} />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="address">{dict.address}</Label>
+        <Input id="address" disabled={isPending} {...register("address")} />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label>{dict.territorySectionLabel}</Label>
+        <TerritoryPicker
+          id="territoryId"
+          label={territoryDict.territoryPickerLabel}
+          placeholder={territoryDict.selectTerritoryFilter}
+          clearLabel={territoryDict.anyTerritoryFilter}
+          noResultsLabel={territoryDict.noMatches}
+          options={options.territories}
+          value={territoryId ?? null}
+          onChange={(next) => setValue("territoryId", next)}
+          disabled={isPending}
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label>{dict.coordinatesLabel}</Label>
+        <CoordinateMapPicker
+          latitude={latitude ?? null}
+          longitude={longitude ?? null}
+          onChange={({ latitude: lat, longitude: lng }) => {
+            setValue("latitude", lat, { shouldValidate: true });
+            setValue("longitude", lng, { shouldValidate: true });
+          }}
+          disabled={isPending}
+        />
+        <p className="text-xs text-muted-foreground">
+          {latitude !== null &&
+          latitude !== undefined &&
+          longitude !== null &&
+          longitude !== undefined
+            ? `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+            : dict.noCoordinates}
+        </p>
+      </div>
+
+      {mode === "edit" ? (
+        <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+          <div className="flex flex-col">
+            <Label htmlFor="status">{dict.activate}</Label>
+            <span className="text-xs text-muted-foreground">
+              {status === "INACTIVE" ? dict.inactiveDescription : dict.activeDescription}
+            </span>
+          </div>
+          <Switch
+            id="status"
+            disabled={isPending}
+            checked={status !== "INACTIVE"}
+            onCheckedChange={(checked) =>
+              setValue("status", checked ? "ACTIVE" : "INACTIVE", { shouldDirty: true })
+            }
+          />
+        </div>
+      ) : null}
+
+      {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
+
+      <Button type="submit" disabled={isPending}>
+        {isPending ? dict.saving : mode === "create" ? dict.createCenter : dict.saveChanges}
+      </Button>
+    </form>
+  );
+}

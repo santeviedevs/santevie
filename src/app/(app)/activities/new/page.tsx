@@ -1,6 +1,6 @@
 import { getServerDictionary } from "@/lib/i18n/server";
 import { requirePermission } from "@/server/auth/require-permission";
-import { listActiveClientsForSelection } from "@/server/repositories/client-repository";
+import { listActiveCentersForSelection } from "@/server/repositories/center-repository";
 import { listActiveTerritoryOptions } from "@/server/services/territory-service";
 
 import { ActivityForm } from "../activity-form";
@@ -14,8 +14,8 @@ export default async function NewActivityPage() {
   const dict = await getServerDictionary();
   const t = dict.activitiesPage;
 
-  const [clients, territories] = await Promise.all([
-    listActiveClientsForSelection(),
+  const [centers, territories] = await Promise.all([
+    listActiveCentersForSelection(),
     listActiveTerritoryOptions(),
   ]);
 
@@ -23,7 +23,7 @@ export default async function NewActivityPage() {
     <div className="flex flex-col gap-6 p-6">
       <h1 className="text-xl font-semibold">{t.newActivityPageTitle}</h1>
       <ActivityForm
-        clients={clients.map((c) => ({ id: c.id, label: `${c.name} (${c.code})` }))}
+        centers={centers.map((c) => ({ id: c.id, label: `${c.name} (${c.code})` }))}
         territories={territories.map((territory) => ({
           id: territory.id,
           label: territory.label,

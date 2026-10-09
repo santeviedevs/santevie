@@ -40,7 +40,7 @@ export default async function TeamFollowUpsPage() {
               <TableRow key={followUp.id}>
                 <TableCell>{formatDate(followUp.dueDate)}</TableCell>
                 <TableCell>
-                  {followUp.activity.client?.name ?? followUp.activity.territory?.code ?? "—"}
+                  {followUp.activity.center?.name ?? followUp.activity.territory?.code ?? "—"}
                 </TableCell>
               </TableRow>
             ))}

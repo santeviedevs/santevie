@@ -11,8 +11,8 @@ export type Dictionary = {
   // the page heading.
   editUserTitle: (name: string) => string;
   editTerritoryTitle: (name: string) => string;
-  editClientTitle: (name: string) => string;
-  viewClientTitle: (name: string) => string;
+  editCenterTitle: (name: string) => string;
+  viewCenterTitle: (name: string) => string;
   editProductTitle: (name: string) => string;
   nav: {
     home: string;
@@ -21,7 +21,8 @@ export type Dictionary = {
     manageTerritories: string;
     territoryAssignment: string;
     team: string;
-    clients: string;
+    centers: string;
+    persons: string;
     products: string;
     installGuide: string;
     leavesGroup: string;
@@ -74,12 +75,12 @@ export type Dictionary = {
     anyCommune: string;
     anyQuartier: string;
     // Label/placeholder for the single-combobox TerritoryPicker used on
-    // list-filter screens (clients, users, team) — distinct from `province`
+    // list-filter screens (centers, users, team) — distinct from `province`
     // above, which is specifically the top hierarchy level in the
     // Territories admin form.
     territoryFilterLabel: string;
     // Label for the same TerritoryPicker when used to assign/pick a
-    // territory on a record (client form, user form, territory assignment)
+    // territory on a record (center form, user form, territory assignment)
     // rather than to filter a list.
     territoryPickerLabel: string;
     selectTerritoryFilter: string;
@@ -444,14 +445,14 @@ export type Dictionary = {
     noPlansYet: string;
     noDateYet: string;
     unassignedLabel: string;
-    noClientsYet: string;
+    noCentersYet: string;
     searchPlaceholder: string;
     noMatches: string;
     anyTerritory: string;
     remove: string;
     locked: string;
-    clientAdded: string;
-    clientRemoved: string;
+    centerAdded: string;
+    centerRemoved: string;
     assignedByPrefix: string;
     markComplete: string;
     markCancelled: string;
@@ -491,7 +492,7 @@ export type Dictionary = {
     typeOther: string;
     dateLabel: string;
     targetLabel: string;
-    targetClient: string;
+    targetCenter: string;
     targetTerritory: string;
     notesLabel: string;
     save: string;
@@ -552,11 +553,11 @@ export type Dictionary = {
     legendPendingLeave: string;
     legendRejectedLeave: string;
   };
-  // The Client master admin screen (S2-02: Doctor/Hospital/Chemist/
+  // The Center master admin screen (S2-02: Doctor/Hospital/Chemist/
   // Pharmacy) — mirrors usersPage/userForm/filters in shape.
-  clientsPage: {
+  centersPage: {
     title: string;
-    newClient: string;
+    newCenter: string;
     importButton: string;
     columnCode: string;
     columnName: string;
@@ -573,7 +574,7 @@ export type Dictionary = {
     statusInactive: string;
     missingCoordinates: string;
   };
-  clientFilters: {
+  centerFilters: {
     searchLabel: string;
     searchPlaceholder: string;
     typeLabel: string;
@@ -585,8 +586,8 @@ export type Dictionary = {
     missingCoordinates: string;
     clearFilters: string;
   };
-  clientForm: {
-    newClientTitle: string;
+  centerForm: {
+    newCenterTitle: string;
     code: string;
     name: string;
     type: string;
@@ -611,25 +612,109 @@ export type Dictionary = {
     activate: string;
     activeDescription: string;
     inactiveDescription: string;
-    createClient: string;
+    createCenter: string;
     saveChanges: string;
     saving: string;
-    clientCreated: string;
-    clientUpdated: string;
+    centerCreated: string;
+    centerUpdated: string;
   };
-  // The read-only Client detail screen — reuses clientForm's field labels
+  // The read-only Center detail screen — reuses centerForm's field labels
   // (code/name/type/doctorType/...) for consistency, and only adds what's
   // specific to a view: section headings, the edit/back links, and a
   // fallback for an empty field.
-  clientDetailPage: {
+  centerDetailPage: {
     backToList: string;
-    editClient: string;
+    editCenter: string;
     detailsSectionLabel: string;
     responsiblePerson: string;
     contact: string;
     address: string;
     notProvided: string;
     hospitalCode: string;
+  };
+  // The Persons admin module (doctors, nurses and other professionals).
+  // Plain strings only, so the whole object can be passed into client
+  // components. "Centers" here is the existing Center model.
+  persons: {
+    title: string;
+    description: string;
+    addPerson: string;
+    columnCode: string;
+    columnPerson: string;
+    columnType: string;
+    columnSpecialization: string;
+    columnMobile: string;
+    columnTerritory: string;
+    columnCenters: string;
+    columnStatus: string;
+    centersLabel: string;
+    view: string;
+    edit: string;
+    activate: string;
+    deactivate: string;
+    noResults: string;
+    statusActive: string;
+    statusInactive: string;
+    statusChanged: string;
+    searchLabel: string;
+    searchPlaceholder: string;
+    typeFilterLabel: string;
+    anyType: string;
+    specializationFilterLabel: string;
+    anySpecialization: string;
+    centerTypeFilterLabel: string;
+    anyCenterType: string;
+    statusFilterLabel: string;
+    anyStatus: string;
+    filterActive: string;
+    filterInactive: string;
+    clearFilters: string;
+    newTitle: string;
+    editTitle: string;
+    basicSection: string;
+    professionalSection: string;
+    territorySection: string;
+    centersSection: string;
+    codeNote: string;
+    name: string;
+    personType: string;
+    selectOrAddType: string;
+    gender: string;
+    genderNone: string;
+    genderMale: string;
+    genderFemale: string;
+    genderOther: string;
+    mobile: string;
+    specialization: string;
+    selectOrAddSpecialization: string;
+    territory: string;
+    addCenter: string;
+    center: string;
+    centerType: string;
+    roleAtCenter: string;
+    selectCenter: string;
+    selectOrAddRole: string;
+    addNew: string;
+    add: string;
+    remove: string;
+    noCenters: string;
+    centerAlreadyAdded: string;
+    centerAndRoleRequired: string;
+    noMatches: string;
+    statusSwitchLabel: string;
+    activeDescription: string;
+    inactiveDescription: string;
+    cancel: string;
+    createPerson: string;
+    saveChanges: string;
+    saving: string;
+    personCreated: string;
+    personUpdated: string;
+    backToList: string;
+    editPerson: string;
+    notProvided: string;
+    codeLabel: string;
+    centerRelationNote: string;
   };
   // The Product catalogue admin screen (S2-03). Both grossPrice and
   // netPrice are shown — the source price list carries both, and the
@@ -705,7 +790,7 @@ export type Dictionary = {
     rateUpdated: string;
   };
   // The bulk import screen (S2-05) — one shared wizard for territories,
-  // clients and products, distinguished only by which entity's endpoint
+  // centers and products, distinguished only by which entity's endpoint
   // and column list it's pointed at.
   importPage: {
     backToList: string;
@@ -741,8 +826,8 @@ export type Dictionary = {
 const en: Dictionary = {
   editUserTitle: (name) => `Edit ${name}`,
   editTerritoryTitle: (name) => `Edit ${name}`,
-  editClientTitle: (name) => `Edit ${name}`,
-  viewClientTitle: (name) => name,
+  editCenterTitle: (name) => `Edit ${name}`,
+  viewCenterTitle: (name) => name,
   editProductTitle: (name) => `Edit ${name}`,
   nav: {
     home: "Home",
@@ -751,7 +836,8 @@ const en: Dictionary = {
     manageTerritories: "Manage Territories",
     territoryAssignment: "Assign Territories",
     team: "Team",
-    clients: "Clients",
+    centers: "Centers",
+    persons: "Persons",
     products: "Products",
     installGuide: "Install guide",
     leavesGroup: "Leaves",
@@ -1111,14 +1197,14 @@ const en: Dictionary = {
     noPlansYet: "No plans yet.",
     noDateYet: "No date yet",
     unassignedLabel: "Not assigned to anyone",
-    noClientsYet: "No clients added yet.",
+    noCentersYet: "No centers added yet.",
     searchPlaceholder: "Search by name or code...",
-    noMatches: "No matching clients.",
+    noMatches: "No matching centers.",
     anyTerritory: "Any territory",
     remove: "Remove",
     locked: "This plan's date has started, so it's locked and can no longer be edited.",
-    clientAdded: "Client added to plan",
-    clientRemoved: "Client removed from plan",
+    centerAdded: "Center added to plan",
+    centerRemoved: "Center removed from plan",
     assignedByPrefix: "Assigned by",
     markComplete: "Mark completed",
     markCancelled: "Cancel",
@@ -1133,7 +1219,7 @@ const en: Dictionary = {
     cancelAssignment: "Cancel assignment",
     assignmentCancelled: "Assignment cancelled",
     hasCompletedHint: "This plan already has completed visits, so it can no longer be reassigned.",
-    itemsCountSuffix: "clients",
+    itemsCountSuffix: "centers",
     backToPlanVisits: "Back to Plan Visits",
     editAction: "Edit",
     save: "Save",
@@ -1155,7 +1241,7 @@ const en: Dictionary = {
     typeOther: "Other",
     dateLabel: "Date",
     targetLabel: "Applies to",
-    targetClient: "A client",
+    targetCenter: "A center",
     targetTerritory: "A territory",
     notesLabel: "Notes",
     save: "Save",
@@ -1167,7 +1253,7 @@ const en: Dictionary = {
     followUpCompleted: "Follow-up completed",
     teamOverdue: "Team Overdue Follow-Ups",
     dueDateColumn: "Due date",
-    targetColumn: "Client / Territory",
+    targetColumn: "Center / Territory",
     today: "Today",
     activitiesThisMonth: "Activities this month",
     noActivitiesThisMonth: "No activities this month.",
@@ -1213,9 +1299,9 @@ const en: Dictionary = {
     legendPendingLeave: "Pending leave",
     legendRejectedLeave: "Rejected leave",
   },
-  clientsPage: {
-    title: "Clients",
-    newClient: "New client",
+  centersPage: {
+    title: "Centers",
+    newCenter: "New center",
     importButton: "Import",
     columnCode: "Code",
     columnName: "Name",
@@ -1227,12 +1313,12 @@ const en: Dictionary = {
     columnStatus: "Status",
     view: "View",
     edit: "Edit",
-    noResults: "No clients match these filters.",
+    noResults: "No centers match these filters.",
     statusActive: "ACTIVE",
     statusInactive: "INACTIVE",
     missingCoordinates: "Missing coordinates",
   },
-  clientFilters: {
+  centerFilters: {
     searchLabel: "Search",
     searchPlaceholder: "Name or code",
     typeLabel: "Type",
@@ -1244,8 +1330,8 @@ const en: Dictionary = {
     missingCoordinates: "Missing coordinates",
     clearFilters: "Clear filters",
   },
-  clientForm: {
-    newClientTitle: "New client",
+  centerForm: {
+    newCenterTitle: "New center",
     code: "Code",
     name: "Name",
     type: "Type",
@@ -1270,21 +1356,103 @@ const en: Dictionary = {
     activate: "Activate",
     activeDescription: "Selectable for new visits and orders.",
     inactiveDescription: "Deactivated — hidden from new visit/order selection, kept in history.",
-    createClient: "Create client",
+    createCenter: "Create center",
     saveChanges: "Save changes",
     saving: "Saving...",
-    clientCreated: "Client created",
-    clientUpdated: "Client updated",
+    centerCreated: "Center created",
+    centerUpdated: "Center updated",
   },
-  clientDetailPage: {
-    backToList: "Back to clients",
-    editClient: "Edit client",
+  centerDetailPage: {
+    backToList: "Back to centers",
+    editCenter: "Edit center",
     detailsSectionLabel: "Details",
     responsiblePerson: "Responsible person",
     contact: "Contact",
     address: "Address",
     notProvided: "Not provided",
     hospitalCode: "Code",
+  },
+  persons: {
+    title: "Persons",
+    description: "Manage doctors, nurses and other professional persons.",
+    addPerson: "Add Person",
+    columnCode: "Code",
+    columnPerson: "Person",
+    columnType: "Person type",
+    columnSpecialization: "Specialization",
+    columnMobile: "Mobile",
+    columnTerritory: "Territory",
+    columnCenters: "Centers",
+    columnStatus: "Status",
+    centersLabel: "Centers",
+    view: "View",
+    edit: "Edit",
+    activate: "Activate",
+    deactivate: "Deactivate",
+    noResults: "No persons match these filters.",
+    statusActive: "ACTIVE",
+    statusInactive: "INACTIVE",
+    statusChanged: "Status updated",
+    searchLabel: "Search",
+    searchPlaceholder: "Code, name or mobile",
+    typeFilterLabel: "Person type",
+    anyType: "Any type",
+    specializationFilterLabel: "Specialization",
+    anySpecialization: "Any specialization",
+    centerTypeFilterLabel: "Center type",
+    anyCenterType: "Any center type",
+    statusFilterLabel: "Status",
+    anyStatus: "Any status",
+    filterActive: "Active",
+    filterInactive: "Inactive",
+    clearFilters: "Clear filters",
+    newTitle: "Add Person",
+    editTitle: "Edit person",
+    basicSection: "Basic information",
+    professionalSection: "Professional information",
+    territorySection: "Territory",
+    centersSection: "Associated centers",
+    codeNote: "The person code is generated automatically.",
+    name: "Full name",
+    personType: "Person type",
+    selectOrAddType: "Select or add new type",
+    gender: "Gender",
+    genderNone: "Not specified",
+    genderMale: "Male",
+    genderFemale: "Female",
+    genderOther: "Other",
+    mobile: "Mobile",
+    specialization: "Specialization / Department",
+    selectOrAddSpecialization: "Select or add specialization",
+    territory: "Territory",
+    addCenter: "Add center",
+    center: "Center",
+    centerType: "Center type",
+    roleAtCenter: "Role at center",
+    selectCenter: "Select a center",
+    selectOrAddRole: "Select or add role",
+    addNew: "Add",
+    add: "Add",
+    remove: "Remove",
+    noCenters: "No centers associated yet.",
+    centerAlreadyAdded: "This center is already associated with the person.",
+    centerAndRoleRequired: "Select a center and a role at that center.",
+    noMatches: "No matches",
+    statusSwitchLabel: "Active",
+    activeDescription: "Person is active.",
+    inactiveDescription: "Deactivated — kept in history, relationships preserved.",
+    cancel: "Cancel",
+    createPerson: "Create Person",
+    saveChanges: "Save changes",
+    saving: "Saving...",
+    personCreated: "Person created",
+    personUpdated: "Person updated",
+    backToList: "Back to persons",
+    editPerson: "Edit person",
+    notProvided: "Not provided",
+    codeLabel: "Code",
+    centerRelationNote:
+      "A person can belong to several centers, with a different role at each one.",
   },
   productsPage: {
     title: "Products",
@@ -1382,8 +1550,8 @@ const en: Dictionary = {
 const fr: Dictionary = {
   editUserTitle: (name) => `Modifier ${name}`,
   editTerritoryTitle: (name) => `Modifier ${name}`,
-  editClientTitle: (name) => `Modifier ${name}`,
-  viewClientTitle: (name) => name,
+  editCenterTitle: (name) => `Modifier ${name}`,
+  viewCenterTitle: (name) => name,
   editProductTitle: (name) => `Modifier ${name}`,
   nav: {
     home: "Accueil",
@@ -1392,7 +1560,8 @@ const fr: Dictionary = {
     manageTerritories: "Gérer les territoires",
     territoryAssignment: "Affecter des territoires",
     team: "Équipe",
-    clients: "Clients",
+    centers: "Centres",
+    persons: "Personnes",
     products: "Produits",
     installGuide: "Guide d'installation",
     leavesGroup: "Congés",
@@ -1753,14 +1922,14 @@ const fr: Dictionary = {
     noPlansYet: "Aucun plan pour le moment.",
     noDateYet: "Pas encore de date",
     unassignedLabel: "Non affecté",
-    noClientsYet: "Aucun client ajouté pour le moment.",
+    noCentersYet: "Aucun centre ajouté pour le moment.",
     searchPlaceholder: "Rechercher par nom ou code...",
-    noMatches: "Aucun client correspondant.",
+    noMatches: "Aucun centre correspondant.",
     anyTerritory: "Tous les territoires",
     remove: "Retirer",
     locked: "La date de ce plan a commencé, il est donc verrouillé et ne peut plus être modifié.",
-    clientAdded: "Client ajouté au plan",
-    clientRemoved: "Client retiré du plan",
+    centerAdded: "Centre ajouté au plan",
+    centerRemoved: "Centre retiré du plan",
     assignedByPrefix: "Assigné par",
     markComplete: "Marquer comme terminé",
     markCancelled: "Annuler",
@@ -1775,7 +1944,7 @@ const fr: Dictionary = {
     cancelAssignment: "Annuler l'affectation",
     assignmentCancelled: "Affectation annulée",
     hasCompletedHint: "Ce plan a déjà des visites terminées, il ne peut donc plus être réaffecté.",
-    itemsCountSuffix: "clients",
+    itemsCountSuffix: "centres",
     backToPlanVisits: "Retour à Planifier des visites",
     editAction: "Modifier",
     save: "Enregistrer",
@@ -1797,7 +1966,7 @@ const fr: Dictionary = {
     typeOther: "Autre",
     dateLabel: "Date",
     targetLabel: "S'applique à",
-    targetClient: "Un client",
+    targetCenter: "Un centre",
     targetTerritory: "Un territoire",
     notesLabel: "Notes",
     save: "Enregistrer",
@@ -1809,7 +1978,7 @@ const fr: Dictionary = {
     followUpCompleted: "Suivi terminé",
     teamOverdue: "Suivis en retard de l'équipe",
     dueDateColumn: "Échéance",
-    targetColumn: "Client / Territoire",
+    targetColumn: "Centre / Territoire",
     today: "Aujourd'hui",
     activitiesThisMonth: "Activités ce mois-ci",
     noActivitiesThisMonth: "Aucune activité ce mois-ci.",
@@ -1855,9 +2024,9 @@ const fr: Dictionary = {
     legendPendingLeave: "Congé en attente",
     legendRejectedLeave: "Congé rejeté",
   },
-  clientsPage: {
-    title: "Clients",
-    newClient: "Nouveau client",
+  centersPage: {
+    title: "Centres",
+    newCenter: "Nouveau centre",
     importButton: "Importer",
     columnCode: "Code",
     columnName: "Nom",
@@ -1869,12 +2038,12 @@ const fr: Dictionary = {
     columnStatus: "Statut",
     view: "Voir",
     edit: "Modifier",
-    noResults: "Aucun client ne correspond à ces filtres.",
+    noResults: "Aucun centre ne correspond à ces filtres.",
     statusActive: "ACTIF",
     statusInactive: "INACTIF",
     missingCoordinates: "Coordonnées manquantes",
   },
-  clientFilters: {
+  centerFilters: {
     searchLabel: "Recherche",
     searchPlaceholder: "Nom ou code",
     typeLabel: "Type",
@@ -1886,8 +2055,8 @@ const fr: Dictionary = {
     missingCoordinates: "Coordonnées manquantes",
     clearFilters: "Effacer les filtres",
   },
-  clientForm: {
-    newClientTitle: "Nouveau client",
+  centerForm: {
+    newCenterTitle: "Nouveau centre",
     code: "Code",
     name: "Nom",
     type: "Type",
@@ -1913,21 +2082,103 @@ const fr: Dictionary = {
     activeDescription: "Sélectionnable pour de nouvelles visites et commandes.",
     inactiveDescription:
       "Désactivé — masqué des nouvelles visites/commandes, conservé dans l'historique.",
-    createClient: "Créer le client",
+    createCenter: "Créer le centre",
     saveChanges: "Enregistrer",
     saving: "Enregistrement...",
-    clientCreated: "Client créé",
-    clientUpdated: "Client mis à jour",
+    centerCreated: "Centre créé",
+    centerUpdated: "Centre mis à jour",
   },
-  clientDetailPage: {
-    backToList: "Retour aux clients",
-    editClient: "Modifier le client",
+  centerDetailPage: {
+    backToList: "Retour aux centres",
+    editCenter: "Modifier le centre",
     detailsSectionLabel: "Détails",
     responsiblePerson: "Responsable",
     contact: "Contact",
     address: "Adresse",
     notProvided: "Non renseigné",
     hospitalCode: "Code",
+  },
+  persons: {
+    title: "Personnes",
+    description: "Gérer les médecins, infirmiers et autres professionnels.",
+    addPerson: "Ajouter une personne",
+    columnCode: "Code",
+    columnPerson: "Personne",
+    columnType: "Type de personne",
+    columnSpecialization: "Spécialisation",
+    columnMobile: "Mobile",
+    columnTerritory: "Territoire",
+    columnCenters: "Centres",
+    columnStatus: "Statut",
+    centersLabel: "Centres",
+    view: "Voir",
+    edit: "Modifier",
+    activate: "Activer",
+    deactivate: "Désactiver",
+    noResults: "Aucune personne ne correspond à ces filtres.",
+    statusActive: "ACTIF",
+    statusInactive: "INACTIF",
+    statusChanged: "Statut mis à jour",
+    searchLabel: "Rechercher",
+    searchPlaceholder: "Code, nom ou mobile",
+    typeFilterLabel: "Type de personne",
+    anyType: "Tous les types",
+    specializationFilterLabel: "Spécialisation",
+    anySpecialization: "Toutes les spécialisations",
+    centerTypeFilterLabel: "Type de centre",
+    anyCenterType: "Tous les types de centre",
+    statusFilterLabel: "Statut",
+    anyStatus: "Tous les statuts",
+    filterActive: "Actif",
+    filterInactive: "Inactif",
+    clearFilters: "Effacer les filtres",
+    newTitle: "Ajouter une personne",
+    editTitle: "Modifier la personne",
+    basicSection: "Informations de base",
+    professionalSection: "Informations professionnelles",
+    territorySection: "Territoire",
+    centersSection: "Centres associés",
+    codeNote: "Le code de la personne est généré automatiquement.",
+    name: "Nom complet",
+    personType: "Type de personne",
+    selectOrAddType: "Sélectionner ou ajouter un type",
+    gender: "Genre",
+    genderNone: "Non précisé",
+    genderMale: "Homme",
+    genderFemale: "Femme",
+    genderOther: "Autre",
+    mobile: "Mobile",
+    specialization: "Spécialisation / Département",
+    selectOrAddSpecialization: "Sélectionner ou ajouter une spécialisation",
+    territory: "Territoire",
+    addCenter: "Ajouter un centre",
+    center: "Centre",
+    centerType: "Type de centre",
+    roleAtCenter: "Rôle au centre",
+    selectCenter: "Sélectionner un centre",
+    selectOrAddRole: "Sélectionner ou ajouter un rôle",
+    addNew: "Ajouter",
+    add: "Ajouter",
+    remove: "Retirer",
+    noCenters: "Aucun centre associé pour l'instant.",
+    centerAlreadyAdded: "Ce centre est déjà associé à la personne.",
+    centerAndRoleRequired: "Sélectionnez un centre et un rôle dans ce centre.",
+    noMatches: "Aucun résultat",
+    statusSwitchLabel: "Actif",
+    activeDescription: "La personne est active.",
+    inactiveDescription: "Désactivée — conservée dans l'historique, relations préservées.",
+    cancel: "Annuler",
+    createPerson: "Créer la personne",
+    saveChanges: "Enregistrer",
+    saving: "Enregistrement...",
+    personCreated: "Personne créée",
+    personUpdated: "Personne mise à jour",
+    backToList: "Retour aux personnes",
+    editPerson: "Modifier la personne",
+    notProvided: "Non renseigné",
+    codeLabel: "Code",
+    centerRelationNote:
+      "Une personne peut appartenir à plusieurs centres, avec un rôle différent dans chacun.",
   },
   productsPage: {
     title: "Produits",
