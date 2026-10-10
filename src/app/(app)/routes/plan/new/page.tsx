@@ -31,9 +31,8 @@ export default async function NewRoutePage() {
 
       <RouteDraftEditor
         routeId={null}
-        initialCenterIds={[]}
+        initialCenters={[]}
         readOnlyItems={[]}
-        availableCenters={draft.availableCenters}
         territories={draft.territories}
         dict={t}
       />

@@ -22,6 +22,7 @@ type RouteItem = {
   id: string;
   status: "PENDING" | "COMPLETED" | "CANCELLED" | "MISSED";
   center: { name: string; code: string };
+  contacts: { id: string; name: string; status: string }[];
 };
 type AssignableUser = { id: string; label: string };
 
@@ -56,7 +57,9 @@ export function AssignDetail({
   const [targetUserId, setTargetUserId] = useState(users[0]?.id ?? "");
   const [formDate, setFormDate] = useState(date ? date.slice(0, 10) : "");
 
-  const hasCompleted = items.some((item) => item.status === "COMPLETED");
+  const hasCompleted = items.some(
+    (item) => item.status === "COMPLETED" || item.contacts.some((c) => c.status === "COMPLETED"),
+  );
   const hasPending = items.some((item) => item.status === "PENDING" || item.status === "MISSED");
   const reassignBlocked = hasCompleted && visitorName !== null;
 
@@ -102,8 +105,13 @@ export function AssignDetail({
               key={item.id}
               className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
             >
-              <span>
+              <span className="min-w-0 break-words">
                 {item.center.name} ({item.center.code})
+                {item.contacts.length > 0 ? (
+                  <span className="block text-xs text-muted-foreground">
+                    {item.contacts.map((c) => `${c.name} · ${c.status}`).join(", ")}
+                  </span>
+                ) : null}
               </span>
               <Badge variant={STATUS_VARIANT[item.status]}>{item.status}</Badge>
             </li>

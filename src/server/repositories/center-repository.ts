@@ -66,17 +66,37 @@ export function listActiveCentersForSelection() {
   });
 }
 
-// S3-06's route-planning center picker — active centers within a specific
-// set of territory ids (the delegate's permitted territories). Kept
-// separate from listActiveCentersForSelection above rather than widening
-// that function's shape, since its existing callers (order/visit pickers)
-// don't need territory-scoping and shouldn't have their payload shape
-// changed for a different feature's requirement.
-export function listActiveCentersForTerritories(territoryIds: string[]) {
+// Server-side type-ahead for the route editor's Center picker — bounded by
+// `limit`, active centers only, always inside the given territory ids.
+// Matches on name or code, case-insensitively.
+export function searchActiveCentersInTerritories(params: {
+  territoryIds: string[];
+  q: string;
+  limit: number;
+}) {
+  const { territoryIds, q, limit } = params;
   return prisma.center.findMany({
-    where: { status: "ACTIVE", territoryId: { in: territoryIds } },
-    select: { id: true, name: true, code: true, territoryId: true },
+    where: {
+      status: "ACTIVE",
+      territoryId: { in: territoryIds },
+      ...(q
+        ? {
+            OR: [
+              { name: { contains: q, mode: "insensitive" } },
+              { code: { contains: q, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    },
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      territoryId: true,
+      type: { select: { name: true } },
+    },
     orderBy: { name: "asc" },
+    take: limit,
   });
 }
 

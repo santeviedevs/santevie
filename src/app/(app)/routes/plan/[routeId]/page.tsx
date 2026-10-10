@@ -6,7 +6,7 @@ import { getServerDictionary } from "@/lib/i18n/server";
 import { requirePermission } from "@/server/auth/require-permission";
 import { getRoutesForContent } from "@/server/services/route-service";
 
-import { enrichRouteForVisits, getAllTerritoryOptions } from "../enrich-route";
+import { enrichRouteForVisits, getAllTerritoryOptions, toEditorState } from "../enrich-route";
 import { RouteDraftEditor } from "../route-draft-editor";
 import { RouteLockedView } from "../route-locked-view";
 
@@ -36,6 +36,7 @@ export default async function SingleRoutePage({ params }: SingleRoutePageProps) 
   if (!route) notFound();
 
   const enrichedRoute = await enrichRouteForVisits(route, allTerritories);
+  const editorState = toEditorState(enrichedRoute.items);
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -48,14 +49,8 @@ export default async function SingleRoutePage({ params }: SingleRoutePageProps) 
       {enrichedRoute.editable ? (
         <RouteDraftEditor
           routeId={enrichedRoute.id}
-          initialCenterIds={enrichedRoute.items
-            .filter((item) => item.status === "PENDING")
-            .map((item) => item.center.id)}
-          readOnlyItems={enrichedRoute.items.filter(
-            (item): item is typeof item & { status: "COMPLETED" | "CANCELLED" } =>
-              item.status === "COMPLETED" || item.status === "CANCELLED",
-          )}
-          availableCenters={enrichedRoute.availableCenters}
+          initialCenters={editorState.initialCenters}
+          readOnlyItems={editorState.readOnlyItems}
           territories={enrichedRoute.territories}
           dict={t}
         />

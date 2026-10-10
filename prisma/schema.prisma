@@ -930,6 +930,8 @@ model RouteItem {
   centerId String
   center   Center @relation(fields: [centerId], references: [id])
 
+  contacts RouteItemContact[]
+
   sequence Int
   status   RouteItemStatus @default(PENDING)
 
@@ -944,6 +946,36 @@ model RouteItem {
   @@unique([routeId, centerId])
   @@index([routeId])
   @@map("route_items")
+}
+
+// A Contact selected under one specific Center on a route (a RouteItem).
+// The Contact<->Center link itself still lives only in ContactCenter — this
+// row records "who the visitor is meant to see at this stop" and is
+// validated against ContactCenter on every write, never trusted from the
+// client. `status` is stored per Contact (MISSED is computed at read time,
+// like RouteItem); for a Center that has Contacts, RouteItem.status is
+// derived from these (see deriveCenterStatus in route-service.ts). Rows are
+// never deleted once COMPLETED/CANCELLED, even if the ContactCenter link is
+// later removed — that is history.
+model RouteItemContact {
+  id String @id @default(cuid())
+
+  routeItemId String
+  routeItem   RouteItem @relation(fields: [routeItemId], references: [id])
+
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id])
+
+  status RouteItemStatus @default(PENDING)
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([routeItemId, contactId])
+  @@index([contactId])
+  @@map("route_item_contacts")
 }
 
 // --- Marketing activity planning and follow-ups (S3-07) ---
@@ -1086,7 +1118,8 @@ model Contact {
   territoryId String
   territory   Territory @relation(fields: [territoryId], references: [id])
 
-  centers ContactCenter[]
+  centers    ContactCenter[]
+  routeItems RouteItemContact[]
 
   createdBy String?
   createdAt DateTime @default(now())

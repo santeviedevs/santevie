@@ -3,16 +3,22 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { RouteContactList, type RouteContactRow } from "@/components/route-contact-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 
-import { cancelRouteItemAction, type RouteFormState } from "../actions";
+import {
+  cancelRouteItemAction,
+  cancelRouteItemContactAction,
+  type RouteFormState,
+} from "../actions";
 
 type RouteItem = {
   id: string;
   status: "PENDING" | "COMPLETED" | "CANCELLED" | "MISSED";
   center: { name: string; code: string };
+  contacts: RouteContactRow[];
 };
 
 const STATUS_VARIANT = {
@@ -49,6 +55,20 @@ export function RouteLockedView({
     });
   }
 
+  function cancelContact(routeItemContactId: string) {
+    setError(null);
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("routeItemContactId", routeItemContactId);
+      const result: RouteFormState = await cancelRouteItemContactAction({ error: null }, formData);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      toast.success(dict.contactVisitCancelled);
+    });
+  }
+
   if (items.length === 0) {
     return <p className="text-sm text-muted-foreground">{dict.noCentersYet}</p>;
   }
@@ -61,25 +81,35 @@ export function RouteLockedView({
           return (
             <li
               key={item.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
+              className="flex flex-col gap-2 rounded-md border border-border px-3 py-2"
             >
-              <div className="flex items-center gap-2">
-                <span>
-                  {index + 1}. {item.center.name} ({item.center.code})
-                </span>
-                <Badge variant={STATUS_VARIANT[item.status]}>{item.status}</Badge>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span>
+                    {index + 1}. {item.center.name} ({item.center.code})
+                  </span>
+                  <Badge variant={STATUS_VARIANT[item.status]}>{item.status}</Badge>
+                </div>
+                {cancellable ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isPending}
+                    onClick={() => cancelItem(item.id)}
+                  >
+                    {item.contacts.some((contact) => contact.status === "COMPLETED")
+                      ? dict.cancelRemaining
+                      : dict.markCancelled}
+                  </Button>
+                ) : null}
               </div>
-              {cancellable ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={isPending}
-                  onClick={() => cancelItem(item.id)}
-                >
-                  {dict.markCancelled}
-                </Button>
-              ) : null}
+              <RouteContactList
+                contacts={item.contacts}
+                onCancel={cancelContact}
+                disabled={isPending}
+                dict={dict}
+              />
             </li>
           );
         })}

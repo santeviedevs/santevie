@@ -9,6 +9,7 @@ type RouteItem = {
   id: string;
   status: "PENDING" | "COMPLETED" | "CANCELLED" | "MISSED";
   center: { name: string; code: string };
+  contacts: { id: string; name: string; status: string }[];
 };
 type RouteGroup = {
   id: string;
@@ -79,6 +80,9 @@ export function RouteList({
                   {route.items.map((item) => (
                     <span key={item.id}>
                       {item.center.name} ({item.center.code})
+                      {item.contacts.length > 0
+                        ? ` — ${item.contacts.map((c) => c.name).join(", ")}`
+                        : ""}
                     </span>
                   ))}
                 </div>

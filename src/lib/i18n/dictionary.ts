@@ -477,6 +477,24 @@ export type Dictionary = {
     manageAssignmentAction: string;
     viewAction: string;
     backToAssignRoutes: string;
+    territoryLabel: string;
+    centerSearchLabel: string;
+    contactsHeading: string;
+    searchContactsPlaceholder: string;
+    noContactsForCenter: string;
+    noMatchingContacts: string;
+    noContactsSelected: string;
+    removeContact: string;
+    noLongerAssociated: string;
+    contactInactive: string;
+    flaggedContactsBlockSave: string;
+    searching: string;
+    searchFailed: string;
+    showingFirstResults: string;
+    contactVisitCompleted: string;
+    contactVisitCancelled: string;
+    cancelRemaining: string;
+    contactsCountSuffix: string;
   };
   // S3-07's marketing activity planning and follow-ups — one screen
   // combining the pending/overdue widget, the create form, and the month
@@ -1228,6 +1246,25 @@ const en: Dictionary = {
     manageAssignmentAction: "Manage assignment",
     viewAction: "View",
     backToAssignRoutes: "Back to Assign Routes",
+    territoryLabel: "Territory",
+    centerSearchLabel: "Add a center",
+    contactsHeading: "Contacts",
+    searchContactsPlaceholder: "Search contacts by name or code...",
+    noContactsForCenter: "No contacts are associated with this center.",
+    noMatchingContacts: "No matching contacts.",
+    noContactsSelected: "No contacts selected.",
+    removeContact: "Remove",
+    noLongerAssociated: "No longer associated",
+    contactInactive: "Inactive",
+    flaggedContactsBlockSave:
+      "Remove the contacts flagged as no longer associated or inactive before saving.",
+    searching: "Searching...",
+    searchFailed: "Search failed. Try again.",
+    showingFirstResults: "Showing the first results only — type to narrow down.",
+    contactVisitCompleted: "Contact visit marked completed",
+    contactVisitCancelled: "Contact visit cancelled",
+    cancelRemaining: "Cancel remaining visits",
+    contactsCountSuffix: "contacts",
   },
   activitiesPage: {
     title: "Marketing Activities",
@@ -1954,6 +1991,25 @@ const fr: Dictionary = {
     manageAssignmentAction: "Gérer l'affectation",
     viewAction: "Voir",
     backToAssignRoutes: "Retour à Affecter les routes",
+    territoryLabel: "Territoire",
+    centerSearchLabel: "Ajouter un centre",
+    contactsHeading: "Contacts",
+    searchContactsPlaceholder: "Rechercher un contact par nom ou code...",
+    noContactsForCenter: "Aucun contact n'est associé à ce centre.",
+    noMatchingContacts: "Aucun contact correspondant.",
+    noContactsSelected: "Aucun contact sélectionné.",
+    removeContact: "Retirer",
+    noLongerAssociated: "N'est plus associé",
+    contactInactive: "Inactif",
+    flaggedContactsBlockSave:
+      "Retirez les contacts signalés comme n'étant plus associés ou inactifs avant d'enregistrer.",
+    searching: "Recherche...",
+    searchFailed: "La recherche a échoué. Réessayez.",
+    showingFirstResults: "Seuls les premiers résultats sont affichés — saisissez pour affiner.",
+    contactVisitCompleted: "Visite du contact marquée comme terminée",
+    contactVisitCancelled: "Visite du contact annulée",
+    cancelRemaining: "Annuler les visites restantes",
+    contactsCountSuffix: "contacts",
   },
   activitiesPage: {
     title: "Activités marketing",

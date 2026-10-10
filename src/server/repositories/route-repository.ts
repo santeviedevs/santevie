@@ -4,16 +4,46 @@ import type { Prisma } from "../../../generated/prisma/client";
 
 const routeInclude = {
   items: {
-    include: { center: { select: { id: true, name: true, code: true, territoryId: true } } },
+    include: {
+      center: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          territoryId: true,
+          type: { select: { name: true } },
+        },
+      },
+      contacts: {
+        include: { contact: { select: { id: true, name: true, code: true, status: true } } },
+        orderBy: { contact: { name: "asc" } },
+      },
+    },
     orderBy: { sequence: "asc" },
   },
 } satisfies Prisma.RouteInclude;
 
+// Either the shared client or an interactive-transaction client — every
+// write that has to be atomic with others takes one, defaulting to the
+// shared client so single-statement callers don't have to care.
+export type Db = Prisma.TransactionClient;
+
+// Runs `fn` in one database transaction; any throw rolls back everything
+// `fn` wrote. The service uses this so a route save, or a status change
+// that cascades between Contacts and their Center, can never half-apply.
+export function runInTransaction<T>(fn: (tx: Db) => Promise<T>): Promise<T> {
+  return prisma.$transaction(fn);
+}
+
 export type RouteWithItems = Prisma.RouteGetPayload<{ include: typeof routeInclude }>;
 export type RouteItemRow = Prisma.RouteItemGetPayload<object>;
+export type RouteItemContactRow = Prisma.RouteItemContactGetPayload<object>;
 
-export function createRouteRow(actorId: string): Promise<Prisma.RouteGetPayload<object>> {
-  return prisma.route.create({ data: { createdBy: actorId, updatedBy: actorId } });
+export function createRouteRow(
+  actorId: string,
+  db: Db = prisma,
+): Promise<Prisma.RouteGetPayload<object>> {
+  return db.route.create({ data: { createdBy: actorId, updatedBy: actorId } });
 }
 
 export function findRouteById(id: string): Promise<RouteWithItems | null> {
@@ -58,46 +88,172 @@ export function findRoutesForVisitor(visitorId: string): Promise<RouteWithItems[
   });
 }
 
-export function createRouteItem(data: Prisma.RouteItemCreateInput): Promise<RouteItemRow> {
-  return prisma.routeItem.create({ data });
+export function createRouteItem(
+  data: Prisma.RouteItemCreateInput,
+  db: Db = prisma,
+): Promise<RouteItemRow> {
+  return db.routeItem.create({ data });
 }
+
+const routeItemWithRouteInclude = {
+  route: true,
+  contacts: true,
+} satisfies Prisma.RouteItemInclude;
 
 export function findRouteItemById(
   id: string,
-): Promise<(RouteItemRow & { route: Prisma.RouteGetPayload<object> }) | null> {
-  return prisma.routeItem.findUnique({ where: { id }, include: { route: true } });
+  db: Db = prisma,
+): Promise<Prisma.RouteItemGetPayload<{ include: typeof routeItemWithRouteInclude }> | null> {
+  return db.routeItem.findUnique({ where: { id }, include: routeItemWithRouteInclude });
 }
 
-export function deleteRouteItem(id: string): Promise<RouteItemRow> {
-  return prisma.routeItem.delete({ where: { id } });
+export function deleteRouteItem(id: string, db: Db = prisma): Promise<RouteItemRow> {
+  return db.routeItem.delete({ where: { id } });
 }
 
 export function updateRouteItemSequence(
   id: string,
   sequence: number,
   actorId: string,
+  db: Db = prisma,
 ): Promise<RouteItemRow> {
-  return prisma.routeItem.update({ where: { id }, data: { sequence, updatedBy: actorId } });
+  return db.routeItem.update({ where: { id }, data: { sequence, updatedBy: actorId } });
 }
 
 export function updateRouteItemStatus(
   id: string,
   status: Prisma.RouteItemUpdateInput["status"],
   actorId: string,
+  db: Db = prisma,
 ): Promise<RouteItemRow> {
-  return prisma.routeItem.update({ where: { id }, data: { status, updatedBy: actorId } });
+  return db.routeItem.update({ where: { id }, data: { status, updatedBy: actorId } });
 }
 
-// Bulk-cancels every still-PENDING item under a route — "cancel the
-// assignment" (Assignment screen), not a per-item action.
-export function cancelPendingRouteItems(
+// Bulk-cancels every still-PENDING item under a route that has no Contacts
+// — "cancel the assignment" (Assignment screen), not a per-item action. An
+// item that does have Contacts is never cancelled directly: its status is
+// derived from its Contacts (see cancelPendingContactsOnRoute below).
+export function cancelPendingContactlessRouteItems(
   routeId: string,
   actorId: string,
+  db: Db = prisma,
 ): Promise<Prisma.BatchPayload> {
-  return prisma.routeItem.updateMany({
-    where: { routeId, status: "PENDING" },
+  return db.routeItem.updateMany({
+    where: { routeId, status: "PENDING", contacts: { none: {} } },
     data: { status: "CANCELLED", updatedBy: actorId },
   });
+}
+
+// --- RouteItemContact ---
+
+export function findRouteItemContactById(
+  id: string,
+  db: Db = prisma,
+): Promise<
+  | (RouteItemContactRow & { routeItem: Prisma.RouteItemGetPayload<{ include: { route: true } }> })
+  | null
+> {
+  return db.routeItemContact.findUnique({
+    where: { id },
+    include: { routeItem: { include: { route: true } } },
+  });
+}
+
+export function createRouteItemContacts(
+  routeItemId: string,
+  contactIds: string[],
+  actorId: string,
+  db: Db = prisma,
+): Promise<Prisma.BatchPayload> {
+  return db.routeItemContact.createMany({
+    data: contactIds.map((contactId) => ({
+      routeItemId,
+      contactId,
+      createdBy: actorId,
+      updatedBy: actorId,
+    })),
+  });
+}
+
+// Only ever called with ids of PENDING rows — the service never passes a
+// COMPLETED or CANCELLED one, but the status filter makes that a database
+// guarantee, not just a convention.
+export function deletePendingRouteItemContacts(
+  routeItemId: string,
+  contactIds: string[],
+  db: Db = prisma,
+): Promise<Prisma.BatchPayload> {
+  return db.routeItemContact.deleteMany({
+    where: { routeItemId, contactId: { in: contactIds }, status: "PENDING" },
+  });
+}
+
+// Removing a Center from a route also removes its non-COMPLETED Contact
+// rows (the service refuses the removal outright if any are COMPLETED, so
+// completed history is never deleted).
+export function deleteNonCompletedRouteItemContacts(
+  routeItemId: string,
+  db: Db = prisma,
+): Promise<Prisma.BatchPayload> {
+  return db.routeItemContact.deleteMany({
+    where: { routeItemId, status: { not: "COMPLETED" } },
+  });
+}
+
+export function updateRouteItemContactStatus(
+  id: string,
+  status: Prisma.RouteItemContactUpdateInput["status"],
+  actorId: string,
+  db: Db = prisma,
+): Promise<RouteItemContactRow> {
+  return db.routeItemContact.update({ where: { id }, data: { status, updatedBy: actorId } });
+}
+
+export function cancelPendingContactsOnItem(
+  routeItemId: string,
+  actorId: string,
+  db: Db = prisma,
+): Promise<Prisma.BatchPayload> {
+  return db.routeItemContact.updateMany({
+    where: { routeItemId, status: "PENDING" },
+    data: { status: "CANCELLED", updatedBy: actorId },
+  });
+}
+
+export function cancelPendingContactsOnRoute(
+  routeId: string,
+  actorId: string,
+  db: Db = prisma,
+): Promise<Prisma.BatchPayload> {
+  return db.routeItemContact.updateMany({
+    where: { routeItem: { routeId }, status: "PENDING" },
+    data: { status: "CANCELLED", updatedBy: actorId },
+  });
+}
+
+export async function listContactStatusesForItem(
+  routeItemId: string,
+  db: Db = prisma,
+): Promise<Array<"PENDING" | "COMPLETED" | "CANCELLED">> {
+  const rows = await db.routeItemContact.findMany({
+    where: { routeItemId },
+    select: { status: true },
+  });
+  return rows.map((row) => row.status);
+}
+
+// The still-PENDING items under a route that have at least one Contact —
+// the ones whose status needs re-deriving after their Contacts change in
+// bulk.
+export async function listPendingItemIdsWithContacts(
+  routeId: string,
+  db: Db = prisma,
+): Promise<string[]> {
+  const rows = await db.routeItem.findMany({
+    where: { routeId, status: "PENDING", contacts: { some: {} } },
+    select: { id: true },
+  });
+  return rows.map((row) => row.id);
 }
 
 // First-time assignment — sets userId/date in place on a currently-

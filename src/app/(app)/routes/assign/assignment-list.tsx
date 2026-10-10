@@ -9,6 +9,7 @@ type RouteItem = {
   id: string;
   status: "PENDING" | "COMPLETED" | "CANCELLED" | "MISSED";
   center: { name: string; code: string };
+  contacts: { id: string; name: string; status: string }[];
 };
 type RouteGroup = {
   id: string;
@@ -35,7 +36,10 @@ export function AssignmentList({
   return (
     <div className="flex flex-col gap-3">
       {routes.map((route) => {
-        const hasCompleted = route.items.some((item) => item.status === "COMPLETED");
+        const hasCompleted = route.items.some(
+          (item) =>
+            item.status === "COMPLETED" || item.contacts.some((c) => c.status === "COMPLETED"),
+        );
         const hasActionable = route.items.some(
           (item) => item.status === "PENDING" || item.status === "MISSED",
         );
@@ -66,6 +70,9 @@ export function AssignmentList({
                   {route.items.map((item) => (
                     <span key={item.id}>
                       {item.center.name} ({item.center.code})
+                      {item.contacts.length > 0
+                        ? ` — ${item.contacts.map((c) => c.name).join(", ")}`
+                        : ""}
                     </span>
                   ))}
                 </div>
