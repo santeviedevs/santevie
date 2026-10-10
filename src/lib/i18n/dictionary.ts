@@ -477,6 +477,86 @@ export type Dictionary = {
     manageAssignmentAction: string;
     viewAction: string;
     backToAssignRoutes: string;
+    routesListHeading: string;
+    editRouteTitle: string;
+    selectedCentersHeading: string;
+    colCenters: string;
+    colContacts: string;
+    colAssignmentPeriod: string;
+    contactStatusCompleted: string;
+    contactStatusPending: string;
+    contactStatusMissed: string;
+    contactStatusCancelled: string;
+    collapseContacts: string;
+    expandContacts: string;
+    moveUp: string;
+    moveDown: string;
+    selectedBadge: string;
+    centersAndContactsHeading: string;
+    cancelCurrentAssignment: string;
+    cancelDialogTitle: string;
+    cancelDialogBody: string;
+    cancelDialogKeep: string;
+    reassignRouteHeading: string;
+    reassignRouteHelp: string;
+    assignRouteHeading: string;
+    assignRouteHelp: string;
+    invalidDateRange: string;
+    routeFieldLabel: string;
+    dateRangeLabel: string;
+    startDateLabel: string;
+    endDateLabel: string;
+    addAction: string;
+    searchRoutesPlaceholder: string;
+    searchAssigneesPlaceholder: string;
+    noMatchingRoutes: string;
+    noMatchingAssignees: string;
+    assignFormIncomplete: string;
+    colRoute: string;
+    colCentersContacts: string;
+    colAssignedTo: string;
+    colDateRange: string;
+    colStatus: string;
+    routeAssignmentsHeading: string;
+    noAssignmentsYet: string;
+    statusUnassigned: string;
+    statusAssigned: string;
+    statusInProgress: string;
+    statusMissed: string;
+    statusCompleted: string;
+    statusCancelled: string;
+    filterSearchPlaceholder: string;
+    filterAllStatuses: string;
+    filterAnyAssignee: string;
+    filterFrom: string;
+    filterTo: string;
+    filterClear: string;
+    noRoutesMatch: string;
+    myRoutesHeading: string;
+    thisWeekHeading: string;
+    upcomingWeekHeading: string;
+    noRoutesThisWeekOrNext: string;
+    noRoutesThisWeek: string;
+    noRoutesUpcomingWeek: string;
+    openVisits: string;
+    territoryLabel: string;
+    centerSearchLabel: string;
+    contactsHeading: string;
+    searchContactsPlaceholder: string;
+    noContactsForCenter: string;
+    noMatchingContacts: string;
+    noContactsSelected: string;
+    removeContact: string;
+    noLongerAssociated: string;
+    contactInactive: string;
+    flaggedContactsBlockSave: string;
+    searching: string;
+    searchFailed: string;
+    showingFirstResults: string;
+    contactVisitCompleted: string;
+    contactVisitCancelled: string;
+    cancelRemaining: string;
+    contactsCountSuffix: string;
   };
   // S3-07's marketing activity planning and follow-ups — one screen
   // combining the pending/overdue widget, the create form, and the month
@@ -1186,13 +1266,13 @@ const en: Dictionary = {
   },
   routesPage: {
     title: "Routes",
-    tabPlanRoutes: "Plan Routes",
+    tabPlanRoutes: "Add Routes",
     tabAssignRoutes: "Assign Routes",
-    planRoutesTitle: "Plan Routes",
+    planRoutesTitle: "Add Routes",
     assignRoutesTitle: "Assign Routes",
     visitsTitle: "Visits",
     myselfOption: "Myself",
-    newRoute: "New route",
+    newRoute: "Add Route",
     noRoutesYet: "No routes yet.",
     noDateYet: "No date yet",
     unassignedLabel: "Not assigned to anyone",
@@ -1209,7 +1289,7 @@ const en: Dictionary = {
     markCancelled: "Cancel",
     visitCompleted: "Visit marked completed",
     visitCancelled: "Visit cancelled",
-    assignToLabel: "Assign to",
+    assignToLabel: "Assign To",
     dateLabel: "Date",
     assignAction: "Assign",
     reassignAction: "Reassign",
@@ -1219,15 +1299,98 @@ const en: Dictionary = {
     assignmentCancelled: "Assignment cancelled",
     hasCompletedHint: "This route already has completed visits, so it can no longer be reassigned.",
     itemsCountSuffix: "centers",
-    backToPlanRoutes: "Back to Plan Routes",
+    backToPlanRoutes: "Back to Add Routes",
     editAction: "Edit",
     save: "Save",
     saving: "Saving...",
     routeSaved: "Route saved",
-    newRoutePageTitle: "New route",
+    newRoutePageTitle: "Add Route",
     manageAssignmentAction: "Manage assignment",
     viewAction: "View",
     backToAssignRoutes: "Back to Assign Routes",
+    routesListHeading: "Routes",
+    editRouteTitle: "Edit Route",
+    selectedCentersHeading: "Selected Centers",
+    colCenters: "Centers",
+    colContacts: "Contacts",
+    colAssignmentPeriod: "Assignment Period",
+    contactStatusCompleted: "completed",
+    contactStatusPending: "pending",
+    contactStatusMissed: "missed",
+    contactStatusCancelled: "cancelled",
+    collapseContacts: "Hide contacts",
+    expandContacts: "Show contacts",
+    moveUp: "Move up",
+    moveDown: "Move down",
+    selectedBadge: "Selected",
+    centersAndContactsHeading: "Centers & Contacts",
+    cancelCurrentAssignment: "Cancel Current Assignment",
+    cancelDialogTitle: "Cancel this assignment?",
+    cancelDialogBody:
+      "This cancels the current assignment and every visit still pending on it. The route itself is not deleted, and completed work and the assignment history are kept.",
+    cancelDialogKeep: "Keep assignment",
+    reassignRouteHeading: "Reassign Route",
+    reassignRouteHelp:
+      "Reassign this route to a different Delegate or update the assignment date range.",
+    assignRouteHeading: "Assign Route",
+    assignRouteHelp: "Choose who is responsible for this route and for which dates.",
+    invalidDateRange: "The end date can't be before the start date.",
+    routeFieldLabel: "Route",
+    dateRangeLabel: "Date Range",
+    startDateLabel: "Start date",
+    endDateLabel: "End date",
+    addAction: "+ Add",
+    searchRoutesPlaceholder: "Search routes by code or center...",
+    searchAssigneesPlaceholder: "Search by name or employee code...",
+    noMatchingRoutes: "No matching routes.",
+    noMatchingAssignees: "No matching users.",
+    assignFormIncomplete: "Select a route, an assignee and a date range.",
+    colRoute: "Route",
+    colCentersContacts: "Centers / Contacts",
+    colAssignedTo: "Assigned To",
+    colDateRange: "Scheduled Date Range",
+    colStatus: "Status",
+    routeAssignmentsHeading: "Route Assignments",
+    noAssignmentsYet: "No routes have been assigned yet.",
+    statusUnassigned: "Unassigned",
+    statusAssigned: "Assigned",
+    statusInProgress: "In Progress",
+    statusMissed: "Missed",
+    statusCompleted: "Completed",
+    statusCancelled: "Cancelled",
+    filterSearchPlaceholder: "Search by route code or center...",
+    filterAllStatuses: "All statuses",
+    filterAnyAssignee: "Any assignee",
+    filterFrom: "From",
+    filterTo: "To",
+    filterClear: "Clear filters",
+    noRoutesMatch: "No routes match these filters.",
+    myRoutesHeading: "My Routes",
+    thisWeekHeading: "This Week",
+    upcomingWeekHeading: "Upcoming Week",
+    noRoutesThisWeekOrNext: "No routes assigned for this week or next week",
+    noRoutesThisWeek: "No routes this week.",
+    noRoutesUpcomingWeek: "No routes next week.",
+    openVisits: "Open Visits",
+    territoryLabel: "Territory",
+    centerSearchLabel: "Add a center",
+    contactsHeading: "Contacts",
+    searchContactsPlaceholder: "Search contacts by name or code...",
+    noContactsForCenter: "No contacts are associated with this center.",
+    noMatchingContacts: "No matching contacts.",
+    noContactsSelected: "No contacts selected.",
+    removeContact: "Remove",
+    noLongerAssociated: "No longer associated",
+    contactInactive: "Inactive",
+    flaggedContactsBlockSave:
+      "Remove the contacts flagged as no longer associated or inactive before saving.",
+    searching: "Searching...",
+    searchFailed: "Search failed. Try again.",
+    showingFirstResults: "Showing the first results only — type to narrow down.",
+    contactVisitCompleted: "Contact visit marked completed",
+    contactVisitCancelled: "Contact visit cancelled",
+    cancelRemaining: "Cancel remaining visits",
+    contactsCountSuffix: "contacts",
   },
   activitiesPage: {
     title: "Marketing Activities",
@@ -1910,13 +2073,13 @@ const fr: Dictionary = {
   },
   routesPage: {
     title: "Routes",
-    tabPlanRoutes: "Planifier les routes",
+    tabPlanRoutes: "Ajouter des routes",
     tabAssignRoutes: "Affecter les routes",
-    planRoutesTitle: "Planifier les routes",
+    planRoutesTitle: "Ajouter des routes",
     assignRoutesTitle: "Affecter les routes",
     visitsTitle: "Visites",
     myselfOption: "Moi-même",
-    newRoute: "Nouvelle route",
+    newRoute: "Ajouter une route",
     noRoutesYet: "Aucune route pour le moment.",
     noDateYet: "Pas encore de date",
     unassignedLabel: "Non affecté",
@@ -1945,15 +2108,98 @@ const fr: Dictionary = {
     hasCompletedHint:
       "Cette route a déjà des visites terminées, elle ne peut donc plus être réaffectée.",
     itemsCountSuffix: "centres",
-    backToPlanRoutes: "Retour à Planifier les routes",
+    backToPlanRoutes: "Retour à Ajouter des routes",
     editAction: "Modifier",
     save: "Enregistrer",
     saving: "Enregistrement...",
     routeSaved: "Route enregistrée",
-    newRoutePageTitle: "Nouvelle route",
+    newRoutePageTitle: "Ajouter une route",
     manageAssignmentAction: "Gérer l'affectation",
     viewAction: "Voir",
     backToAssignRoutes: "Retour à Affecter les routes",
+    routesListHeading: "Routes",
+    editRouteTitle: "Modifier la route",
+    selectedCentersHeading: "Centres sélectionnés",
+    colCenters: "Centres",
+    colContacts: "Contacts",
+    colAssignmentPeriod: "Période d'affectation",
+    contactStatusCompleted: "terminés",
+    contactStatusPending: "en attente",
+    contactStatusMissed: "manqués",
+    contactStatusCancelled: "annulés",
+    collapseContacts: "Masquer les contacts",
+    expandContacts: "Afficher les contacts",
+    moveUp: "Monter",
+    moveDown: "Descendre",
+    selectedBadge: "Sélectionné",
+    centersAndContactsHeading: "Centres et contacts",
+    cancelCurrentAssignment: "Annuler l'affectation en cours",
+    cancelDialogTitle: "Annuler cette affectation ?",
+    cancelDialogBody:
+      "Cela annule l'affectation en cours et toutes les visites encore en attente. La route elle-même n'est pas supprimée, et le travail terminé ainsi que l'historique des affectations sont conservés.",
+    cancelDialogKeep: "Conserver l'affectation",
+    reassignRouteHeading: "Réaffecter la route",
+    reassignRouteHelp:
+      "Réaffectez cette route à un autre délégué ou modifiez la période d'affectation.",
+    assignRouteHeading: "Affecter la route",
+    assignRouteHelp: "Choisissez qui est responsable de cette route et pour quelles dates.",
+    invalidDateRange: "La date de fin ne peut pas précéder la date de début.",
+    routeFieldLabel: "Route",
+    dateRangeLabel: "Période",
+    startDateLabel: "Date de début",
+    endDateLabel: "Date de fin",
+    addAction: "+ Ajouter",
+    searchRoutesPlaceholder: "Rechercher une route par code ou centre...",
+    searchAssigneesPlaceholder: "Rechercher par nom ou code employé...",
+    noMatchingRoutes: "Aucune route correspondante.",
+    noMatchingAssignees: "Aucun utilisateur correspondant.",
+    assignFormIncomplete: "Sélectionnez une route, un utilisateur et une période.",
+    colRoute: "Route",
+    colCentersContacts: "Centres / Contacts",
+    colAssignedTo: "Affectée à",
+    colDateRange: "Période planifiée",
+    colStatus: "Statut",
+    routeAssignmentsHeading: "Affectations de routes",
+    noAssignmentsYet: "Aucune route n'a encore été affectée.",
+    statusUnassigned: "Non affectée",
+    statusAssigned: "Affectée",
+    statusInProgress: "En cours",
+    statusMissed: "Manquée",
+    statusCompleted: "Terminée",
+    statusCancelled: "Annulée",
+    filterSearchPlaceholder: "Rechercher par code de route ou centre...",
+    filterAllStatuses: "Tous les statuts",
+    filterAnyAssignee: "Tout utilisateur",
+    filterFrom: "Du",
+    filterTo: "Au",
+    filterClear: "Effacer les filtres",
+    noRoutesMatch: "Aucune route ne correspond à ces filtres.",
+    myRoutesHeading: "Mes routes",
+    thisWeekHeading: "Cette semaine",
+    upcomingWeekHeading: "Semaine prochaine",
+    noRoutesThisWeekOrNext: "Aucune route affectée pour cette semaine ou la suivante",
+    noRoutesThisWeek: "Aucune route cette semaine.",
+    noRoutesUpcomingWeek: "Aucune route la semaine prochaine.",
+    openVisits: "Ouvrir les visites",
+    territoryLabel: "Territoire",
+    centerSearchLabel: "Ajouter un centre",
+    contactsHeading: "Contacts",
+    searchContactsPlaceholder: "Rechercher un contact par nom ou code...",
+    noContactsForCenter: "Aucun contact n'est associé à ce centre.",
+    noMatchingContacts: "Aucun contact correspondant.",
+    noContactsSelected: "Aucun contact sélectionné.",
+    removeContact: "Retirer",
+    noLongerAssociated: "N'est plus associé",
+    contactInactive: "Inactif",
+    flaggedContactsBlockSave:
+      "Retirez les contacts signalés comme n'étant plus associés ou inactifs avant d'enregistrer.",
+    searching: "Recherche...",
+    searchFailed: "La recherche a échoué. Réessayez.",
+    showingFirstResults: "Seuls les premiers résultats sont affichés — saisissez pour affiner.",
+    contactVisitCompleted: "Visite du contact marquée comme terminée",
+    contactVisitCancelled: "Visite du contact annulée",
+    cancelRemaining: "Annuler les visites restantes",
+    contactsCountSuffix: "contacts",
   },
   activitiesPage: {
     title: "Activités marketing",

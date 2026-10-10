@@ -179,6 +179,7 @@ model User {
   ownedAttendanceRules    AttendanceRule[]          @relation("AttendanceRuleOwner")
   targetedAttendanceRules AttendanceRule[]          @relation("AttendanceRuleTarget")
   routes                  Route[]
+  routeAssignments        RouteAssignment[]
   ownedActivities         Activity[]
   ownedFollowUps          FollowUp[]
 
@@ -886,36 +887,77 @@ model TerritoryWorkingDay {
 
 // --- Visit planning (S3-06) ---
 
-// One row per (delegate, date) — the day's planned route. Items are added
-// before the day starts and locked once it does (see
-// ROUTE_EDIT_CUTOFF_HOUR in src/lib/schemas/route.ts); visit *execution*
-// against a route is a separate, later story (S4-01) and isn't modeled here.
-// A route starts unassigned (userId and date both null) — built on the
-// "Plan Routes" screen with no visitor or date attached at all. It only
-// gets both at once, via the "Assign Routes" screen's assign/reassign action.
-// Reassigning an already-assigned route never updates this row in place —
-// it creates a brand-new Route for the new visitor (a visitor can hold
-// several routes, even for the same date, deliberately not deduplicated)
-// and moves the still-relevant items onto it; the source row is deleted
-// once empty. No @@unique on (userId, date) — multiple routes per visitor
-// per day are allowed by design.
+// A route is an ordered list of centers (RouteItem), each optionally with
+// the contacts to see there. Items are added before the route's startDate
+// and locked once it begins (see isRouteEditable); visit *execution* is
+// tracked per item/contact status, not per day.
+//
+// A route starts unassigned (userId, startDate and endDate all null) — built
+// on the "Plan Routes" screen with no visitor or dates attached at all. It
+// gets all three at once via the "Assign Routes" screen: the assignee is
+// responsible for the route for the whole startDate..endDate range (a
+// flexible range, not a fixed week; both are calendar dates stored at UTC
+// midnight, interpreted in Africa/Kinshasa). Reassigning updates this same
+// row in place — same id, same code — and every assign / reassign / cancel
+// is appended to RouteAssignment, so who held the route and for which dates
+// is never lost.
+//
+// `code` (RT-00001) is the human-readable identifier, from route_code_seq
+// (created in the migration), immutable once written.
 model Route {
-  id String @id @default(cuid())
+  id   String @id @default(cuid())
+  code String @unique
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id])
 
-  date DateTime?
+  startDate DateTime?
+  endDate   DateTime?
 
-  items RouteItem[]
+  items       RouteItem[]
+  assignments RouteAssignment[]
 
   createdBy String?
   createdAt DateTime @default(now())
   updatedBy String?
   updatedAt DateTime @updatedAt
 
-  @@index([userId, date])
+  @@index([userId, startDate])
   @@map("routes")
+}
+
+enum RouteAssignmentAction {
+  ASSIGNED
+  REASSIGNED
+  CANCELLED
+}
+
+// Append-only history of a route's assignment: one row per assign,
+// reassign or cancel, recording the assignee and range *as of that event*
+// (the previous holder and dates are simply the row before it). Database
+// record only for now — no screen reads it yet.
+model RouteAssignment {
+  id String @id @default(cuid())
+
+  routeId String
+  route   Route  @relation(fields: [routeId], references: [id])
+
+  action RouteAssignmentAction
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  startDate DateTime?
+  endDate   DateTime?
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@index([routeId, createdAt])
+  @@index([userId])
+  @@map("route_assignments")
 }
 
 // `sequence` is the delegate's chosen visit order for the day — assigned
@@ -929,6 +971,8 @@ model RouteItem {
 
   centerId String
   center   Center @relation(fields: [centerId], references: [id])
+
+  contacts RouteItemContact[]
 
   sequence Int
   status   RouteItemStatus @default(PENDING)
@@ -944,6 +988,36 @@ model RouteItem {
   @@unique([routeId, centerId])
   @@index([routeId])
   @@map("route_items")
+}
+
+// A Contact selected under one specific Center on a route (a RouteItem).
+// The Contact<->Center link itself still lives only in ContactCenter — this
+// row records "who the visitor is meant to see at this stop" and is
+// validated against ContactCenter on every write, never trusted from the
+// client. `status` is stored per Contact (MISSED is computed at read time,
+// like RouteItem); for a Center that has Contacts, RouteItem.status is
+// derived from these (see deriveCenterStatus in route-service.ts). Rows are
+// never deleted once COMPLETED/CANCELLED, even if the ContactCenter link is
+// later removed — that is history.
+model RouteItemContact {
+  id String @id @default(cuid())
+
+  routeItemId String
+  routeItem   RouteItem @relation(fields: [routeItemId], references: [id])
+
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id])
+
+  status RouteItemStatus @default(PENDING)
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([routeItemId, contactId])
+  @@index([contactId])
+  @@map("route_item_contacts")
 }
 
 // --- Marketing activity planning and follow-ups (S3-07) ---
@@ -1086,7 +1160,8 @@ model Contact {
   territoryId String
   territory   Territory @relation(fields: [territoryId], references: [id])
 
-  centers ContactCenter[]
+  centers    ContactCenter[]
+  routeItems RouteItemContact[]
 
   createdBy String?
   createdAt DateTime @default(now())

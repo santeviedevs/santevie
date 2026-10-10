@@ -4,14 +4,17 @@ import { CalendarDays, Check, User, X } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { RouteContactList, type RouteContactRow } from "@/components/route-contact-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatDate } from "@/lib/format-date";
+import { formatDateRange } from "@/lib/format-date";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 
 import {
   cancelRouteItemAction,
+  cancelRouteItemContactAction,
   completeRouteItemAction,
+  completeRouteItemContactAction,
   reorderRouteItemsAction,
   type RouteFormState,
 } from "../routes/actions";
@@ -21,10 +24,13 @@ type RouteItem = {
   sequence: number;
   status: "PENDING" | "COMPLETED" | "CANCELLED" | "MISSED";
   center: { id: string; name: string; code: string };
+  contacts: RouteContactRow[];
 };
 type RouteGroup = {
   id: string;
-  date: string | null;
+  code: string;
+  startDate: string | null;
+  endDate: string | null;
   createdByName: string | null;
   items: RouteItem[];
 };
@@ -80,6 +86,37 @@ export function MyVisitsList({
     });
   }
 
+  function completeContact(routeItemContactId: string) {
+    setError(null);
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("routeItemContactId", routeItemContactId);
+      const result: RouteFormState = await completeRouteItemContactAction(
+        { error: null },
+        formData,
+      );
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      toast.success(dict.contactVisitCompleted);
+    });
+  }
+
+  function cancelContact(routeItemContactId: string) {
+    setError(null);
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("routeItemContactId", routeItemContactId);
+      const result: RouteFormState = await cancelRouteItemContactAction({ error: null }, formData);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      toast.success(dict.contactVisitCancelled);
+    });
+  }
+
   function cancel(routeItemId: string) {
     setError(null);
     startTransition(async () => {
@@ -105,7 +142,10 @@ export function MyVisitsList({
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <h3 className="flex items-center gap-2 text-sm font-semibold">
               <CalendarDays className="size-4 text-muted-foreground" aria-hidden />
-              {route.date ? formatDate(new Date(route.date)) : dict.noDateYet}
+              {route.code}
+              {route.startDate && route.endDate
+                ? ` · ${formatDateRange(route.startDate, route.endDate)}`
+                : ` · ${dict.noDateYet}`}
             </h3>
             {route.createdByName ? (
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -121,6 +161,11 @@ export function MyVisitsList({
             <ol className="flex flex-col gap-2">
               {route.items.map((item, index) => {
                 const actionable = item.status === "PENDING" || item.status === "MISSED";
+                // Cancelling a center with a contact already completed only
+                // cancels what's left — the center then ends COMPLETED.
+                const cancelLabel = item.contacts.some((contact) => contact.status === "COMPLETED")
+                  ? dict.cancelRemaining
+                  : dict.markCancelled;
                 return (
                   <li
                     key={item.id}
@@ -161,32 +206,48 @@ export function MyVisitsList({
                       </Button>
                       {actionable ? (
                         <>
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="max-sm:w-8 max-sm:px-0"
-                            title={dict.markComplete}
-                            disabled={isPending}
-                            onClick={() => complete(item.id)}
-                          >
-                            <Check className="sm:hidden" aria-hidden />
-                            <span className="max-sm:sr-only">{dict.markComplete}</span>
-                          </Button>
+                          {/* A center with contacts completes by itself once its
+                              contacts are done — only a contactless center is
+                              completed by hand. */}
+                          {item.contacts.length === 0 ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="max-sm:w-8 max-sm:px-0"
+                              title={dict.markComplete}
+                              disabled={isPending}
+                              onClick={() => complete(item.id)}
+                            >
+                              <Check className="sm:hidden" aria-hidden />
+                              <span className="max-sm:sr-only">{dict.markComplete}</span>
+                            </Button>
+                          ) : null}
                           <Button
                             type="button"
                             variant="destructive"
                             size="sm"
                             className="max-sm:w-8 max-sm:px-0"
-                            title={dict.markCancelled}
+                            title={cancelLabel}
                             disabled={isPending}
                             onClick={() => cancel(item.id)}
                           >
                             <X className="sm:hidden" aria-hidden />
-                            <span className="max-sm:sr-only">{dict.markCancelled}</span>
+                            <span className="max-sm:sr-only">{cancelLabel}</span>
                           </Button>
                         </>
                       ) : null}
                     </div>
+                    {item.contacts.length > 0 ? (
+                      <div className="col-span-3 row-start-3">
+                        <RouteContactList
+                          contacts={item.contacts}
+                          onComplete={completeContact}
+                          onCancel={cancelContact}
+                          disabled={isPending}
+                          dict={dict}
+                        />
+                      </div>
+                    ) : null}
                   </li>
                 );
               })}

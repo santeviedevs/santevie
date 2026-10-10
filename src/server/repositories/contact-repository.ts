@@ -249,3 +249,51 @@ export function setContactStatus(id: string, status: "ACTIVE" | "INACTIVE", acto
     select: { id: true },
   });
 }
+
+// Server-side type-ahead for one Center's Contacts on the route editor —
+// joins through ContactCenter filtered on that single Center, so a Contact
+// associated only with another Center can never appear. Active Contacts
+// only, bounded by `limit`.
+export function searchContactsForCenter(params: { centerId: string; q: string; limit: number }) {
+  const { centerId, q, limit } = params;
+  return prisma.contactCenter.findMany({
+    where: {
+      centerId,
+      contact: {
+        status: "ACTIVE",
+        ...(q
+          ? {
+              OR: [
+                { name: { contains: q, mode: "insensitive" } },
+                { code: { contains: q, mode: "insensitive" } },
+              ],
+            }
+          : {}),
+      },
+    },
+    select: {
+      contact: {
+        select: { id: true, name: true, code: true, specialization: { select: { name: true } } },
+      },
+      roleAtCenter: { select: { name: true } },
+    },
+    orderBy: { contact: { name: "asc" } },
+    take: limit,
+  });
+}
+
+// One query for every (center, contact) pair on a route — never one per
+// center (no N+1). Returns the links that exist, with the Contact's status,
+// so the caller can tell "no longer associated" from "associated but
+// inactive".
+export function findCenterContactLinks(centerIds: string[], contactIds: string[]) {
+  return prisma.contactCenter.findMany({
+    where: { centerId: { in: centerIds }, contactId: { in: contactIds } },
+    select: {
+      centerId: true,
+      contactId: true,
+      contact: { select: { status: true } },
+      roleAtCenter: { select: { name: true } },
+    },
+  });
+}

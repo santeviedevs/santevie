@@ -14,7 +14,7 @@ export function RouteTabs({
   dict: Dictionary["routesPage"];
 }) {
   const tabs = [
-    { key: "route" as const, href: "/routes/plan", label: dict.tabPlanRoutes },
+    { key: "route" as const, href: "/routes/add", label: dict.tabPlanRoutes },
     { key: "assign" as const, href: "/routes/assign", label: dict.tabAssignRoutes },
   ];
 

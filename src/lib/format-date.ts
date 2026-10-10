@@ -64,3 +64,12 @@ const timestampDateFormatter = new Intl.DateTimeFormat("fr-FR", {
 export function formatTimestampDate(date: Date | string): string {
   return timestampDateFormatter.format(typeof date === "string" ? new Date(date) : date);
 }
+
+// A date range for display — one date when the range is a single day,
+// otherwise "start – end". Both are @db.Date-style calendar dates, so the
+// same UTC rendering as formatDate applies.
+export function formatDateRange(start: Date | string, end: Date | string): string {
+  const from = formatDate(start);
+  const to = formatDate(end);
+  return from === to ? from : `${from} – ${to}`;
+}

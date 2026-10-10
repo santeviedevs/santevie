@@ -5,29 +5,48 @@ import { revalidatePath } from "next/cache";
 import {
   assignRouteSchema,
   cancelRouteAssignmentSchema,
+  cancelRouteItemContactSchema,
   cancelRouteItemSchema,
+  completeRouteItemContactSchema,
   completeRouteItemSchema,
   reorderRouteItemsSchema,
   saveRouteContentSchema,
 } from "@/lib/schemas/route";
+import { parseDateOnly } from "@/lib/week";
 import {
   requireAnyPermission,
   requirePermission,
   SessionExpiredError,
 } from "@/server/auth/require-permission";
 import {
+  AssigneeNotAssignableError,
   assignRoute,
   cancelRouteAssignment,
   cancelRouteItem,
+  cancelRouteItemContact,
+  CenterAlreadyOnRouteError,
   CenterNotFoundError,
   CenterOutsideTerritoryError,
+  CenterStatusDerivedError,
   completeRouteItem,
+  completeRouteItemContact,
+  ContactAlreadyOnRouteError,
+  ContactStatusConflictError,
   DuplicateCenterOnRouteError,
+  InactiveCenterError,
+  InvalidCenterContactError,
+  InvalidDateRangeError,
+  reassignRoute,
   reorderRouteItems,
+  RouteAlreadyAssignedError,
   RouteEditCutoffError,
   RouteHasCompletedItemsError,
+  RouteHasNothingToAssignError,
+  RouteItemHasCompletedContactsError,
+  RouteNotAssignedError,
   RouteNotAuthorizedError,
   RouteNotOwnedError,
+  RouteStartInPastError,
   saveRouteContent,
 } from "@/server/services/route-service";
 
@@ -78,7 +97,20 @@ function mapRouteError(error: unknown): string {
     error instanceof RouteNotAuthorizedError ||
     error instanceof RouteNotOwnedError ||
     error instanceof RouteHasCompletedItemsError ||
-    error instanceof CenterNotFoundError
+    error instanceof CenterNotFoundError ||
+    error instanceof CenterAlreadyOnRouteError ||
+    error instanceof InactiveCenterError ||
+    error instanceof InvalidCenterContactError ||
+    error instanceof ContactAlreadyOnRouteError ||
+    error instanceof CenterStatusDerivedError ||
+    error instanceof RouteItemHasCompletedContactsError ||
+    error instanceof ContactStatusConflictError ||
+    error instanceof AssigneeNotAssignableError ||
+    error instanceof RouteAlreadyAssignedError ||
+    error instanceof RouteNotAssignedError ||
+    error instanceof RouteHasNothingToAssignError ||
+    error instanceof InvalidDateRangeError ||
+    error instanceof RouteStartInPastError
   ) {
     return error.message;
   }
@@ -86,15 +118,18 @@ function mapRouteError(error: unknown): string {
 }
 
 function revalidateAllRouteScreens() {
+  revalidatePath("/");
   revalidatePath("/visits");
-  revalidatePath("/routes/plan");
+  revalidatePath("/routes/add");
   revalidatePath("/routes/assign");
 }
 
 // The Plan Routes editor's one write — nothing about a route's content is
 // persisted until this runs. `routeId` empty means "create a new route";
-// `centerIdsInOrder` is the editor's whole local draft, in order. Only
-// reachable from Plan Routes (new-route and edit-route pages).
+// `selections` is the editor's whole local draft as JSON — an ordered list
+// of {centerId, contactIds} — validated by Zod and re-checked field by
+// field in the service. Only reachable from Plan Routes (new-route and
+// edit-route pages).
 export async function saveRouteAction(
   _prevState: RouteFormState,
   formData: FormData,
@@ -103,9 +138,15 @@ export async function saveRouteAction(
   if (!session) return { error: null, sessionExpired: true };
 
   const routeId = formData.get("routeId");
+  let rawSelections: unknown;
+  try {
+    rawSelections = JSON.parse(String(formData.get("selections") ?? "[]"));
+  } catch {
+    return { error: "Check the highlighted fields." };
+  }
   const parsed = saveRouteContentSchema.safeParse({
     routeId: routeId ? routeId : null,
-    centerIdsInOrder: formData.getAll("centerIdsInOrder"),
+    selections: rawSelections,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check the highlighted fields." };
@@ -115,7 +156,7 @@ export async function saveRouteAction(
   try {
     savedRouteId = await saveRouteContent(
       parsed.data.routeId ?? null,
-      parsed.data.centerIdsInOrder,
+      parsed.data.selections,
       session.user.id,
       session.user.roleName,
     );
@@ -201,8 +242,9 @@ export async function cancelRouteItemAction(
   return { error: null };
 }
 
-// Covers both first-time assignment and reassignment — only reachable
-// from the Assignment screen.
+// The Assign Routes form's `+ Add`: a first-time assignment only. A route
+// that already has an assignee is refused (RouteAlreadyAssignedError) —
+// changing an existing assignment is the explicit reassignRouteAction.
 export async function assignRouteAction(
   _prevState: RouteFormState,
   formData: FormData,
@@ -213,7 +255,8 @@ export async function assignRouteAction(
   const parsed = assignRouteSchema.safeParse({
     routeId: formData.get("routeId"),
     targetUserId: formData.get("targetUserId"),
-    date: formData.get("date"),
+    startDate: formData.get("startDate"),
+    endDate: formData.get("endDate"),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check the highlighted fields." };
@@ -223,7 +266,45 @@ export async function assignRouteAction(
     await assignRoute(
       parsed.data.routeId,
       parsed.data.targetUserId,
-      new Date(parsed.data.date),
+      parseDateOnly(parsed.data.startDate),
+      parseDateOnly(parsed.data.endDate),
+      session.user.id,
+      session.user.roleName,
+    );
+  } catch (error) {
+    return { error: mapRouteError(error) };
+  }
+
+  revalidateAllRouteScreens();
+  return { error: null };
+}
+
+// Reassigning an already-assigned route to someone else and/or another range
+// — an explicit action from the table row's Manage page, never reachable
+// from the add form.
+export async function reassignRouteAction(
+  _prevState: RouteFormState,
+  formData: FormData,
+): Promise<RouteFormState> {
+  const session = await requireRoutesAssignTeam();
+  if (!session) return { error: null, sessionExpired: true };
+
+  const parsed = assignRouteSchema.safeParse({
+    routeId: formData.get("routeId"),
+    targetUserId: formData.get("targetUserId"),
+    startDate: formData.get("startDate"),
+    endDate: formData.get("endDate"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Check the highlighted fields." };
+  }
+
+  try {
+    await reassignRoute(
+      parsed.data.routeId,
+      parsed.data.targetUserId,
+      parseDateOnly(parsed.data.startDate),
+      parseDateOnly(parsed.data.endDate),
       session.user.id,
       session.user.roleName,
     );
@@ -249,6 +330,58 @@ export async function cancelRouteAssignmentAction(
 
   try {
     await cancelRouteAssignment(parsed.data.routeId, session.user.id, session.user.roleName);
+  } catch (error) {
+    return { error: mapRouteError(error) };
+  }
+
+  revalidateAllRouteScreens();
+  return { error: null };
+}
+
+export async function completeRouteItemContactAction(
+  _prevState: RouteFormState,
+  formData: FormData,
+): Promise<RouteFormState> {
+  const session = await requireRoutesRespondOwn();
+  if (!session) return { error: null, sessionExpired: true };
+
+  const parsed = completeRouteItemContactSchema.safeParse({
+    routeItemContactId: formData.get("routeItemContactId"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Check the highlighted fields." };
+  }
+
+  try {
+    await completeRouteItemContact(parsed.data.routeItemContactId, session.user.id);
+  } catch (error) {
+    return { error: mapRouteError(error) };
+  }
+
+  revalidateAllRouteScreens();
+  return { error: null };
+}
+
+export async function cancelRouteItemContactAction(
+  _prevState: RouteFormState,
+  formData: FormData,
+): Promise<RouteFormState> {
+  const session = await requireRoutesRespondOrAssign();
+  if (!session) return { error: null, sessionExpired: true };
+
+  const parsed = cancelRouteItemContactSchema.safeParse({
+    routeItemContactId: formData.get("routeItemContactId"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Check the highlighted fields." };
+  }
+
+  try {
+    await cancelRouteItemContact(
+      parsed.data.routeItemContactId,
+      session.user.id,
+      session.user.roleName,
+    );
   } catch (error) {
     return { error: mapRouteError(error) };
   }
