@@ -13,7 +13,7 @@ const INTERACTIVE = "a, button, input, select, textarea, label, [role='button'],
 // `role` or tabIndex. A click that lands on any interactive element inside
 // the row (a link, button, input...) is left to that element and never also
 // triggers the row, and neither is the end of a text selection.
-export function ClickableRow({
+export function ClickableTableRow({
   href,
   className,
   ...props

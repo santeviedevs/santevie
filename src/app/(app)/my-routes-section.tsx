@@ -7,16 +7,7 @@ import type { Dictionary } from "@/lib/i18n/dictionary";
 import type { DateRange } from "@/lib/week";
 import type { HomeRoutes, RouteGroupSummary } from "@/server/services/route-service";
 
-import { statusLabel } from "./routes/assign/routes-table";
-
-const STATUS_VARIANT = {
-  UNASSIGNED: "outline",
-  ASSIGNED: "secondary",
-  IN_PROGRESS: "default",
-  MISSED: "destructive",
-  COMPLETED: "default",
-  CANCELLED: "outline",
-} as const;
+import { ROUTE_STATUS_VARIANT, statusLabel } from "./routes/route-status";
 
 function RouteRow({ route, dict }: { route: RouteGroupSummary; dict: Dictionary["routesPage"] }) {
   const contacts = route.items.reduce((sum, item) => sum + item.contacts.length, 0);
@@ -26,7 +17,9 @@ function RouteRow({ route, dict }: { route: RouteGroupSummary; dict: Dictionary[
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium">{route.code}</span>
-          <Badge variant={STATUS_VARIANT[route.status]}>{statusLabel(route.status, dict)}</Badge>
+          <Badge variant={ROUTE_STATUS_VARIANT[route.status]}>
+            {statusLabel(route.status, dict)}
+          </Badge>
         </div>
         <span className="text-xs text-muted-foreground">
           {route.startDate && route.endDate ? formatDateRange(route.startDate, route.endDate) : ""}

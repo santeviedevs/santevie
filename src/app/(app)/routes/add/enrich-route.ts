@@ -45,12 +45,15 @@ export function toEditorState(items: RouteGroupSummary["items"]) {
       name: item.center.name,
       code: item.center.code,
       typeName: item.center.typeName,
+      territoryPath: item.center.territoryPath,
       contacts: item.contacts
         .filter((contact) => contact.status === "PENDING")
         .map((contact) => ({
           contactId: contact.contactId,
           name: contact.name,
           code: contact.code,
+          roleName: contact.roleName,
+          specialization: contact.specialization,
           issue: contact.issue,
         })),
       lockedContacts: item.contacts
@@ -62,6 +65,8 @@ export function toEditorState(items: RouteGroupSummary["items"]) {
           contactId: contact.contactId,
           name: contact.name,
           code: contact.code,
+          roleName: contact.roleName,
+          specialization: contact.specialization,
           status: contact.status,
           issue: contact.issue,
         })),

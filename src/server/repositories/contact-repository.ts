@@ -272,7 +272,9 @@ export function searchContactsForCenter(params: { centerId: string; q: string; l
       },
     },
     select: {
-      contact: { select: { id: true, name: true, code: true } },
+      contact: {
+        select: { id: true, name: true, code: true, specialization: { select: { name: true } } },
+      },
       roleAtCenter: { select: { name: true } },
     },
     orderBy: { contact: { name: "asc" } },
@@ -287,6 +289,11 @@ export function searchContactsForCenter(params: { centerId: string; q: string; l
 export function findCenterContactLinks(centerIds: string[], contactIds: string[]) {
   return prisma.contactCenter.findMany({
     where: { centerId: { in: centerIds }, contactId: { in: contactIds } },
-    select: { centerId: true, contactId: true, contact: { select: { status: true } } },
+    select: {
+      centerId: true,
+      contactId: true,
+      contact: { select: { status: true } },
+      roleAtCenter: { select: { name: true } },
+    },
   });
 }

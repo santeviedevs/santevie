@@ -21,6 +21,7 @@ export type CenterResult = {
   code: string;
   territoryId: string | null;
   typeName: string;
+  territoryPath: string;
 };
 
 const DEBOUNCE_MS = 300;
@@ -95,7 +96,7 @@ export function CenterSearch({
             <span className="flex min-w-0 flex-col">
               <span className="break-words">{center.name}</span>
               <span className="text-xs text-muted-foreground">
-                {center.code} · {center.typeName}
+                {[center.code, center.typeName, center.territoryPath].filter(Boolean).join(" · ")}
               </span>
             </span>
           </ComboboxItem>

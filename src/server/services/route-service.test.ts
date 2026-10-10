@@ -27,7 +27,13 @@ const deleteNonCompletedRouteItemContacts = vi.fn();
 const deletePendingRouteItemContacts = vi.fn();
 const deleteRouteItem = vi.fn();
 const findActiveCenterIdsForVisitorInRange = vi.fn();
+// Data source for the Add Routes list; the page mock below wraps it the way
+// the repository's findEditableRoutesPage does (a page of routes plus a total).
 const findEditableRoutes = vi.fn();
+const findEditableRoutesPage = vi.fn(async () => {
+  const routes = (await findEditableRoutes()) as unknown[];
+  return { routes, total: routes.length };
+});
 const findRouteById = vi.fn();
 const findRouteItemById = vi.fn();
 const findRouteItemContactById = vi.fn();
@@ -54,7 +60,7 @@ vi.mock("@/server/repositories/route-repository", () => ({
   deletePendingRouteItemContacts,
   deleteRouteItem,
   findActiveCenterIdsForVisitorInRange,
-  findEditableRoutes,
+  findEditableRoutesPage,
   findRouteById,
   findRouteItemById,
   findRouteItemContactById,
@@ -96,7 +102,7 @@ const {
   assignRoute,
   reassignRoute,
   cancelRouteAssignment,
-  getRoutesForContent,
+  listRoutesForContent,
   getMyVisits,
   completeRouteItemContact,
   cancelRouteItemContact,
@@ -138,7 +144,7 @@ function sel(...centerIds: string[]) {
 }
 
 function link(centerId: string, contactId: string, status: "ACTIVE" | "INACTIVE" = "ACTIVE") {
-  return { centerId, contactId, contact: { status } };
+  return { centerId, contactId, contact: { status }, roleAtCenter: { name: "Doctor" } };
 }
 
 function contactRow(overrides: Record<string, unknown> = {}) {
@@ -151,6 +157,10 @@ function contactRow(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+// The Add Routes list as the old tests saw it: a plain array of summaries.
+const getRoutesForContent = async (actorId: string, role: string) =>
+  (await listRoutesForContent({ page: 1, pageSize: 10 }, actorId, role)).items;
 
 const TODAY = new Date("2026-06-15T00:00:00.000Z");
 const TOMORROW = new Date("2026-06-16T00:00:00.000Z");
@@ -1407,7 +1417,12 @@ describe("searchContactsForRouteCenter", () => {
     });
     searchContactsForCenter.mockResolvedValue([
       {
-        contact: { id: "c1", name: "Dr One", code: "CON-00001" },
+        contact: {
+          id: "c1",
+          name: "Dr One",
+          code: "CON-00001",
+          specialization: { name: "Cardiology" },
+        },
         roleAtCenter: { name: "Doctor" },
       },
     ]);
@@ -1423,7 +1438,15 @@ describe("searchContactsForRouteCenter", () => {
       q: "dr",
       limit: 20,
     });
-    expect(result).toEqual([{ id: "c1", name: "Dr One", code: "CON-00001", roleName: "Doctor" }]);
+    expect(result).toEqual([
+      {
+        id: "c1",
+        name: "Dr One",
+        code: "CON-00001",
+        roleName: "Doctor",
+        specialization: "Cardiology",
+      },
+    ]);
   });
 
   it("rejects a center outside the actor's territories without searching", async () => {
@@ -1807,5 +1830,166 @@ describe("getAssigneeFilterLabel", () => {
       getAssigneeFilterLabel("stranger", "supervisor-1", "SUPERVISOR"),
     ).resolves.toBeNull();
     expect(findUserById).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Add Routes list (paginated) and the extra center/contact details
+// ---------------------------------------------------------------------------
+
+describe("listRoutesForContent", () => {
+  it("pages on the server with skip/take, newest first, and returns the total", async () => {
+    getDownstreamUserIds.mockResolvedValue(["delegate-1"]);
+    findEditableRoutesPage.mockResolvedValueOnce({ routes: [], total: 25 });
+
+    const result = await listRoutesForContent(
+      { page: 3, pageSize: 10 },
+      "supervisor-1",
+      "SUPERVISOR",
+    );
+
+    expect(findEditableRoutesPage).toHaveBeenCalledWith({
+      scope: { creatorId: "supervisor-1", assignedUserIds: ["delegate-1"] },
+      skip: 20,
+      take: 10,
+    });
+    expect(result).toMatchObject({ total: 25, page: 3, pageSize: 10 });
+  });
+
+  it("scopes a non-admin to their own drafts and their downstream team; ADMIN is unrestricted", async () => {
+    getDownstreamUserIds.mockResolvedValue(["d1", "d2"]);
+    findEditableRoutesPage.mockResolvedValueOnce({ routes: [], total: 0 });
+    await listRoutesForContent({ page: 1, pageSize: 10 }, "s1", "SUPERVISOR");
+    expect(findEditableRoutesPage).toHaveBeenLastCalledWith(
+      expect.objectContaining({ scope: { creatorId: "s1", assignedUserIds: ["d1", "d2"] } }),
+    );
+
+    getDownstreamUserIds.mockClear();
+    findEditableRoutesPage.mockResolvedValueOnce({ routes: [], total: 0 });
+    await listRoutesForContent({ page: 1, pageSize: 10 }, "a1", "ADMIN");
+    expect(findEditableRoutesPage).toHaveBeenLastCalledWith(
+      expect.objectContaining({ scope: { creatorId: "a1", assignedUserIds: undefined } }),
+    );
+    expect(getDownstreamUserIds).not.toHaveBeenCalled();
+  });
+
+  it("returns summaries with the code, derived status and range", async () => {
+    getDownstreamUserIds.mockResolvedValue([]);
+    findEditableRoutesPage.mockResolvedValueOnce({
+      routes: [route({ items: [item()] })],
+      total: 1,
+    });
+
+    const { items } = await listRoutesForContent(
+      { page: 1, pageSize: 10 },
+      "creator-1",
+      "SUPERVISOR",
+    );
+    expect(items[0]).toMatchObject({ code: "RT-00001", status: "UNASSIGNED", editable: true });
+  });
+});
+
+describe("route summaries — center location and contact details", () => {
+  it("prints the center's territory path and type", async () => {
+    findEditableRoutes.mockResolvedValue([
+      route({
+        items: [
+          item({
+            center: {
+              id: "center-1",
+              territoryId: "t",
+              name: "Sample Clinic",
+              code: "CL-1",
+              type: { name: "Hospital" },
+              territory: {
+                province: { name: "Équateur" },
+                ville: { name: "Mbandaka" },
+                commune: null,
+                quartier: null,
+              },
+            },
+          }),
+        ],
+      }),
+    ]);
+
+    const [summary] = await getRoutesForContent("creator-1", "SUPERVISOR");
+    expect(summary!.items[0]!.center).toMatchObject({
+      typeName: "Hospital",
+      territoryPath: "Équateur › Mbandaka",
+    });
+  });
+
+  it("has an empty path for a center with no territory", async () => {
+    findEditableRoutes.mockResolvedValue([route({ items: [item()] })]);
+
+    const [summary] = await getRoutesForContent("creator-1", "SUPERVISOR");
+    expect(summary!.items[0]!.center.territoryPath).toBe("");
+  });
+
+  it("gives each saved contact its role at the center and its specialization", async () => {
+    findEditableRoutes.mockResolvedValue([
+      route({
+        items: [
+          item({
+            contacts: [
+              contactRow({
+                contact: {
+                  id: "contact-1",
+                  name: "Dr One",
+                  code: "CON-00001",
+                  status: "ACTIVE",
+                  specialization: { name: "Cardiology" },
+                },
+              }),
+            ],
+          }),
+        ],
+      }),
+    ]);
+    findCenterContactLinks.mockResolvedValue([link("center-1", "contact-1")]);
+
+    const [summary] = await getRoutesForContent("creator-1", "SUPERVISOR");
+    expect(summary!.items[0]!.contacts[0]).toMatchObject({
+      roleName: "Doctor",
+      specialization: "Cardiology",
+    });
+  });
+
+  it("has no role for a contact whose link was removed (it is flagged instead)", async () => {
+    findEditableRoutes.mockResolvedValue([route({ items: [item({ contacts: [contactRow()] })] })]);
+    findCenterContactLinks.mockResolvedValue([]);
+
+    const [summary] = await getRoutesForContent("creator-1", "SUPERVISOR");
+    expect(summary!.items[0]!.contacts[0]).toMatchObject({
+      roleName: null,
+      issue: "NOT_ASSOCIATED",
+    });
+  });
+});
+
+describe("searchCentersForRoute — territory path", () => {
+  it("returns each center's type and territory path", async () => {
+    searchActiveCentersInTerritories.mockResolvedValue([
+      {
+        id: "c1",
+        name: "Sample Clinic",
+        code: "CL-1",
+        territoryId: "territory-1",
+        type: { name: "Hospital" },
+        territory: {
+          province: { name: "Équateur" },
+          ville: { name: "Mbandaka" },
+          commune: { name: "Wangata" },
+          quartier: null,
+        },
+      },
+    ]);
+
+    const [center] = await searchCentersForRoute({ q: "", limit: 20 }, "creator-1", "SUPERVISOR");
+    expect(center).toMatchObject({
+      typeName: "Hospital",
+      territoryPath: "Équateur › Mbandaka › Wangata",
+    });
   });
 });

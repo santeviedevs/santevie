@@ -1,6 +1,7 @@
 import { prisma } from "@/server/db";
 
 import type { Prisma } from "../../../generated/prisma/client";
+import { territoryPathSelect } from "./territory-path-select";
 
 const routeInclude = {
   items: {
@@ -12,10 +13,21 @@ const routeInclude = {
           code: true,
           territoryId: true,
           type: { select: { name: true } },
+          territory: territoryPathSelect,
         },
       },
       contacts: {
-        include: { contact: { select: { id: true, name: true, code: true, status: true } } },
+        include: {
+          contact: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+              status: true,
+              specialization: { select: { name: true } },
+            },
+          },
+        },
         orderBy: { contact: { name: "asc" } },
       },
     },
@@ -82,12 +94,26 @@ function routeScopeWhere(scope: RouteScope): Prisma.RouteWhereInput {
     : {};
 }
 
-export function findEditableRoutes(scope: RouteScope): Promise<RouteWithItems[]> {
-  return prisma.route.findMany({
-    where: routeScopeWhere(scope),
-    include: routeInclude,
-    orderBy: { createdAt: "desc" },
-  });
+// The Add Routes list, one page at a time — newest first, same scope as
+// everywhere else. The total comes from the same where clause, so the page
+// count always matches what the list can show.
+export async function findEditableRoutesPage(params: {
+  scope: RouteScope;
+  skip: number;
+  take: number;
+}): Promise<{ routes: RouteWithItems[]; total: number }> {
+  const where = routeScopeWhere(params.scope);
+  const [routes, total] = await Promise.all([
+    prisma.route.findMany({
+      where,
+      include: routeInclude,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      skip: params.skip,
+      take: params.take,
+    }),
+    prisma.route.count({ where }),
+  ]);
+  return { routes, total };
 }
 
 // --- Assign Routes table (server-side filtered and paginated) ---

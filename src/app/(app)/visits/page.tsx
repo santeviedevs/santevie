@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 // Visits — every route currently assigned to the viewer, regardless of
 // who created or assigned it. Pure view-and-respond: reorder, mark
-// Completed/Cancelled. No add/remove here at all — see routes/plan for
+// Completed/Cancelled. No add/remove here at all — see routes/add for
 // the one place that happens.
 export default async function VisitsPage() {
   const session = await requirePermission("visits:respond-own");

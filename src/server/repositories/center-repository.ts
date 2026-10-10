@@ -3,6 +3,7 @@ import type { CenterFilters } from "@/lib/schemas/center";
 import { prisma } from "@/server/db";
 
 import type { Prisma } from "../../../generated/prisma/client";
+import { territoryPathSelect } from "./territory-path-select";
 
 const listInclude = {
   type: true,
@@ -94,6 +95,7 @@ export function searchActiveCentersInTerritories(params: {
       code: true,
       territoryId: true,
       type: { select: { name: true } },
+      territory: territoryPathSelect,
     },
     orderBy: { name: "asc" },
     take: limit,

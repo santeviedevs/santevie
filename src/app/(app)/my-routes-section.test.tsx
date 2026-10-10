@@ -42,13 +42,22 @@ function route(overrides: Partial<RouteGroupSummary> = {}): RouteGroupSummary {
         id: "i1",
         sequence: 0,
         status: "PENDING",
-        center: { id: "c1", name: "Alpha Clinic", code: "A", territoryId: "t", typeName: "Clinic" },
+        center: {
+          id: "c1",
+          name: "Alpha Clinic",
+          code: "A",
+          territoryId: "t",
+          typeName: "Clinic",
+          territoryPath: "",
+        },
         contacts: [
           {
             id: "k1",
             contactId: "p1",
             name: "Dr Bravo",
             code: "CON-1",
+            roleName: null,
+            specialization: null,
             status: "PENDING",
             issue: null,
           },

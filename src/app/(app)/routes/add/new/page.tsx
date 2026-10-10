@@ -1,3 +1,4 @@
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,8 @@ export default async function NewRoutePage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <Button render={<Link href="/routes/plan" />} variant="outline" size="sm" className="w-fit">
+      <Button render={<Link href="/routes/add" />} variant="outline" size="sm" className="w-fit">
+        <ArrowLeft aria-hidden />
         {t.backToPlanRoutes}
       </Button>
 

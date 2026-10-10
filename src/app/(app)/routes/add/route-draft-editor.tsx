@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowDown, ArrowUp, Building2, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -15,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Dictionary } from "@/lib/i18n/dictionary";
+import { cn } from "@/lib/utils";
 
 import { type RouteFormState, saveRouteAction } from "../actions";
 import { type CenterResult, CenterSearch } from "./center-search";
@@ -29,6 +31,7 @@ export type DraftCenter = {
   name: string;
   code: string;
   typeName: string;
+  territoryPath: string;
   contacts: SelectedContact[];
   lockedContacts: LockedContact[];
 };
@@ -50,11 +53,14 @@ const READONLY_STATUS_VARIANT = {
   CANCELLED: "outline",
 } as const;
 
-// The Plan Routes editor — a brand-new route (routeId null) or an existing
-// still-editable one. Everything here is local draft state; nothing is
-// written until Save runs. COMPLETED/CANCELLED centers and contacts from an
-// existing route are shown read-only alongside the draft but are never part
-// of what's submitted — the service never touches them regardless.
+// The Add Route / Edit Route form — a brand-new route (routeId null) or an
+// existing still-editable one. Everything here is local draft state; nothing
+// is written until Save runs. COMPLETED/CANCELLED centers and contacts from
+// an existing route are shown read-only alongside the draft but are never
+// part of what's submitted — the service never touches them regardless.
+//
+// Layout: no outer card, no card per center — the centers are plain sections
+// separated by dividers, each with its contacts underneath (collapsible).
 export function RouteDraftEditor({
   routeId,
   initialCenters,
@@ -73,6 +79,9 @@ export function RouteDraftEditor({
   const [error, setError] = useState<string | null>(null);
   const [centers, setCenters] = useState<DraftCenter[]>(initialCenters);
   const [territoryId, setTerritoryId] = useState(ANY_TERRITORY);
+  // Centers whose Contacts section the user has folded away. Expanded is the
+  // default, so nothing is hidden unless asked for.
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   const centerIdsOnRoute = new Set(centers.map((center) => center.centerId));
   const hasFlaggedContact = centers.some((center) =>
@@ -90,6 +99,7 @@ export function RouteDraftEditor({
               name: center.name,
               code: center.code,
               typeName: center.typeName,
+              territoryPath: center.territoryPath,
               contacts: [],
               lockedContacts: [],
             },
@@ -107,6 +117,15 @@ export function RouteDraftEditor({
       const target = index + direction;
       if (target < 0 || target >= next.length) return current;
       [next[index], next[target]] = [next[target]!, next[index]!];
+      return next;
+    });
+  }
+
+  function toggleCollapsed(centerId: string) {
+    setCollapsed((current) => {
+      const next = new Set(current);
+      if (next.has(centerId)) next.delete(centerId);
+      else next.add(centerId);
       return next;
     });
   }
@@ -146,12 +165,12 @@ export function RouteDraftEditor({
         return;
       }
       toast.success(dict.routeSaved);
-      router.push("/routes/plan");
+      router.push("/routes/add");
     });
   }
 
   return (
-    <div className="flex flex-col gap-6 rounded-lg border border-border p-4 sm:p-6">
+    <div className="flex flex-col gap-8">
       <div className="grid gap-4 md:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-1.5">
           <Label htmlFor="route-territory">{dict.territoryLabel}</Label>
@@ -189,120 +208,157 @@ export function RouteDraftEditor({
         </div>
       </div>
 
-      {readOnlyItems.length > 0 ? (
-        <ol className="flex flex-col gap-2">
-          {readOnlyItems.map((item) => (
-            <li
-              key={item.id}
-              className="flex flex-col gap-1 rounded-md border border-border px-3 py-2"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="min-w-0 break-words">
-                  {item.center.name} ({item.center.code})
-                </span>
-                <Badge variant={READONLY_STATUS_VARIANT[item.status]}>{item.status}</Badge>
-              </div>
-              {item.contacts.length > 0 ? (
-                <span className="text-xs text-muted-foreground">
-                  {item.contacts.map((contact) => `${contact.name} · ${contact.status}`).join(", ")}
-                </span>
-              ) : null}
-            </li>
-          ))}
-        </ol>
-      ) : null}
+      <section className="flex flex-col gap-3" aria-labelledby="selected-centers-heading">
+        <h2 id="selected-centers-heading" className="text-lg font-semibold">
+          {dict.selectedCentersHeading}
+        </h2>
 
-      {centers.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{dict.noCentersYet}</p>
-      ) : (
-        <ol className="flex flex-col gap-4">
-          {centers.map((center, index) => (
-            <li
-              key={center.centerId}
-              className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="flex min-w-0 flex-col gap-1">
-                  <span className="break-words font-semibold">
-                    {index + 1}. {center.name}
+        {readOnlyItems.length === 0 && centers.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{dict.noCentersYet}</p>
+        ) : (
+          <ol className="flex flex-col divide-y divide-border border-y border-border">
+            {readOnlyItems.map((item) => (
+              <li key={item.id} className="flex flex-col gap-1 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="min-w-0 break-words">
+                    {item.center.name}{" "}
+                    <span className="text-muted-foreground">({item.center.code})</span>
                   </span>
-                  <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    {center.code}
-                    <Badge variant="secondary">{center.typeName}</Badge>
-                    <span>
-                      {center.contacts.length + center.lockedContacts.length}{" "}
-                      {dict.contactsCountSuffix}
-                    </span>
+                  <Badge variant={READONLY_STATUS_VARIANT[item.status]}>{item.status}</Badge>
+                </div>
+                {item.contacts.length > 0 ? (
+                  <span className="text-xs text-muted-foreground">
+                    {item.contacts
+                      .map((contact) => `${contact.name} · ${contact.status}`)
+                      .join(", ")}
                   </span>
-                </div>
-                <div className="flex gap-1">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={isPending || index === 0}
-                    onClick={() => move(index, -1)}
-                  >
-                    ↑
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={isPending || index === centers.length - 1}
-                    onClick={() => move(index, 1)}
-                  >
-                    ↓
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    disabled={
-                      isPending || center.lockedContacts.some((c) => c.status === "COMPLETED")
-                    }
-                    onClick={() => removeCenter(center.centerId)}
-                  >
-                    {dict.remove}
-                  </Button>
-                </div>
-              </div>
+                ) : null}
+              </li>
+            ))}
 
-              <div className="flex flex-col gap-2">
-                <h3 className="text-sm font-medium">{dict.contactsHeading}</h3>
-                <ContactPicker
-                  routeId={routeId}
-                  centerId={center.centerId}
-                  selected={center.contacts}
-                  locked={center.lockedContacts}
-                  disabled={isPending}
-                  onAdd={(contact) =>
-                    updateContacts(center.centerId, (contacts) =>
-                      contacts.some((entry) => entry.contactId === contact.id)
-                        ? contacts
-                        : [
-                            ...contacts,
-                            {
-                              contactId: contact.id,
-                              name: contact.name,
-                              code: contact.code,
-                              issue: null,
-                            },
-                          ],
-                    )
-                  }
-                  onRemove={(contactId) =>
-                    updateContacts(center.centerId, (contacts) =>
-                      contacts.filter((entry) => entry.contactId !== contactId),
-                    )
-                  }
-                  dict={dict}
-                />
-              </div>
-            </li>
-          ))}
-        </ol>
-      )}
+            {centers.map((center, index) => {
+              const flagged = center.contacts.some((contact) => contact.issue !== null);
+              // A flagged contact must stay in view — the user has to act on it.
+              const expanded = flagged || !collapsed.has(center.centerId);
+              const contactTotal = center.contacts.length + center.lockedContacts.length;
+              const regionId = `contacts-${center.centerId}`;
+
+              return (
+                <li key={center.centerId} className="flex flex-col gap-4 py-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <Building2
+                        className="mt-1 size-5 shrink-0 text-muted-foreground"
+                        aria-hidden
+                      />
+                      <div className="flex min-w-0 flex-col">
+                        <span className="break-words font-semibold">
+                          {index + 1}. {center.name}{" "}
+                          <span className="font-normal text-muted-foreground">({center.code})</span>
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {[center.typeName, center.territoryPath].filter(Boolean).join(" · ")}
+                          {" · "}
+                          {contactTotal} {dict.contactsCountSuffix}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon-sm"
+                        aria-label={dict.moveUp}
+                        disabled={isPending || index === 0}
+                        onClick={() => move(index, -1)}
+                      >
+                        <ArrowUp aria-hidden />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon-sm"
+                        aria-label={dict.moveDown}
+                        disabled={isPending || index === centers.length - 1}
+                        onClick={() => move(index, 1)}
+                      >
+                        <ArrowDown aria-hidden />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        disabled={
+                          isPending || center.lockedContacts.some((c) => c.status === "COMPLETED")
+                        }
+                        onClick={() => removeCenter(center.centerId)}
+                      >
+                        {dict.remove}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={expanded ? dict.collapseContacts : dict.expandContacts}
+                        aria-expanded={expanded}
+                        aria-controls={regionId}
+                        disabled={flagged}
+                        onClick={() => toggleCollapsed(center.centerId)}
+                      >
+                        <ChevronDown
+                          aria-hidden
+                          className={cn("transition-transform", !expanded && "-rotate-90")}
+                        />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div
+                    id={regionId}
+                    hidden={!expanded}
+                    className="ml-8 flex flex-col gap-2 border-l border-border pl-4"
+                  >
+                    <h3 className="text-sm font-medium">
+                      {dict.contactsHeading} ({contactTotal})
+                    </h3>
+                    <ContactPicker
+                      routeId={routeId}
+                      centerId={center.centerId}
+                      selected={center.contacts}
+                      locked={center.lockedContacts}
+                      disabled={isPending}
+                      onAdd={(contact) =>
+                        updateContacts(center.centerId, (contacts) =>
+                          contacts.some((entry) => entry.contactId === contact.id)
+                            ? contacts
+                            : [
+                                ...contacts,
+                                {
+                                  contactId: contact.id,
+                                  name: contact.name,
+                                  code: contact.code,
+                                  roleName: contact.roleName,
+                                  specialization: contact.specialization,
+                                  issue: null,
+                                },
+                              ],
+                        )
+                      }
+                      onRemove={(contactId) =>
+                        updateContacts(center.centerId, (contacts) =>
+                          contacts.filter((entry) => entry.contactId !== contactId),
+                        )
+                      }
+                      dict={dict}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </section>
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 

@@ -24,7 +24,7 @@ vi.stubGlobal(
 );
 
 const { RoutesTable } = await import("./routes-table");
-const { ClickableRow } = await import("./clickable-row");
+const { ClickableTableRow } = await import("@/components/clickable-table-row");
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -44,9 +44,19 @@ function item(status: "PENDING" | "COMPLETED" | "CANCELLED" | "MISSED", n = 1) {
       code: `C${n}`,
       territoryId: "t",
       typeName: "Clinic",
+      territoryPath: "",
     },
     contacts: [
-      { id: `k${n}`, contactId: `p${n}`, name: `Person ${n}`, code: "P", status, issue: null },
+      {
+        id: `k${n}`,
+        contactId: `p${n}`,
+        name: `Person ${n}`,
+        code: "P",
+        roleName: null,
+        specialization: null,
+        status,
+        issue: null,
+      },
     ],
   };
 }
@@ -160,12 +170,12 @@ describe("RoutesTable", () => {
     render(
       <table>
         <tbody>
-          <ClickableRow href="/x">
+          <ClickableTableRow href="/x">
             <td>
               <button type="button">inner</button>
               <input aria-label="field" />
             </td>
-          </ClickableRow>
+          </ClickableTableRow>
         </tbody>
       </table>,
     );

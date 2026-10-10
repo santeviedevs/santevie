@@ -75,14 +75,11 @@ export function RouteLockedView({
 
   return (
     <div className="flex flex-col gap-2">
-      <ol className="flex flex-col gap-2">
+      <ol className="flex flex-col divide-y divide-border border-y border-border">
         {items.map((item, index) => {
           const cancellable = item.status === "PENDING" || item.status === "MISSED";
           return (
-            <li
-              key={item.id}
-              className="flex flex-col gap-2 rounded-md border border-border px-3 py-2"
-            >
+            <li key={item.id} className="flex flex-col gap-2 py-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <span>

@@ -6,10 +6,12 @@ import {
   isRouteEditable,
   type RouteContactIssue,
   type RouteFilters,
+  type RouteListParams,
   type RouteSearchQuery,
   type RouteSelectionInput,
   type RouteStatus,
 } from "@/lib/schemas/route";
+import { formatTerritoryPath } from "@/lib/territory-path";
 import {
   currentAndUpcomingWeeks,
   type DateRange,
@@ -39,7 +41,7 @@ import {
   deletePendingRouteItemContacts,
   deleteRouteItem,
   findActiveCenterIdsForVisitorInRange,
-  findEditableRoutes,
+  findEditableRoutesPage,
   findRouteById,
   findRouteItemById,
   findRouteItemContactById,
@@ -256,6 +258,10 @@ export type RouteItemContactSummary = {
   contactId: string;
   name: string;
   code: string;
+  // The Contact's role at this Center (from the Contact–Center link) and
+  // their specialization — null when there's no link any more / none set.
+  roleName: string | null;
+  specialization: string | null;
   // PENDING/COMPLETED/CANCELLED as actually stored; MISSED is computed.
   status: "PENDING" | "COMPLETED" | "CANCELLED" | "MISSED";
   issue: RouteContactIssue | null;
@@ -275,6 +281,8 @@ export type RouteItemSummary = {
     code: string;
     territoryId: string | null;
     typeName: string;
+    // "Province › Ville › …" of the Center's Territory ("" when it has none).
+    territoryPath: string;
   };
   contacts: RouteItemContactSummary[];
 };
@@ -376,7 +384,9 @@ async function toGroupSummaries(
     ...new Set(allItems.flatMap((item) => item.contacts.map((row) => row.contactId))),
   ];
   const links = contactIds.length > 0 ? await findCenterContactLinks(centerIds, contactIds) : [];
-  const linkedPairs = new Set(links.map((link) => `${link.centerId}:${link.contactId}`));
+  const roleByPair = new Map(
+    links.map((link) => [`${link.centerId}:${link.contactId}`, link.roleAtCenter.name]),
+  );
 
   return routes.map((route) => ({
     id: route.id,
@@ -403,14 +413,17 @@ async function toGroupSummaries(
         code: item.center.code,
         territoryId: item.center.territoryId,
         typeName: item.center.type.name,
+        territoryPath: formatTerritoryPath(item.center.territory),
       },
       contacts: item.contacts.map((row) => ({
         id: row.id,
         contactId: row.contactId,
         name: row.contact.name,
         code: row.contact.code,
+        roleName: roleByPair.get(`${item.center.id}:${row.contactId}`) ?? null,
+        specialization: row.contact.specialization?.name ?? null,
         status: itemDisplayStatus(row.status, route.endDate, now),
-        issue: !linkedPairs.has(`${item.center.id}:${row.contactId}`)
+        issue: !roleByPair.has(`${item.center.id}:${row.contactId}`)
           ? ("NOT_ASSOCIATED" as const)
           : row.contact.status === "INACTIVE"
             ? ("INACTIVE" as const)
@@ -433,16 +446,26 @@ export async function getPermittedTerritoryIds(userId: string): Promise<Set<stri
   return ids;
 }
 
-// Route Visits (content) — the actor's own unassigned drafts, plus any
-// route already assigned within their downstream chain.
-export async function getRoutesForContent(
+// Add Routes list — the actor's own unassigned drafts plus any route already
+// assigned within their downstream chain (ADMIN: all), one page at a time,
+// newest first. Same scope as the Assign Routes table.
+export async function listRoutesForContent(
+  params: RouteListParams,
   actorId: string,
   actorRoleName: string,
-): Promise<RouteGroupSummary[]> {
+): Promise<PagedResult<RouteGroupSummary>> {
   const assignedUserIds =
     actorRoleName === "ADMIN" ? undefined : await getDownstreamUserIds(actorId);
-  const routes = await findEditableRoutes({ creatorId: actorId, assignedUserIds });
-  return toGroupSummaries(routes);
+  const { routes, total } = await findEditableRoutesPage({
+    scope: { creatorId: actorId, assignedUserIds },
+    ...toSkipTake(params),
+  });
+  return {
+    items: await toGroupSummaries(routes),
+    total,
+    page: params.page,
+    pageSize: params.pageSize,
+  };
 }
 
 // Assign Routes table — same reach as Plan Routes (the actor's own unassigned
@@ -1043,6 +1066,7 @@ export type CenterSearchResult = {
   code: string;
   territoryId: string | null;
   typeName: string;
+  territoryPath: string;
 };
 
 export async function searchCentersForRoute(
@@ -1069,6 +1093,7 @@ export async function searchCentersForRoute(
     code: center.code,
     territoryId: center.territoryId,
     typeName: center.type.name,
+    territoryPath: formatTerritoryPath(center.territory),
   }));
 }
 
@@ -1077,6 +1102,7 @@ export type ContactSearchResult = {
   name: string;
   code: string;
   roleName: string;
+  specialization: string | null;
 };
 
 // Only Contacts linked to this one Center, and only if the Center itself is
@@ -1102,5 +1128,6 @@ export async function searchContactsForRouteCenter(
     name: row.contact.name,
     code: row.contact.code,
     roleName: row.roleAtCenter.name,
+    specialization: row.contact.specialization?.name ?? null,
   }));
 }

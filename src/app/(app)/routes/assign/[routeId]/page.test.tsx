@@ -58,7 +58,14 @@ function route(overrides: Partial<RouteGroupSummary> = {}): RouteGroupSummary {
         id: "i1",
         sequence: 0,
         status: "PENDING",
-        center: { id: "c1", name: "A", code: "A", territoryId: "t", typeName: "Clinic" },
+        center: {
+          id: "c1",
+          name: "A",
+          code: "A",
+          territoryId: "t",
+          typeName: "Clinic",
+          territoryPath: "",
+        },
         contacts: [],
       },
     ],
@@ -169,7 +176,16 @@ describe("Route details page", () => {
           {
             ...base,
             contacts: [
-              { id: "k", contactId: "p", name: "N", code: "C", status: "COMPLETED", issue: null },
+              {
+                id: "k",
+                contactId: "p",
+                name: "N",
+                code: "C",
+                roleName: null,
+                specialization: null,
+                status: "COMPLETED",
+                issue: null,
+              },
             ],
           },
         ],

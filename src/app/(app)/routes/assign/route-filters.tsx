@@ -16,8 +16,8 @@ import {
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import { ROUTE_FILTER_STATUSES, type RouteFilters as RouteFiltersValue } from "@/lib/schemas/route";
 
+import { statusLabel } from "../route-status";
 import type { Assignee } from "./assign-form";
-import { statusLabel } from "./routes-table";
 
 const ALL = "__all__";
 

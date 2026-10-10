@@ -8,8 +8,10 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       { source: "/plans", destination: "/visits", permanent: true },
-      { source: "/plans/visits/:path*", destination: "/routes/plan/:path*", permanent: true },
+      { source: "/plans/visits/:path*", destination: "/routes/add/:path*", permanent: true },
       { source: "/plans/assign/:path*", destination: "/routes/assign/:path*", permanent: true },
+      // Plan Routes became Add Routes (/routes/plan -> /routes/add).
+      { source: "/routes/plan/:path*", destination: "/routes/add/:path*", permanent: true },
     ];
   },
 };

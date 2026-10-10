@@ -120,7 +120,7 @@ function mapRouteError(error: unknown): string {
 function revalidateAllRouteScreens() {
   revalidatePath("/");
   revalidatePath("/visits");
-  revalidatePath("/routes/plan");
+  revalidatePath("/routes/add");
   revalidatePath("/routes/assign");
 }
 

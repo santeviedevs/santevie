@@ -477,6 +477,21 @@ export type Dictionary = {
     manageAssignmentAction: string;
     viewAction: string;
     backToAssignRoutes: string;
+    routesListHeading: string;
+    editRouteTitle: string;
+    selectedCentersHeading: string;
+    colCenters: string;
+    colContacts: string;
+    colAssignmentPeriod: string;
+    contactStatusCompleted: string;
+    contactStatusPending: string;
+    contactStatusMissed: string;
+    contactStatusCancelled: string;
+    collapseContacts: string;
+    expandContacts: string;
+    moveUp: string;
+    moveDown: string;
+    selectedBadge: string;
     centersAndContactsHeading: string;
     cancelCurrentAssignment: string;
     cancelDialogTitle: string;
@@ -1251,13 +1266,13 @@ const en: Dictionary = {
   },
   routesPage: {
     title: "Routes",
-    tabPlanRoutes: "Plan Routes",
+    tabPlanRoutes: "Add Routes",
     tabAssignRoutes: "Assign Routes",
-    planRoutesTitle: "Plan Routes",
+    planRoutesTitle: "Add Routes",
     assignRoutesTitle: "Assign Routes",
     visitsTitle: "Visits",
     myselfOption: "Myself",
-    newRoute: "New route",
+    newRoute: "Add Route",
     noRoutesYet: "No routes yet.",
     noDateYet: "No date yet",
     unassignedLabel: "Not assigned to anyone",
@@ -1284,15 +1299,30 @@ const en: Dictionary = {
     assignmentCancelled: "Assignment cancelled",
     hasCompletedHint: "This route already has completed visits, so it can no longer be reassigned.",
     itemsCountSuffix: "centers",
-    backToPlanRoutes: "Back to Plan Routes",
+    backToPlanRoutes: "Back to Add Routes",
     editAction: "Edit",
     save: "Save",
     saving: "Saving...",
     routeSaved: "Route saved",
-    newRoutePageTitle: "New route",
+    newRoutePageTitle: "Add Route",
     manageAssignmentAction: "Manage assignment",
     viewAction: "View",
     backToAssignRoutes: "Back to Assign Routes",
+    routesListHeading: "Routes",
+    editRouteTitle: "Edit Route",
+    selectedCentersHeading: "Selected Centers",
+    colCenters: "Centers",
+    colContacts: "Contacts",
+    colAssignmentPeriod: "Assignment Period",
+    contactStatusCompleted: "completed",
+    contactStatusPending: "pending",
+    contactStatusMissed: "missed",
+    contactStatusCancelled: "cancelled",
+    collapseContacts: "Hide contacts",
+    expandContacts: "Show contacts",
+    moveUp: "Move up",
+    moveDown: "Move down",
+    selectedBadge: "Selected",
     centersAndContactsHeading: "Centers & Contacts",
     cancelCurrentAssignment: "Cancel Current Assignment",
     cancelDialogTitle: "Cancel this assignment?",
@@ -2043,13 +2073,13 @@ const fr: Dictionary = {
   },
   routesPage: {
     title: "Routes",
-    tabPlanRoutes: "Planifier les routes",
+    tabPlanRoutes: "Ajouter des routes",
     tabAssignRoutes: "Affecter les routes",
-    planRoutesTitle: "Planifier les routes",
+    planRoutesTitle: "Ajouter des routes",
     assignRoutesTitle: "Affecter les routes",
     visitsTitle: "Visites",
     myselfOption: "Moi-même",
-    newRoute: "Nouvelle route",
+    newRoute: "Ajouter une route",
     noRoutesYet: "Aucune route pour le moment.",
     noDateYet: "Pas encore de date",
     unassignedLabel: "Non affecté",
@@ -2078,15 +2108,30 @@ const fr: Dictionary = {
     hasCompletedHint:
       "Cette route a déjà des visites terminées, elle ne peut donc plus être réaffectée.",
     itemsCountSuffix: "centres",
-    backToPlanRoutes: "Retour à Planifier les routes",
+    backToPlanRoutes: "Retour à Ajouter des routes",
     editAction: "Modifier",
     save: "Enregistrer",
     saving: "Enregistrement...",
     routeSaved: "Route enregistrée",
-    newRoutePageTitle: "Nouvelle route",
+    newRoutePageTitle: "Ajouter une route",
     manageAssignmentAction: "Gérer l'affectation",
     viewAction: "Voir",
     backToAssignRoutes: "Retour à Affecter les routes",
+    routesListHeading: "Routes",
+    editRouteTitle: "Modifier la route",
+    selectedCentersHeading: "Centres sélectionnés",
+    colCenters: "Centres",
+    colContacts: "Contacts",
+    colAssignmentPeriod: "Période d'affectation",
+    contactStatusCompleted: "terminés",
+    contactStatusPending: "en attente",
+    contactStatusMissed: "manqués",
+    contactStatusCancelled: "annulés",
+    collapseContacts: "Masquer les contacts",
+    expandContacts: "Afficher les contacts",
+    moveUp: "Monter",
+    moveDown: "Descendre",
+    selectedBadge: "Sélectionné",
     centersAndContactsHeading: "Centres et contacts",
     cancelCurrentAssignment: "Annuler l'affectation en cours",
     cancelDialogTitle: "Annuler cette affectation ?",

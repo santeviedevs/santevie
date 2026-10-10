@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ClickableTableRow } from "@/components/clickable-table-row";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -11,36 +12,9 @@ import {
 } from "@/components/ui/table";
 import { formatDateRange } from "@/lib/format-date";
 import type { Dictionary } from "@/lib/i18n/dictionary";
-import type { RouteStatus } from "@/lib/schemas/route";
 import type { RouteGroupSummary } from "@/server/services/route-service";
 
-import { ClickableRow } from "./clickable-row";
-
-const STATUS_VARIANT = {
-  UNASSIGNED: "outline",
-  ASSIGNED: "secondary",
-  IN_PROGRESS: "default",
-  MISSED: "destructive",
-  COMPLETED: "default",
-  CANCELLED: "outline",
-} as const satisfies Record<RouteStatus, string>;
-
-export function statusLabel(status: RouteStatus, dict: Dictionary["routesPage"]): string {
-  switch (status) {
-    case "UNASSIGNED":
-      return dict.statusUnassigned;
-    case "ASSIGNED":
-      return dict.statusAssigned;
-    case "IN_PROGRESS":
-      return dict.statusInProgress;
-    case "MISSED":
-      return dict.statusMissed;
-    case "COMPLETED":
-      return dict.statusCompleted;
-    case "CANCELLED":
-      return dict.statusCancelled;
-  }
-}
+import { ROUTE_STATUS_VARIANT, statusLabel } from "../route-status";
 
 // Where a row leads: the route's Manage page — the existing detail view, where
 // every permitted assignment action (reassign, cancel) lives and is guarded
@@ -92,7 +66,7 @@ export function RoutesTable({
           </TableHeader>
           <TableBody>
             {routes.map((route) => (
-              <ClickableRow key={route.id} href={detailHref(route)}>
+              <ClickableTableRow key={route.id} href={detailHref(route)}>
                 <TableCell className="font-medium">
                   <Link
                     href={detailHref(route)}
@@ -105,11 +79,11 @@ export function RoutesTable({
                 <TableCell>{route.visitorName ?? "—"}</TableCell>
                 <TableCell className="whitespace-nowrap">{range(route)}</TableCell>
                 <TableCell>
-                  <Badge variant={STATUS_VARIANT[route.status]}>
+                  <Badge variant={ROUTE_STATUS_VARIANT[route.status]}>
                     {statusLabel(route.status, dict)}
                   </Badge>
                 </TableCell>
-              </ClickableRow>
+              </ClickableTableRow>
             ))}
           </TableBody>
         </Table>
@@ -124,7 +98,7 @@ export function RoutesTable({
             >
               <span className="flex items-center justify-between gap-2">
                 <span className="font-medium">{route.code}</span>
-                <Badge variant={STATUS_VARIANT[route.status]}>
+                <Badge variant={ROUTE_STATUS_VARIANT[route.status]}>
                   {statusLabel(route.status, dict)}
                 </Badge>
               </span>

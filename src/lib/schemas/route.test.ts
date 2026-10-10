@@ -10,6 +10,7 @@ import {
   ROUTE_SEARCH_LIMIT,
   ROUTE_TABLE_PAGE_SIZE,
   routeFiltersSchema,
+  routeListParamsSchema,
   routeSearchQuerySchema,
   saveRouteContentSchema,
 } from "./route";
@@ -210,5 +211,44 @@ describe("assign-form search schemas", () => {
   it("trim the query and cap its length", () => {
     expect(routeSearchQuerySchema.parse({ q: "  RT  " }).q).toBe("RT");
     expect(assigneeSearchQuerySchema.safeParse({ q: "x".repeat(101) }).success).toBe(false);
+  });
+});
+
+describe("routeListParamsSchema (Add Routes list)", () => {
+  it("defaults to page 1 and the same page size as the Assign Routes table", () => {
+    expect(routeListParamsSchema.parse({})).toEqual({ page: 1, pageSize: ROUTE_TABLE_PAGE_SIZE });
+  });
+
+  it("degrades a malformed page or size instead of failing the page", () => {
+    expect(routeListParamsSchema.parse({ page: "-2", pageSize: "abc" })).toEqual({
+      page: 1,
+      pageSize: ROUTE_TABLE_PAGE_SIZE,
+    });
+  });
+
+  it("clamps an oversized page size to the shared ceiling", () => {
+    expect(routeListParamsSchema.parse({ pageSize: "5000" }).pageSize).toBeLessThanOrEqual(100);
+  });
+
+  it("accepts a real page and size", () => {
+    expect(routeListParamsSchema.parse({ page: "3", pageSize: "25" })).toEqual({
+      page: 3,
+      pageSize: 25,
+    });
+  });
+});
+
+describe("formatTerritoryPath", () => {
+  it("joins only the levels a territory has", async () => {
+    const { formatTerritoryPath } = await import("@/lib/territory-path");
+    expect(
+      formatTerritoryPath({
+        province: { name: "A" },
+        ville: { name: "B" },
+        commune: null,
+        quartier: undefined,
+      }),
+    ).toBe("A › B");
+    expect(formatTerritoryPath(null)).toBe("");
   });
 });
