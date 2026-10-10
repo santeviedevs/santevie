@@ -12,12 +12,14 @@ import {
   reorderRouteItemsSchema,
   saveRouteContentSchema,
 } from "@/lib/schemas/route";
+import { parseDateOnly } from "@/lib/week";
 import {
   requireAnyPermission,
   requirePermission,
   SessionExpiredError,
 } from "@/server/auth/require-permission";
 import {
+  AssigneeNotAssignableError,
   assignRoute,
   cancelRouteAssignment,
   cancelRouteItem,
@@ -33,12 +35,18 @@ import {
   DuplicateCenterOnRouteError,
   InactiveCenterError,
   InvalidCenterContactError,
+  InvalidDateRangeError,
+  reassignRoute,
   reorderRouteItems,
+  RouteAlreadyAssignedError,
   RouteEditCutoffError,
   RouteHasCompletedItemsError,
+  RouteHasNothingToAssignError,
   RouteItemHasCompletedContactsError,
+  RouteNotAssignedError,
   RouteNotAuthorizedError,
   RouteNotOwnedError,
+  RouteStartInPastError,
   saveRouteContent,
 } from "@/server/services/route-service";
 
@@ -96,7 +104,13 @@ function mapRouteError(error: unknown): string {
     error instanceof ContactAlreadyOnRouteError ||
     error instanceof CenterStatusDerivedError ||
     error instanceof RouteItemHasCompletedContactsError ||
-    error instanceof ContactStatusConflictError
+    error instanceof ContactStatusConflictError ||
+    error instanceof AssigneeNotAssignableError ||
+    error instanceof RouteAlreadyAssignedError ||
+    error instanceof RouteNotAssignedError ||
+    error instanceof RouteHasNothingToAssignError ||
+    error instanceof InvalidDateRangeError ||
+    error instanceof RouteStartInPastError
   ) {
     return error.message;
   }
@@ -104,6 +118,7 @@ function mapRouteError(error: unknown): string {
 }
 
 function revalidateAllRouteScreens() {
+  revalidatePath("/");
   revalidatePath("/visits");
   revalidatePath("/routes/plan");
   revalidatePath("/routes/assign");
@@ -227,8 +242,9 @@ export async function cancelRouteItemAction(
   return { error: null };
 }
 
-// Covers both first-time assignment and reassignment — only reachable
-// from the Assignment screen.
+// The Assign Routes form's `+ Add`: a first-time assignment only. A route
+// that already has an assignee is refused (RouteAlreadyAssignedError) —
+// changing an existing assignment is the explicit reassignRouteAction.
 export async function assignRouteAction(
   _prevState: RouteFormState,
   formData: FormData,
@@ -239,7 +255,8 @@ export async function assignRouteAction(
   const parsed = assignRouteSchema.safeParse({
     routeId: formData.get("routeId"),
     targetUserId: formData.get("targetUserId"),
-    date: formData.get("date"),
+    startDate: formData.get("startDate"),
+    endDate: formData.get("endDate"),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check the highlighted fields." };
@@ -249,7 +266,45 @@ export async function assignRouteAction(
     await assignRoute(
       parsed.data.routeId,
       parsed.data.targetUserId,
-      new Date(parsed.data.date),
+      parseDateOnly(parsed.data.startDate),
+      parseDateOnly(parsed.data.endDate),
+      session.user.id,
+      session.user.roleName,
+    );
+  } catch (error) {
+    return { error: mapRouteError(error) };
+  }
+
+  revalidateAllRouteScreens();
+  return { error: null };
+}
+
+// Reassigning an already-assigned route to someone else and/or another range
+// — an explicit action from the table row's Manage page, never reachable
+// from the add form.
+export async function reassignRouteAction(
+  _prevState: RouteFormState,
+  formData: FormData,
+): Promise<RouteFormState> {
+  const session = await requireRoutesAssignTeam();
+  if (!session) return { error: null, sessionExpired: true };
+
+  const parsed = assignRouteSchema.safeParse({
+    routeId: formData.get("routeId"),
+    targetUserId: formData.get("targetUserId"),
+    startDate: formData.get("startDate"),
+    endDate: formData.get("endDate"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Check the highlighted fields." };
+  }
+
+  try {
+    await reassignRoute(
+      parsed.data.routeId,
+      parsed.data.targetUserId,
+      parseDateOnly(parsed.data.startDate),
+      parseDateOnly(parsed.data.endDate),
       session.user.id,
       session.user.roleName,
     );

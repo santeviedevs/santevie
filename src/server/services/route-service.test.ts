@@ -26,17 +26,18 @@ const createRouteRow = vi.fn();
 const deleteNonCompletedRouteItemContacts = vi.fn();
 const deletePendingRouteItemContacts = vi.fn();
 const deleteRouteItem = vi.fn();
-const deleteRouteRow = vi.fn();
-const findActiveCenterIdsForVisitorOnDate = vi.fn();
-const findAssignableRoutes = vi.fn();
+const findActiveCenterIdsForVisitorInRange = vi.fn();
 const findEditableRoutes = vi.fn();
 const findRouteById = vi.fn();
 const findRouteItemById = vi.fn();
 const findRouteItemContactById = vi.fn();
 const findRoutesForVisitor = vi.fn();
+const findRoutesForVisitorOverlapping = vi.fn();
+const findRoutesPage = vi.fn();
+const searchAssignableRoutes = vi.fn();
+const createRouteAssignmentRow = vi.fn();
 const listContactStatusesForItem = vi.fn();
 const listPendingItemIdsWithContacts = vi.fn();
-const moveRouteItems = vi.fn();
 const runInTransaction = vi.fn(async (fn: (tx: typeof TX) => Promise<unknown>) => fn(TX));
 const updateRouteItemContactStatus = vi.fn();
 const updateRouteItemSequence = vi.fn();
@@ -52,17 +53,18 @@ vi.mock("@/server/repositories/route-repository", () => ({
   deleteNonCompletedRouteItemContacts,
   deletePendingRouteItemContacts,
   deleteRouteItem,
-  deleteRouteRow,
-  findActiveCenterIdsForVisitorOnDate,
-  findAssignableRoutes,
+  findActiveCenterIdsForVisitorInRange,
   findEditableRoutes,
   findRouteById,
   findRouteItemById,
   findRouteItemContactById,
   findRoutesForVisitor,
+  findRoutesForVisitorOverlapping,
+  findRoutesPage,
+  searchAssignableRoutes,
+  createRouteAssignmentRow,
   listContactStatusesForItem,
   listPendingItemIdsWithContacts,
-  moveRouteItems,
   runInTransaction,
   updateRouteItemContactStatus,
   updateRouteItemSequence,
@@ -76,7 +78,12 @@ vi.mock("@/server/repositories/territory-assignment-repository", () => ({
 
 const findUserById = vi.fn();
 const findUsersByIds = vi.fn();
-vi.mock("@/server/repositories/user-repository", () => ({ findUserById, findUsersByIds }));
+const searchActiveUsers = vi.fn();
+vi.mock("@/server/repositories/user-repository", () => ({
+  findUserById,
+  findUsersByIds,
+  searchActiveUsers,
+}));
 
 const getDownstreamUserIds = vi.fn();
 vi.mock("@/server/scope", () => ({ getDownstreamUserIds }));
@@ -87,16 +94,30 @@ const {
   completeRouteItem,
   cancelRouteItem,
   assignRoute,
+  reassignRoute,
   cancelRouteAssignment,
   getRoutesForContent,
   getMyVisits,
   completeRouteItemContact,
   cancelRouteItemContact,
   deriveCenterStatus,
+  deriveRouteStatus,
+  listRoutesForAssignment,
+  getRouteForManagement,
+  getMyRoutesForHome,
+  searchAssignableRoutesForActor,
+  searchAssigneesForActor,
+  getAssigneeFilterLabel,
   searchCentersForRoute,
   searchContactsForRouteCenter,
   RouteEditCutoffError,
+  AssigneeNotAssignableError,
   CenterAlreadyOnRouteError,
+  InvalidDateRangeError,
+  RouteAlreadyAssignedError,
+  RouteHasNothingToAssignError,
+  RouteNotAssignedError,
+  RouteStartInPastError,
   CenterNotFoundError,
   CenterOutsideTerritoryError,
   CenterStatusDerivedError,
@@ -138,8 +159,10 @@ const YESTERDAY = new Date("2026-06-14T00:00:00.000Z");
 function route(overrides: Record<string, unknown> = {}) {
   return {
     id: "route-1",
+    code: "RT-00001",
     userId: null,
-    date: null,
+    startDate: null,
+    endDate: null,
     createdBy: "creator-1",
     items: [],
     ...overrides,
@@ -168,13 +191,13 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers();
   vi.setSystemTime(TODAY);
-  findUserById.mockResolvedValue({ territoryId: null });
+  findUserById.mockResolvedValue({ territoryId: null, status: "ACTIVE" });
   findUsersByIds.mockResolvedValue([]);
   listAssignmentsForUser.mockResolvedValue([{ territoryId: "territory-1" }]);
   createRouteRow.mockResolvedValue({ id: "route-1" });
   createRouteItem.mockResolvedValue({ id: "item-1", sequence: 0, status: "PENDING" });
   getDownstreamUserIds.mockResolvedValue([]);
-  findActiveCenterIdsForVisitorOnDate.mockResolvedValue(new Set());
+  findActiveCenterIdsForVisitorInRange.mockResolvedValue(new Set());
   findCenterContactLinks.mockResolvedValue([]);
   listContactStatusesForItem.mockResolvedValue([]);
   listPendingItemIdsWithContacts.mockResolvedValue([]);
@@ -235,7 +258,9 @@ describe("saveRouteContent — authorization", () => {
   });
 
   it("allows a chain-assignor to save an already-assigned route", async () => {
-    findRouteById.mockResolvedValue(route({ userId: "delegate-1", date: TOMORROW }));
+    findRouteById.mockResolvedValue(
+      route({ userId: "delegate-1", startDate: TOMORROW, endDate: TOMORROW }),
+    );
     getDownstreamUserIds.mockResolvedValue(["delegate-1"]);
 
     await expect(saveRouteContent("route-1", [], "supervisor-1", "SUPERVISOR")).resolves.toBe(
@@ -244,7 +269,9 @@ describe("saveRouteContent — authorization", () => {
   });
 
   it("rejects saving once the assigned route's date has started", async () => {
-    findRouteById.mockResolvedValue(route({ userId: "delegate-1", date: TODAY }));
+    findRouteById.mockResolvedValue(
+      route({ userId: "delegate-1", startDate: TODAY, endDate: TODAY }),
+    );
 
     await expect(saveRouteContent("route-1", [], "delegate-1", "DELEGATE")).rejects.toThrow(
       RouteEditCutoffError,
@@ -275,7 +302,9 @@ describe("saveRouteContent — territory and duplicate validation", () => {
   });
 
   it("validates new centers against the visitor's territories once assigned", async () => {
-    findRouteById.mockResolvedValue(route({ userId: "delegate-1", date: TOMORROW }));
+    findRouteById.mockResolvedValue(
+      route({ userId: "delegate-1", startDate: TOMORROW, endDate: TOMORROW }),
+    );
     listAssignmentsForUser.mockResolvedValue([]);
     findUserById.mockResolvedValue({ territoryId: "delegate-territory" });
     findCenterById.mockResolvedValue({
@@ -290,8 +319,10 @@ describe("saveRouteContent — territory and duplicate validation", () => {
   });
 
   it("rejects a new center already active for this visitor on this date on a different route", async () => {
-    findRouteById.mockResolvedValue(route({ userId: "delegate-1", date: TOMORROW }));
-    findActiveCenterIdsForVisitorOnDate.mockResolvedValue(new Set(["center-1"]));
+    findRouteById.mockResolvedValue(
+      route({ userId: "delegate-1", startDate: TOMORROW, endDate: TOMORROW }),
+    );
+    findActiveCenterIdsForVisitorInRange.mockResolvedValue(new Set(["center-1"]));
     findCenterById.mockResolvedValue({
       id: "center-1",
       territoryId: "territory-1",
@@ -312,7 +343,7 @@ describe("saveRouteContent — territory and duplicate validation", () => {
     });
 
     await saveRouteContent("route-1", sel("center-1"), "creator-1", "SUPERVISOR");
-    expect(findActiveCenterIdsForVisitorOnDate).not.toHaveBeenCalled();
+    expect(findActiveCenterIdsForVisitorInRange).not.toHaveBeenCalled();
   });
 });
 
@@ -351,7 +382,8 @@ describe("saveRouteContent — diffing against existing items", () => {
     findRouteById.mockResolvedValue(
       route({
         userId: "delegate-1",
-        date: TOMORROW,
+        startDate: TOMORROW,
+        endDate: TOMORROW,
         items: [item({ status: "COMPLETED" })],
       }),
     );
@@ -363,7 +395,9 @@ describe("saveRouteContent — diffing against existing items", () => {
 
 describe("reorderRouteItems", () => {
   it("is never gated by the edit cutoff, even on an assigned, already-started route", async () => {
-    findRouteById.mockResolvedValue(route({ userId: "delegate-1", date: TODAY }));
+    findRouteById.mockResolvedValue(
+      route({ userId: "delegate-1", startDate: TODAY, endDate: TODAY }),
+    );
 
     await reorderRouteItems("route-1", ["item-1"], "delegate-1", "DELEGATE");
     expect(updateRouteItemSequence).toHaveBeenCalledWith("item-1", 0, "delegate-1");
@@ -390,105 +424,318 @@ describe("completeRouteItem / cancelRouteItem", () => {
   });
 });
 
+const NEXT_WEEK = new Date("2026-06-22T00:00:00.000Z");
+
 describe("assignRoute — first-time assignment", () => {
-  it("assigns an unassigned route in place", async () => {
-    findRouteById.mockResolvedValue(route({ items: [item()] }));
+  it("assigns an unassigned route in place for the whole range, and records the history, in one transaction", async () => {
+    findRouteById.mockResolvedValue(route({ items: [item()], createdBy: "supervisor-1" }));
     getDownstreamUserIds.mockResolvedValue(["delegate-1"]);
 
     await expect(
-      assignRoute("route-1", "delegate-1", TOMORROW, "supervisor-1", "SUPERVISOR"),
+      assignRoute("route-1", "delegate-1", TOMORROW, NEXT_WEEK, "supervisor-1", "SUPERVISOR"),
     ).resolves.toBe("route-1");
-    expect(assignRouteRow).toHaveBeenCalledWith("route-1", "delegate-1", TOMORROW, "supervisor-1");
+    expect(assignRouteRow).toHaveBeenCalledWith(
+      "route-1",
+      "delegate-1",
+      TOMORROW,
+      NEXT_WEEK,
+      "supervisor-1",
+      TX,
+    );
+    expect(createRouteAssignmentRow).toHaveBeenCalledWith(
+      {
+        routeId: "route-1",
+        action: "ASSIGNED",
+        userId: "delegate-1",
+        startDate: TOMORROW,
+        endDate: NEXT_WEEK,
+      },
+      "supervisor-1",
+      TX,
+    );
     expect(createRouteRow).not.toHaveBeenCalled();
   });
 
-  it("rejects assigning to a target outside the actor's downstream chain", async () => {
-    findRouteById.mockResolvedValue(route());
-    getDownstreamUserIds.mockResolvedValue([]);
-
-    await expect(
-      assignRoute("route-1", "someone-else", TOMORROW, "supervisor-1", "SUPERVISOR"),
-    ).rejects.toThrow(RouteNotAuthorizedError);
-    expect(assignRouteRow).not.toHaveBeenCalled();
-  });
-
-  it("validates every item's territory against the target before assigning", async () => {
-    findRouteById.mockResolvedValue(
-      route({ items: [item({ center: { id: "center-1", territoryId: "other-territory" } })] }),
-    );
+  it("allows a range starting today", async () => {
+    findRouteById.mockResolvedValue(route({ items: [item()], createdBy: "supervisor-1" }));
     getDownstreamUserIds.mockResolvedValue(["delegate-1"]);
 
     await expect(
-      assignRoute("route-1", "delegate-1", TOMORROW, "supervisor-1", "SUPERVISOR"),
-    ).rejects.toThrow(CenterOutsideTerritoryError);
-    expect(assignRouteRow).not.toHaveBeenCalled();
+      assignRoute("route-1", "delegate-1", TODAY, TOMORROW, "supervisor-1", "SUPERVISOR"),
+    ).resolves.toBe("route-1");
   });
 
-  it("validates no item is already planned for the target on that date elsewhere", async () => {
-    findRouteById.mockResolvedValue(route({ items: [item()] }));
-    getDownstreamUserIds.mockResolvedValue(["delegate-1"]);
-    findActiveCenterIdsForVisitorOnDate.mockResolvedValue(new Set(["center-1"]));
-
-    await expect(
-      assignRoute("route-1", "delegate-1", TOMORROW, "supervisor-1", "SUPERVISOR"),
-    ).rejects.toThrow(DuplicateCenterOnRouteError);
-  });
-});
-
-describe("assignRoute — reassignment", () => {
-  it("creates a new route, moves items, and deletes the source — never updates in place", async () => {
-    findRouteById.mockResolvedValue(
-      route({ id: "old-route", userId: "delegate-1", date: TOMORROW, items: [item()] }),
-    );
-    createRouteRow.mockResolvedValue({ id: "new-route" });
-    getDownstreamUserIds.mockResolvedValue(["delegate-1", "delegate-2"]);
-
-    const result = await assignRoute(
-      "old-route",
-      "delegate-2",
-      TOMORROW,
-      "supervisor-1",
-      "SUPERVISOR",
-    );
-
-    expect(result).toBe("new-route");
-    expect(createRouteRow).toHaveBeenCalledWith("supervisor-1");
-    expect(assignRouteRow).toHaveBeenCalledWith(
-      "new-route",
-      "delegate-2",
-      TOMORROW,
-      "supervisor-1",
-    );
-    expect(moveRouteItems).toHaveBeenCalledWith("old-route", "new-route");
-    expect(deleteRouteRow).toHaveBeenCalledWith("old-route");
-  });
-
-  it("refuses to reassign a route with any COMPLETED item", async () => {
+  it("refuses a route that is already assigned — never silently overwrites", async () => {
     findRouteById.mockResolvedValue(
       route({
-        id: "old-route",
+        items: [item()],
+        createdBy: "supervisor-1",
         userId: "delegate-1",
-        date: TOMORROW,
-        items: [item({ status: "COMPLETED" }), item({ id: "item-2", status: "PENDING" })],
+        startDate: TOMORROW,
+        endDate: TOMORROW,
       }),
     );
     getDownstreamUserIds.mockResolvedValue(["delegate-1", "delegate-2"]);
 
     await expect(
-      assignRoute("old-route", "delegate-2", TOMORROW, "supervisor-1", "SUPERVISOR"),
-    ).rejects.toThrow(RouteHasCompletedItemsError);
+      assignRoute("route-1", "delegate-2", TOMORROW, NEXT_WEEK, "supervisor-1", "SUPERVISOR"),
+    ).rejects.toThrow(RouteAlreadyAssignedError);
+    expect(assignRouteRow).not.toHaveBeenCalled();
+    expect(createRouteAssignmentRow).not.toHaveBeenCalled();
+  });
+
+  it("rejects assigning someone else's unassigned draft by id", async () => {
+    findRouteById.mockResolvedValue(route({ items: [item()], createdBy: "someone-else" }));
+    getDownstreamUserIds.mockResolvedValue(["delegate-1"]);
+
+    await expect(
+      assignRoute("route-1", "delegate-1", TOMORROW, NEXT_WEEK, "supervisor-1", "SUPERVISOR"),
+    ).rejects.toThrow(RouteNotAuthorizedError);
+    expect(assignRouteRow).not.toHaveBeenCalled();
+  });
+
+  it("lets ADMIN assign anyone's draft to anyone", async () => {
+    findRouteById.mockResolvedValue(route({ items: [item()], createdBy: "someone-else" }));
+
+    await expect(
+      assignRoute("route-1", "delegate-1", TOMORROW, NEXT_WEEK, "admin-1", "ADMIN"),
+    ).resolves.toBe("route-1");
+  });
+
+  it("rejects assigning to a target outside the actor's downstream chain", async () => {
+    findRouteById.mockResolvedValue(route({ items: [item()], createdBy: "supervisor-1" }));
+    getDownstreamUserIds.mockResolvedValue([]);
+
+    await expect(
+      assignRoute("route-1", "someone-else", TOMORROW, NEXT_WEEK, "supervisor-1", "SUPERVISOR"),
+    ).rejects.toThrow(RouteNotAuthorizedError);
+    expect(assignRouteRow).not.toHaveBeenCalled();
+  });
+
+  it("lets the actor assign a route to themselves", async () => {
+    findRouteById.mockResolvedValue(route({ items: [item()], createdBy: "supervisor-1" }));
+
+    await expect(
+      assignRoute("route-1", "supervisor-1", TOMORROW, NEXT_WEEK, "supervisor-1", "SUPERVISOR"),
+    ).resolves.toBe("route-1");
+  });
+
+  it("rejects an inactive or missing assignee", async () => {
+    findRouteById.mockResolvedValue(route({ items: [item()], createdBy: "supervisor-1" }));
+    getDownstreamUserIds.mockResolvedValue(["delegate-1"]);
+
+    findUserById.mockResolvedValueOnce({ territoryId: null, status: "INACTIVE" });
+    await expect(
+      assignRoute("route-1", "delegate-1", TOMORROW, NEXT_WEEK, "supervisor-1", "SUPERVISOR"),
+    ).rejects.toThrow(AssigneeNotAssignableError);
+
+    findUserById.mockResolvedValueOnce(null);
+    await expect(
+      assignRoute("route-1", "delegate-1", TOMORROW, NEXT_WEEK, "supervisor-1", "SUPERVISOR"),
+    ).rejects.toThrow(AssigneeNotAssignableError);
+    expect(assignRouteRow).not.toHaveBeenCalled();
+  });
+
+  it("rejects a start date earlier than today (Kinshasa)", async () => {
+    findRouteById.mockResolvedValue(route({ items: [item()], createdBy: "supervisor-1" }));
+    getDownstreamUserIds.mockResolvedValue(["delegate-1"]);
+
+    await expect(
+      assignRoute("route-1", "delegate-1", YESTERDAY, TOMORROW, "supervisor-1", "SUPERVISOR"),
+    ).rejects.toThrow(RouteStartInPastError);
+  });
+
+  it("uses the Kinshasa calendar day for 'today' — an hour before UTC midnight it is already tomorrow there", async () => {
+    findRouteById.mockResolvedValue(route({ items: [item()], createdBy: "supervisor-1" }));
+    getDownstreamUserIds.mockResolvedValue(["delegate-1"]);
+    // 23:30 UTC on the 15th is 00:30 on the 16th in Kinshasa (UTC+1).
+    vi.setSystemTime(new Date("2026-06-15T23:30:00.000Z"));
+
+    await expect(
+      assignRoute("route-1", "delegate-1", TODAY, TOMORROW, "supervisor-1", "SUPERVISOR"),
+    ).rejects.toThrow(RouteStartInPastError);
+    await expect(
+      assignRoute("route-1", "delegate-1", TOMORROW, NEXT_WEEK, "supervisor-1", "SUPERVISOR"),
+    ).resolves.toBe("route-1");
+  });
+
+  it("rejects an end date before the start date", async () => {
+    findRouteById.mockResolvedValue(route({ items: [item()], createdBy: "supervisor-1" }));
+    getDownstreamUserIds.mockResolvedValue(["delegate-1"]);
+
+    await expect(
+      assignRoute("route-1", "delegate-1", NEXT_WEEK, TOMORROW, "supervisor-1", "SUPERVISOR"),
+    ).rejects.toThrow(InvalidDateRangeError);
+  });
+
+  it("rejects a route with nothing pending to assign", async () => {
+    findRouteById.mockResolvedValue(
+      route({ items: [item({ status: "CANCELLED" })], createdBy: "supervisor-1" }),
+    );
+    getDownstreamUserIds.mockResolvedValue(["delegate-1"]);
+
+    await expect(
+      assignRoute("route-1", "delegate-1", TOMORROW, NEXT_WEEK, "supervisor-1", "SUPERVISOR"),
+    ).rejects.toThrow(RouteHasNothingToAssignError);
+  });
+
+  it("validates every item's territory against the target before assigning", async () => {
+    findRouteById.mockResolvedValue(
+      route({
+        createdBy: "supervisor-1",
+        items: [item({ center: { id: "center-1", territoryId: "other-territory" } })],
+      }),
+    );
+    getDownstreamUserIds.mockResolvedValue(["delegate-1"]);
+
+    await expect(
+      assignRoute("route-1", "delegate-1", TOMORROW, NEXT_WEEK, "supervisor-1", "SUPERVISOR"),
+    ).rejects.toThrow(CenterOutsideTerritoryError);
+    expect(assignRouteRow).not.toHaveBeenCalled();
+  });
+
+  it("blocks a center already planned for the target in an overlapping range, checked across the whole range", async () => {
+    findRouteById.mockResolvedValue(route({ items: [item()], createdBy: "supervisor-1" }));
+    getDownstreamUserIds.mockResolvedValue(["delegate-1"]);
+    findActiveCenterIdsForVisitorInRange.mockResolvedValue(new Set(["center-1"]));
+
+    await expect(
+      assignRoute("route-1", "delegate-1", TOMORROW, NEXT_WEEK, "supervisor-1", "SUPERVISOR"),
+    ).rejects.toThrow(DuplicateCenterOnRouteError);
+    expect(findActiveCenterIdsForVisitorInRange).toHaveBeenCalledWith(
+      "delegate-1",
+      TOMORROW,
+      NEXT_WEEK,
+      "route-1",
+    );
+  });
+});
+
+describe("reassignRoute", () => {
+  function assignedRoute(overrides: Record<string, unknown> = {}) {
+    return route({
+      id: "route-1",
+      userId: "delegate-1",
+      startDate: TOMORROW,
+      endDate: TOMORROW,
+      items: [item()],
+      ...overrides,
+    });
+  }
+
+  it("updates the same route in place — same id, no new route, nothing deleted — and records the history", async () => {
+    findRouteById.mockResolvedValue(assignedRoute());
+    getDownstreamUserIds.mockResolvedValue(["delegate-1", "delegate-2"]);
+
+    const result = await reassignRoute(
+      "route-1",
+      "delegate-2",
+      TOMORROW,
+      NEXT_WEEK,
+      "supervisor-1",
+      "SUPERVISOR",
+    );
+
+    expect(result).toBe("route-1");
     expect(createRouteRow).not.toHaveBeenCalled();
-    expect(moveRouteItems).not.toHaveBeenCalled();
+    expect(deleteRouteItem).not.toHaveBeenCalled();
+    expect(assignRouteRow).toHaveBeenCalledWith(
+      "route-1",
+      "delegate-2",
+      TOMORROW,
+      NEXT_WEEK,
+      "supervisor-1",
+      TX,
+    );
+    expect(createRouteAssignmentRow).toHaveBeenCalledWith(
+      {
+        routeId: "route-1",
+        action: "REASSIGNED",
+        userId: "delegate-2",
+        startDate: TOMORROW,
+        endDate: NEXT_WEEK,
+      },
+      "supervisor-1",
+      TX,
+    );
+  });
+
+  it("refuses a route nobody holds yet — that is an assignment, not a reassignment", async () => {
+    findRouteById.mockResolvedValue(route({ items: [item()], createdBy: "supervisor-1" }));
+
+    await expect(
+      reassignRoute("route-1", "delegate-1", TOMORROW, NEXT_WEEK, "supervisor-1", "SUPERVISOR"),
+    ).rejects.toThrow(RouteNotAssignedError);
+  });
+
+  it("refuses to reassign a route with any COMPLETED item", async () => {
+    findRouteById.mockResolvedValue(
+      assignedRoute({ items: [item({ status: "COMPLETED" }), item({ id: "item-2" })] }),
+    );
+    getDownstreamUserIds.mockResolvedValue(["delegate-1", "delegate-2"]);
+
+    await expect(
+      reassignRoute("route-1", "delegate-2", TOMORROW, NEXT_WEEK, "supervisor-1", "SUPERVISOR"),
+    ).rejects.toThrow(RouteHasCompletedItemsError);
+    expect(assignRouteRow).not.toHaveBeenCalled();
+    expect(createRouteAssignmentRow).not.toHaveBeenCalled();
+  });
+
+  it("still allows reassignment when the only non-pending items are cancelled", async () => {
+    findRouteById.mockResolvedValue(
+      assignedRoute({ items: [item({ status: "CANCELLED" }), item({ id: "item-2" })] }),
+    );
+    getDownstreamUserIds.mockResolvedValue(["delegate-1", "delegate-2"]);
+
+    await expect(
+      reassignRoute("route-1", "delegate-2", TOMORROW, NEXT_WEEK, "supervisor-1", "SUPERVISOR"),
+    ).resolves.toBe("route-1");
+  });
+
+  it("rejects a route whose holder is outside the actor's downstream chain", async () => {
+    findRouteById.mockResolvedValue(assignedRoute());
+    getDownstreamUserIds.mockResolvedValue(["delegate-2"]);
+
+    await expect(
+      reassignRoute("route-1", "delegate-2", TOMORROW, NEXT_WEEK, "supervisor-1", "SUPERVISOR"),
+    ).rejects.toThrow(RouteNotAuthorizedError);
+  });
+
+  it("requires the new range to start no earlier than today and the new assignee to be active", async () => {
+    findRouteById.mockResolvedValue(assignedRoute());
+    getDownstreamUserIds.mockResolvedValue(["delegate-1", "delegate-2"]);
+
+    await expect(
+      reassignRoute("route-1", "delegate-2", YESTERDAY, TOMORROW, "supervisor-1", "SUPERVISOR"),
+    ).rejects.toThrow(RouteStartInPastError);
+
+    findUserById.mockResolvedValueOnce({ territoryId: null, status: "INACTIVE" });
+    await expect(
+      reassignRoute("route-1", "delegate-2", TOMORROW, NEXT_WEEK, "supervisor-1", "SUPERVISOR"),
+    ).rejects.toThrow(AssigneeNotAssignableError);
   });
 });
 
 describe("cancelRouteAssignment", () => {
-  it("bulk-cancels every still-PENDING item, authorized the same as any other route action", async () => {
-    findRouteById.mockResolvedValue(route({ userId: "delegate-1", date: TOMORROW }));
+  it("bulk-cancels every still-PENDING item and records a CANCELLED history row, authorized like any other route action", async () => {
+    findRouteById.mockResolvedValue(
+      route({ userId: "delegate-1", startDate: TOMORROW, endDate: NEXT_WEEK }),
+    );
     getDownstreamUserIds.mockResolvedValue(["delegate-1"]);
 
     await cancelRouteAssignment("route-1", "supervisor-1", "SUPERVISOR");
     expect(cancelPendingContactlessRouteItems).toHaveBeenCalledWith("route-1", "supervisor-1", TX);
+    expect(createRouteAssignmentRow).toHaveBeenCalledWith(
+      {
+        routeId: "route-1",
+        action: "CANCELLED",
+        userId: "delegate-1",
+        startDate: TOMORROW,
+        endDate: NEXT_WEEK,
+      },
+      "supervisor-1",
+      TX,
+    );
   });
 
   it("does nothing for a still-unassigned route", async () => {
@@ -497,13 +744,14 @@ describe("cancelRouteAssignment", () => {
     await cancelRouteAssignment("route-1", "creator-1", "SUPERVISOR");
     expect(cancelPendingContactlessRouteItems).not.toHaveBeenCalled();
     expect(cancelPendingContactsOnRoute).not.toHaveBeenCalled();
+    expect(createRouteAssignmentRow).not.toHaveBeenCalled();
   });
 });
 
 describe("getRoutesForContent / getMyVisits — MISSED is computed, never stored", () => {
   it("displays a PENDING item as MISSED once its route date has passed", async () => {
     findEditableRoutes.mockResolvedValue([
-      route({ userId: "delegate-1", date: YESTERDAY, items: [item()] }),
+      route({ userId: "delegate-1", startDate: YESTERDAY, endDate: YESTERDAY, items: [item()] }),
     ]);
 
     const result = await getRoutesForContent("supervisor-1", "SUPERVISOR");
@@ -512,7 +760,7 @@ describe("getRoutesForContent / getMyVisits — MISSED is computed, never stored
 
   it("keeps a PENDING item as PENDING for a future date", async () => {
     findRoutesForVisitor.mockResolvedValue([
-      route({ userId: "delegate-1", date: TOMORROW, items: [item()] }),
+      route({ userId: "delegate-1", startDate: TOMORROW, endDate: TOMORROW, items: [item()] }),
     ]);
 
     const result = await getMyVisits("delegate-1");
@@ -521,7 +769,12 @@ describe("getRoutesForContent / getMyVisits — MISSED is computed, never stored
 
   it("never relabels a COMPLETED item as MISSED, even for a past date", async () => {
     findRoutesForVisitor.mockResolvedValue([
-      route({ userId: "delegate-1", date: YESTERDAY, items: [item({ status: "COMPLETED" })] }),
+      route({
+        userId: "delegate-1",
+        startDate: YESTERDAY,
+        endDate: YESTERDAY,
+        items: [item({ status: "COMPLETED" })],
+      }),
     ]);
 
     const result = await getMyVisits("delegate-1");
@@ -813,7 +1066,7 @@ describe("completeRouteItem / cancelRouteItem — centers with contacts", () => 
   it("cancelling a center cancels its pending contacts and derives the center from what's left", async () => {
     findRouteItemById.mockResolvedValue({
       id: "item-1",
-      route: route({ userId: "delegate-1", date: TOMORROW }),
+      route: route({ userId: "delegate-1", startDate: TOMORROW, endDate: TOMORROW }),
       contacts: [contactRow({ status: "COMPLETED" }), contactRow({ id: "rc-2" })],
     });
     getDownstreamUserIds.mockResolvedValue(["delegate-1"]);
@@ -829,7 +1082,7 @@ describe("completeRouteItem / cancelRouteItem — centers with contacts", () => 
   it("cancelling a center whose contacts are all pending ends CANCELLED", async () => {
     findRouteItemById.mockResolvedValue({
       id: "item-1",
-      route: route({ userId: "delegate-1", date: TOMORROW }),
+      route: route({ userId: "delegate-1", startDate: TOMORROW, endDate: TOMORROW }),
       contacts: [contactRow()],
     });
     getDownstreamUserIds.mockResolvedValue(["delegate-1"]);
@@ -842,7 +1095,7 @@ describe("completeRouteItem / cancelRouteItem — centers with contacts", () => 
   it("a center with no contacts is still cancelled manually, as before", async () => {
     findRouteItemById.mockResolvedValue({
       id: "item-1",
-      route: route({ userId: "delegate-1", date: TOMORROW }),
+      route: route({ userId: "delegate-1", startDate: TOMORROW, endDate: TOMORROW }),
       contacts: [],
     });
     getDownstreamUserIds.mockResolvedValue(["delegate-1"]);
@@ -858,7 +1111,12 @@ describe("completeRouteItemContact / cancelRouteItemContact", () => {
     return contactRow({
       routeItem: {
         id: "item-1",
-        route: route({ userId: "delegate-1", date: TOMORROW, ...routeOverrides }),
+        route: route({
+          userId: "delegate-1",
+          startDate: TOMORROW,
+          endDate: TOMORROW,
+          ...routeOverrides,
+        }),
       },
       ...overrides,
     });
@@ -895,7 +1153,9 @@ describe("completeRouteItemContact / cancelRouteItemContact", () => {
   });
 
   it("completes a MISSED (late) contact like any pending one — it is never terminal", async () => {
-    findRouteItemContactById.mockResolvedValue(contactWithRoute({}, { date: YESTERDAY }));
+    findRouteItemContactById.mockResolvedValue(
+      contactWithRoute({}, { startDate: YESTERDAY, endDate: YESTERDAY }),
+    );
     listContactStatusesForItem.mockResolvedValue(["COMPLETED"]);
 
     await completeRouteItemContact("rc-1", "delegate-1");
@@ -930,7 +1190,9 @@ describe("completeRouteItemContact / cancelRouteItemContact", () => {
   });
 
   it("rejects cancelling on a still-unassigned route", async () => {
-    findRouteItemContactById.mockResolvedValue(contactWithRoute({}, { userId: null, date: null }));
+    findRouteItemContactById.mockResolvedValue(
+      contactWithRoute({}, { userId: null, startDate: null, endDate: null }),
+    );
 
     await expect(cancelRouteItemContact("rc-1", "creator-1", "SUPERVISOR")).rejects.toThrow(
       RouteNotAuthorizedError,
@@ -953,20 +1215,23 @@ describe("assignRoute / cancelRouteAssignment — contacts", () => {
       route({
         id: "old-route",
         userId: "delegate-1",
-        date: TOMORROW,
+        startDate: TOMORROW,
+        endDate: TOMORROW,
         items: [item({ status: "PENDING", contacts: [contactRow({ status: "COMPLETED" })] })],
       }),
     );
     getDownstreamUserIds.mockResolvedValue(["delegate-1", "delegate-2"]);
 
     await expect(
-      assignRoute("old-route", "delegate-2", TOMORROW, "supervisor-1", "SUPERVISOR"),
+      reassignRoute("old-route", "delegate-2", TOMORROW, NEXT_WEEK, "supervisor-1", "SUPERVISOR"),
     ).rejects.toThrow(RouteHasCompletedItemsError);
-    expect(moveRouteItems).not.toHaveBeenCalled();
+    expect(assignRouteRow).not.toHaveBeenCalled();
   });
 
   it("cancelling an assignment cancels pending contacts too, then re-derives each center that has contacts", async () => {
-    findRouteById.mockResolvedValue(route({ userId: "delegate-1", date: TOMORROW }));
+    findRouteById.mockResolvedValue(
+      route({ userId: "delegate-1", startDate: TOMORROW, endDate: TOMORROW }),
+    );
     getDownstreamUserIds.mockResolvedValue(["delegate-1"]);
     listPendingItemIdsWithContacts.mockResolvedValue(["item-1", "item-2"]);
     listContactStatusesForItem.mockResolvedValueOnce(["COMPLETED", "CANCELLED"]);
@@ -1048,7 +1313,8 @@ describe("route summaries — contacts", () => {
     findRoutesForVisitor.mockResolvedValue([
       route({
         userId: "delegate-1",
-        date: YESTERDAY,
+        startDate: YESTERDAY,
+        endDate: YESTERDAY,
         items: [
           item({
             contacts: [
@@ -1102,7 +1368,9 @@ describe("searchCentersForRoute", () => {
   });
 
   it("scopes to the route's visitor when editing an assigned route, after authorizing the actor", async () => {
-    findRouteById.mockResolvedValue(route({ userId: "delegate-1", date: TOMORROW }));
+    findRouteById.mockResolvedValue(
+      route({ userId: "delegate-1", startDate: TOMORROW, endDate: TOMORROW }),
+    );
     getDownstreamUserIds.mockResolvedValue(["delegate-1"]);
     listAssignmentsForUser.mockResolvedValue([{ territoryId: "delegate-territory" }]);
     searchActiveCentersInTerritories.mockResolvedValue([]);
@@ -1119,7 +1387,9 @@ describe("searchCentersForRoute", () => {
   });
 
   it("rejects a route the actor can't act on", async () => {
-    findRouteById.mockResolvedValue(route({ userId: "delegate-1", date: TOMORROW }));
+    findRouteById.mockResolvedValue(
+      route({ userId: "delegate-1", startDate: TOMORROW, endDate: TOMORROW }),
+    );
     getDownstreamUserIds.mockResolvedValue([]);
 
     await expect(
@@ -1179,5 +1449,363 @@ describe("searchContactsForRouteCenter", () => {
     await expect(
       searchContactsForRouteCenter("center-1", { q: "", limit: 20 }, "creator-1", "SUPERVISOR"),
     ).rejects.toThrow(InactiveCenterError);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Route status, the Assign Routes table, Home and the assign-form searches
+// ---------------------------------------------------------------------------
+
+describe("deriveRouteStatus", () => {
+  const assigned = { userId: "delegate-1", endDate: NEXT_WEEK };
+
+  it("is UNASSIGNED while nobody holds the route", () => {
+    expect(deriveRouteStatus({ userId: null, endDate: null }, ["PENDING"])).toBe("UNASSIGNED");
+  });
+
+  it("is ASSIGNED while everything is pending and the range isn't over", () => {
+    expect(deriveRouteStatus(assigned, ["PENDING", "PENDING"])).toBe("ASSIGNED");
+  });
+
+  it("is IN_PROGRESS with some completed and some pending", () => {
+    expect(deriveRouteStatus(assigned, ["COMPLETED", "PENDING"])).toBe("IN_PROGRESS");
+  });
+
+  it("is COMPLETED once nothing is pending and something was completed", () => {
+    expect(deriveRouteStatus(assigned, ["COMPLETED", "CANCELLED"])).toBe("COMPLETED");
+  });
+
+  it("is CANCELLED only when everything is cancelled", () => {
+    expect(deriveRouteStatus(assigned, ["CANCELLED", "CANCELLED"])).toBe("CANCELLED");
+  });
+
+  it("is MISSED when something is still pending after the range ended", () => {
+    expect(deriveRouteStatus({ userId: "d", endDate: YESTERDAY }, ["PENDING"])).toBe("MISSED");
+    expect(deriveRouteStatus({ userId: "d", endDate: YESTERDAY }, ["COMPLETED", "PENDING"])).toBe(
+      "MISSED",
+    );
+  });
+
+  it("is not MISSED on the last day of the range", () => {
+    expect(deriveRouteStatus({ userId: "d", endDate: TODAY }, ["PENDING"])).toBe("ASSIGNED");
+  });
+
+  it("never reads a finished route as MISSED, however old", () => {
+    expect(deriveRouteStatus({ userId: "d", endDate: YESTERDAY }, ["COMPLETED"])).toBe("COMPLETED");
+  });
+
+  it("treats an assigned route with no items as ASSIGNED", () => {
+    expect(deriveRouteStatus(assigned, [])).toBe("ASSIGNED");
+  });
+});
+
+describe("listRoutesForAssignment", () => {
+  const filters = { page: 2, pageSize: 20 };
+
+  it("applies the actor's scope on the server and pages with skip/take", async () => {
+    getDownstreamUserIds.mockResolvedValue(["delegate-1"]);
+    findRoutesPage.mockResolvedValue({ routes: [], total: 45 });
+
+    const result = await listRoutesForAssignment(filters, "supervisor-1", "SUPERVISOR");
+    expect(findRoutesPage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scope: { creatorId: "supervisor-1", assignedUserIds: ["delegate-1"] },
+        skip: 20,
+        take: 20,
+      }),
+    );
+    expect(result).toMatchObject({ total: 45, page: 2, pageSize: 20 });
+  });
+
+  it("gives ADMIN no scope restriction", async () => {
+    findRoutesPage.mockResolvedValue({ routes: [], total: 0 });
+
+    await listRoutesForAssignment({ page: 1, pageSize: 20 }, "admin-1", "ADMIN");
+    expect(findRoutesPage).toHaveBeenCalledWith(
+      expect.objectContaining({ scope: { creatorId: "admin-1", assignedUserIds: undefined } }),
+    );
+    expect(getDownstreamUserIds).not.toHaveBeenCalled();
+  });
+
+  it("passes the filters through, with dates parsed and 'today' in Kinshasa", async () => {
+    getDownstreamUserIds.mockResolvedValue([]);
+    findRoutesPage.mockResolvedValue({ routes: [], total: 0 });
+
+    await listRoutesForAssignment(
+      {
+        page: 1,
+        pageSize: 20,
+        q: "RT-0",
+        assigneeId: "u1",
+        status: "MISSED",
+        from: "2026-06-16",
+        to: "2026-06-30",
+      },
+      "supervisor-1",
+      "SUPERVISOR",
+    );
+    expect(findRoutesPage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filters: {
+          q: "RT-0",
+          assigneeId: "u1",
+          status: "MISSED",
+          from: new Date("2026-06-16T00:00:00.000Z"),
+          to: new Date("2026-06-30T00:00:00.000Z"),
+        },
+        today: TODAY,
+      }),
+    );
+  });
+
+  it("returns summaries with the derived status, code and range", async () => {
+    getDownstreamUserIds.mockResolvedValue(["delegate-1"]);
+    findRoutesPage.mockResolvedValue({
+      routes: [
+        route({
+          userId: "delegate-1",
+          startDate: TOMORROW,
+          endDate: NEXT_WEEK,
+          items: [item({ status: "COMPLETED" }), item({ id: "item-2" })],
+        }),
+      ],
+      total: 1,
+    });
+
+    const { items } = await listRoutesForAssignment(
+      { page: 1, pageSize: 20 },
+      "supervisor-1",
+      "SUPERVISOR",
+    );
+    expect(items[0]).toMatchObject({
+      code: "RT-00001",
+      status: "IN_PROGRESS",
+      startDate: TOMORROW,
+      endDate: NEXT_WEEK,
+    });
+  });
+});
+
+describe("getRouteForManagement", () => {
+  it("returns the route for someone who may act on it", async () => {
+    findRouteById.mockResolvedValue(route({ createdBy: "supervisor-1", items: [item()] }));
+
+    const result = await getRouteForManagement("route-1", "supervisor-1", "SUPERVISOR");
+    expect(result?.id).toBe("route-1");
+  });
+
+  it("returns null — same as not found — for a route the actor can't act on", async () => {
+    findRouteById.mockResolvedValue(route({ createdBy: "someone-else" }));
+
+    await expect(
+      getRouteForManagement("route-1", "supervisor-1", "SUPERVISOR"),
+    ).resolves.toBeNull();
+    findRouteById.mockResolvedValue(null);
+    await expect(getRouteForManagement("nope", "supervisor-1", "SUPERVISOR")).resolves.toBeNull();
+  });
+});
+
+describe("getMyRoutesForHome", () => {
+  // TODAY = Monday 2026-06-15 -> this week 15–21 June, upcoming 22–28 June.
+  const MON_THIS = new Date("2026-06-15T00:00:00.000Z");
+  const SUN_THIS = new Date("2026-06-21T00:00:00.000Z");
+  const MON_NEXT = new Date("2026-06-22T00:00:00.000Z");
+  const SUN_NEXT = new Date("2026-06-28T00:00:00.000Z");
+  const mine = (overrides: Record<string, unknown>) =>
+    route({ userId: "delegate-1", items: [item()], ...overrides });
+
+  it("asks only for the signed-in user's own routes, across this week and the next", async () => {
+    findRoutesForVisitorOverlapping.mockResolvedValue([]);
+
+    await getMyRoutesForHome("delegate-1");
+    expect(findRoutesForVisitorOverlapping).toHaveBeenCalledWith("delegate-1", MON_THIS, SUN_NEXT);
+  });
+
+  it("places a route in the week(s) its range overlaps", async () => {
+    findRoutesForVisitorOverlapping.mockResolvedValue([
+      mine({ id: "now", startDate: MON_THIS, endDate: SUN_THIS }),
+      mine({ id: "later", startDate: MON_NEXT, endDate: SUN_NEXT }),
+    ]);
+
+    const home = await getMyRoutesForHome("delegate-1");
+    expect(home.thisWeek.routes.map((r) => r.id)).toEqual(["now"]);
+    expect(home.upcomingWeek.routes.map((r) => r.id)).toEqual(["later"]);
+    expect(home.thisWeek.range).toEqual({ start: MON_THIS, end: SUN_THIS });
+    expect(home.upcomingWeek.range).toEqual({ start: MON_NEXT, end: SUN_NEXT });
+  });
+
+  it("shows a route spanning both weeks once per section — whole, as one assignment", async () => {
+    findRoutesForVisitorOverlapping.mockResolvedValue([
+      mine({
+        id: "spans",
+        startDate: new Date("2026-06-19T00:00:00.000Z"),
+        endDate: new Date("2026-06-24T00:00:00.000Z"),
+        items: [
+          item({ id: "i1", contacts: [contactRow()] }),
+          item({
+            id: "i2",
+            center: { id: "center-2", territoryId: "t", name: "B", code: "B", type: { name: "H" } },
+          }),
+        ],
+      }),
+    ]);
+    findCenterContactLinks.mockResolvedValue([link("center-1", "contact-1")]);
+
+    const home = await getMyRoutesForHome("delegate-1");
+    expect(home.thisWeek.routes).toHaveLength(1);
+    expect(home.upcomingWeek.routes).toHaveLength(1);
+    // Same route in both, every center and contact intact — not split by week.
+    expect(home.thisWeek.routes[0]?.items).toHaveLength(2);
+    expect(home.upcomingWeek.routes[0]?.items).toHaveLength(2);
+    expect(home.upcomingWeek.routes[0]?.items[0]?.contacts).toHaveLength(1);
+    expect(home.thisWeek.routes[0]?.id).toBe(home.upcomingWeek.routes[0]?.id);
+  });
+
+  it("counts a range that only touches a week on its boundary day", async () => {
+    findRoutesForVisitorOverlapping.mockResolvedValue([
+      mine({ id: "ends-sun", startDate: new Date("2026-06-10T00:00:00.000Z"), endDate: MON_THIS }),
+      mine({
+        id: "starts-sun",
+        startDate: SUN_THIS,
+        endDate: new Date("2026-06-30T00:00:00.000Z"),
+      }),
+    ]);
+
+    const home = await getMyRoutesForHome("delegate-1");
+    expect(home.thisWeek.routes.map((r) => r.id)).toEqual(["ends-sun", "starts-sun"]);
+    expect(home.upcomingWeek.routes.map((r) => r.id)).toEqual(["starts-sun"]);
+  });
+
+  it("leaves cancelled routes out but keeps completed ones while their range overlaps", async () => {
+    findRoutesForVisitorOverlapping.mockResolvedValue([
+      mine({
+        id: "cancelled",
+        startDate: MON_THIS,
+        endDate: SUN_THIS,
+        items: [item({ status: "CANCELLED" })],
+      }),
+      mine({
+        id: "done",
+        startDate: MON_THIS,
+        endDate: SUN_THIS,
+        items: [item({ status: "COMPLETED" })],
+      }),
+    ]);
+
+    const home = await getMyRoutesForHome("delegate-1");
+    expect(home.thisWeek.routes.map((r) => r.id)).toEqual(["done"]);
+    expect(home.thisWeek.routes[0]?.status).toBe("COMPLETED");
+  });
+
+  it("uses Monday–Sunday weeks in Kinshasa: on a Sunday evening UTC it is already the next week there", async () => {
+    findRoutesForVisitorOverlapping.mockResolvedValue([]);
+    // Sun 21 June 23:30 UTC = Mon 22 June 00:30 in Kinshasa.
+    await getMyRoutesForHome("delegate-1", new Date("2026-06-21T23:30:00.000Z"));
+    expect(findRoutesForVisitorOverlapping).toHaveBeenCalledWith(
+      "delegate-1",
+      MON_NEXT,
+      new Date("2026-07-05T00:00:00.000Z"),
+    );
+  });
+
+  it("returns empty sections when nothing is assigned", async () => {
+    findRoutesForVisitorOverlapping.mockResolvedValue([]);
+
+    const home = await getMyRoutesForHome("delegate-1");
+    expect(home.thisWeek.routes).toEqual([]);
+    expect(home.upcomingWeek.routes).toEqual([]);
+  });
+});
+
+describe("searchAssignableRoutesForActor", () => {
+  it("asks only for the actor's own unassigned drafts (ADMIN: anyone's), bounded", async () => {
+    searchAssignableRoutes.mockResolvedValue([]);
+
+    await searchAssignableRoutesForActor({ q: "rt", limit: 20 }, "supervisor-1", "SUPERVISOR");
+    expect(searchAssignableRoutes).toHaveBeenCalledWith({
+      creatorId: "supervisor-1",
+      isAdmin: false,
+      q: "rt",
+      limit: 20,
+    });
+
+    await searchAssignableRoutesForActor({ q: "", limit: 20 }, "admin-1", "ADMIN");
+    expect(searchAssignableRoutes).toHaveBeenLastCalledWith(
+      expect.objectContaining({ isAdmin: true }),
+    );
+  });
+
+  it("describes each route by code, center and contact counts", async () => {
+    searchAssignableRoutes.mockResolvedValue([
+      {
+        id: "r1",
+        code: "RT-00007",
+        items: [
+          { status: "PENDING", center: { name: "Alpha" }, contacts: [{ id: "a" }, { id: "b" }] },
+          { status: "PENDING", center: { name: "Beta" }, contacts: [] },
+        ],
+      },
+    ]);
+
+    const [row] = await searchAssignableRoutesForActor({ q: "", limit: 20 }, "s", "SUPERVISOR");
+    expect(row).toEqual({
+      id: "r1",
+      code: "RT-00007",
+      centerCount: 2,
+      contactCount: 2,
+      centerNames: ["Alpha", "Beta"],
+    });
+  });
+});
+
+describe("searchAssigneesForActor", () => {
+  it("restricts a non-admin to themselves and their downstream team, active users only", async () => {
+    getDownstreamUserIds.mockResolvedValue(["d1", "d2"]);
+    searchActiveUsers.mockResolvedValue([]);
+
+    await searchAssigneesForActor({ q: "jo", limit: 20 }, "supervisor-1", "SUPERVISOR");
+    expect(searchActiveUsers).toHaveBeenCalledWith({
+      ids: ["supervisor-1", "d1", "d2"],
+      q: "jo",
+      limit: 20,
+    });
+  });
+
+  it("lets ADMIN search every active user", async () => {
+    searchActiveUsers.mockResolvedValue([]);
+
+    await searchAssigneesForActor({ q: "", limit: 20 }, "admin-1", "ADMIN");
+    expect(searchActiveUsers).toHaveBeenCalledWith({ ids: undefined, q: "", limit: 20 });
+    expect(getDownstreamUserIds).not.toHaveBeenCalled();
+  });
+
+  it("maps users to a safe shape", async () => {
+    getDownstreamUserIds.mockResolvedValue([]);
+    searchActiveUsers.mockResolvedValue([
+      { id: "u1", name: "Jo", employeeCode: "E1", role: { name: "DELEGATE" }, passwordHash: "x" },
+    ]);
+
+    const [user] = await searchAssigneesForActor({ q: "", limit: 20 }, "s", "SUPERVISOR");
+    expect(user).toEqual({ id: "u1", name: "Jo", employeeCode: "E1", roleName: "DELEGATE" });
+  });
+});
+
+describe("getAssigneeFilterLabel", () => {
+  it("names a user inside the actor's reach", async () => {
+    getDownstreamUserIds.mockResolvedValue(["d1"]);
+    findUserById.mockResolvedValue({ name: "Jo", employeeCode: "E1", status: "ACTIVE" });
+
+    await expect(getAssigneeFilterLabel("d1", "supervisor-1", "SUPERVISOR")).resolves.toBe(
+      "Jo (E1)",
+    );
+  });
+
+  it("returns nothing for an id outside the actor's reach, without looking the user up", async () => {
+    getDownstreamUserIds.mockResolvedValue(["d1"]);
+
+    await expect(
+      getAssigneeFilterLabel("stranger", "supervisor-1", "SUPERVISOR"),
+    ).resolves.toBeNull();
+    expect(findUserById).not.toHaveBeenCalled();
   });
 });

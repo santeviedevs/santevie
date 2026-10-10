@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { RouteContactList, type RouteContactRow } from "@/components/route-contact-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatDate } from "@/lib/format-date";
+import { formatDateRange } from "@/lib/format-date";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 
 import {
@@ -28,7 +28,9 @@ type RouteItem = {
 };
 type RouteGroup = {
   id: string;
-  date: string | null;
+  code: string;
+  startDate: string | null;
+  endDate: string | null;
   createdByName: string | null;
   items: RouteItem[];
 };
@@ -140,7 +142,10 @@ export function MyVisitsList({
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <h3 className="flex items-center gap-2 text-sm font-semibold">
               <CalendarDays className="size-4 text-muted-foreground" aria-hidden />
-              {route.date ? formatDate(new Date(route.date)) : dict.noDateYet}
+              {route.code}
+              {route.startDate && route.endDate
+                ? ` · ${formatDateRange(route.startDate, route.endDate)}`
+                : ` · ${dict.noDateYet}`}
             </h3>
             {route.createdByName ? (
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">

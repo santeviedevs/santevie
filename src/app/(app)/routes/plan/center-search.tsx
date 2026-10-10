@@ -11,10 +11,9 @@ import {
   ComboboxItem,
   ComboboxTrigger,
 } from "@/components/ui/combobox";
+import { useTypeahead } from "@/lib/hooks/use-typeahead";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import { ROUTE_SEARCH_LIMIT } from "@/lib/schemas/route";
-
-import { useTypeahead } from "./use-typeahead";
 
 export type CenterResult = {
   id: string;

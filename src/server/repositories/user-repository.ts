@@ -195,3 +195,21 @@ export function listUsersByRoleIds(roleIds: string[]) {
     orderBy: { name: "asc" },
   });
 }
+
+// Type-ahead for the Assign Routes form's "Assign To" field — restricted to
+// the ids the actor may assign to (themselves + their downstream team,
+// passed in by the service), active users only, matched on name or employee
+// code, bounded by `limit`. `ids` undefined means no restriction (ADMIN).
+export function searchActiveUsers(params: { ids: string[] | undefined; q: string; limit: number }) {
+  const contains = { contains: params.q, mode: "insensitive" as const };
+  return prisma.user.findMany({
+    where: {
+      status: "ACTIVE",
+      ...(params.ids ? { id: { in: params.ids } } : {}),
+      ...(params.q ? { OR: [{ name: contains }, { employeeCode: contains }] } : {}),
+    },
+    select: { id: true, name: true, employeeCode: true, role: { select: { name: true } } },
+    orderBy: { name: "asc" },
+    take: params.limit,
+  });
+}

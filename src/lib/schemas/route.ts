@@ -1,27 +1,28 @@
 import { z } from "zod";
 
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
+import { todayInKinshasa } from "@/lib/week";
+
 const id = z.string().min(1);
 
-// A route locks the moment its date begins — same shape of decision as
-// S3-02's MAX_ACCEPTABLE_ACCURACY_METERS: a single named constant, not
-// DB-editable (confirmed with the user: keep this simple for S3-06, unlike
-// S3-04's attendance thresholds which the user explicitly wanted
-// admin-configurable). 0 means "no grace past midnight" — a route for today
-// can no longer be edited once today has started; it must be set up the
-// day before (or earlier that same day, before midnight).
+// A route locks the moment its startDate begins (in Africa/Kinshasa) — same
+// shape of decision as S3-02's MAX_ACCEPTABLE_ACCURACY_METERS: a single
+// rule, not DB-editable (confirmed with the user: keep this simple for
+// S3-06, unlike S3-04's attendance thresholds which the user explicitly
+// wanted admin-configurable). A route for today can no longer be edited
+// once today has started; it must be set up the day before.
+
 // Why a saved Contact on a route is flagged: its Contact<->Center link was
 // removed since, or the Contact went inactive. Lives here (not in the
 // service) because client components display it.
 export type RouteContactIssue = "NOT_ASSOCIATED" | "INACTIVE";
 
-export const ROUTE_EDIT_CUTOFF_HOUR = 0;
-
-// A route with no date yet (still unassigned) is always editable — there's
-// nothing for a cutoff to be relative to. Once assigned, the existing rule
-// applies: editable while `now` is still strictly before the date.
-export function isRouteEditable(routeDate: Date | null, now: Date = new Date()): boolean {
-  if (!routeDate) return true;
-  return now.getTime() < routeDate.getTime();
+// A route with no start date yet (still unassigned) is always editable —
+// there's nothing for a cutoff to be relative to. Once assigned, it is
+// editable while today (Kinshasa) is strictly before the start date.
+export function isRouteEditable(startDate: Date | null, now: Date = new Date()): boolean {
+  if (!startDate) return true;
+  return todayInKinshasa(now).getTime() < startDate.getTime();
 }
 
 // Hard ceiling on a type-ahead result list — the Center and Contact search
@@ -110,18 +111,80 @@ export const contactSearchQuerySchema = z.object({
 });
 export type ContactSearchQuery = z.infer<typeof contactSearchQuerySchema>;
 
-// The one action on the Assignment screen that actually writes — covers
-// both first-time assignment (route currently unassigned) and reassignment
-// (route already assigned to someone else); the service decides which based
-// on the route's current state.
-export const assignRouteSchema = z.object({
-  routeId: id,
-  targetUserId: id,
-  date: z.iso.date(),
-});
+// Assigning (or reassigning) a route: who, and for which date range. The
+// range is flexible — any start..end, end not before start. "Start not
+// before today" needs the clock, so the service checks it; the schema only
+// checks the shape.
+export const assignRouteSchema = z
+  .object({
+    routeId: id,
+    targetUserId: id,
+    startDate: z.iso.date(),
+    endDate: z.iso.date(),
+  })
+  .refine((input) => input.endDate >= input.startDate, {
+    message: "The end date can't be before the start date.",
+    path: ["endDate"],
+  });
 export type AssignRouteInput = z.infer<typeof assignRouteSchema>;
 
 export const cancelRouteAssignmentSchema = z.object({
   routeId: id,
 });
 export type CancelRouteAssignmentInput = z.infer<typeof cancelRouteAssignmentSchema>;
+
+// The route's status as shown in the Assign Routes table. Never stored — it
+// is derived from the assignment and the items' statuses (see
+// deriveRouteStatus in route-service.ts).
+export const ROUTE_STATUSES = [
+  "UNASSIGNED",
+  "ASSIGNED",
+  "IN_PROGRESS",
+  "MISSED",
+  "COMPLETED",
+  "CANCELLED",
+] as const;
+export type RouteStatus = (typeof ROUTE_STATUSES)[number];
+
+// The Assign Routes table lists existing assignments only, so UNASSIGNED is
+// not something it can be filtered by (unassigned routes are picked in the
+// form above it instead).
+export const ROUTE_FILTER_STATUSES = ROUTE_STATUSES.filter(
+  (status): status is Exclude<RouteStatus, "UNASSIGNED"> => status !== "UNASSIGNED",
+);
+
+// Type-ahead for the assign form's two dropdowns (unassigned routes; users
+// the actor may assign to). Same bounded-result convention as the center
+// and contact searches.
+export const routeSearchQuerySchema = z.object({
+  q: searchText,
+  limit: searchLimit,
+});
+export type RouteSearchQuery = z.infer<typeof routeSearchQuerySchema>;
+
+export const assigneeSearchQuerySchema = z.object({
+  q: searchText,
+  limit: searchLimit,
+});
+export type AssigneeSearchQuery = z.infer<typeof assigneeSearchQuerySchema>;
+
+export const ROUTE_TABLE_PAGE_SIZE = 10;
+
+// URL query of the Assign Routes table. Every field degrades to "absent"
+// when malformed rather than failing the whole page (same stance as
+// paginationParamsSchema): a bad query string should still render a table.
+export const routeFiltersSchema = z.object({
+  q: z.string().trim().max(100).optional().catch(undefined),
+  assigneeId: id.optional().catch(undefined),
+  status: z.enum(ROUTE_FILTER_STATUSES).optional().catch(undefined),
+  from: z.iso.date().optional().catch(undefined),
+  to: z.iso.date().optional().catch(undefined),
+  page: z.coerce.number().int().min(1).catch(1),
+  pageSize: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .catch(ROUTE_TABLE_PAGE_SIZE)
+    .transform((value) => Math.min(value, MAX_PAGE_SIZE)),
+});
+export type RouteFilters = z.infer<typeof routeFiltersSchema>;

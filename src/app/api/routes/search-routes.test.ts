@@ -16,6 +16,8 @@ class CenterNotFoundError extends Error {}
 class InactiveCenterError extends Error {}
 const searchCentersForRoute = vi.fn();
 const searchContactsForRouteCenter = vi.fn();
+const searchAssignableRoutesForActor = vi.fn();
+const searchAssigneesForActor = vi.fn();
 vi.mock("@/server/services/route-service", () => ({
   RouteNotAuthorizedError,
   CenterOutsideTerritoryError,
@@ -23,9 +25,13 @@ vi.mock("@/server/services/route-service", () => ({
   InactiveCenterError,
   searchCentersForRoute,
   searchContactsForRouteCenter,
+  searchAssignableRoutesForActor,
+  searchAssigneesForActor,
 }));
 
 const { GET: searchCenters } = await import("./centers/route");
+const { GET: searchAssignableRoutes } = await import("./assignable-routes/route");
+const { GET: searchAssignees } = await import("./assignees/route");
 const { GET: searchContacts } = await import("./centers/[centerId]/contacts/route");
 
 const SESSION = { user: { id: "u1", roleName: "SUPERVISOR" } };
@@ -151,5 +157,43 @@ describe("GET /api/routes/centers/[centerId]/contacts", () => {
       contactsParams(),
     );
     expect(response.status).toBe(400);
+  });
+});
+
+describe.each([
+  [
+    "GET /api/routes/assignable-routes",
+    searchAssignableRoutes,
+    searchAssignableRoutesForActor,
+    "routes",
+    "assignable-routes",
+  ],
+  ["GET /api/routes/assignees", searchAssignees, searchAssigneesForActor, "users", "assignees"],
+] as const)("%s", (_name, handler, service, key, path) => {
+  const url = (query = "") => new Request(`http://x/api/routes/${path}${query}`);
+
+  it("requires routes:assign-team — a Delegate gets 403, an expired session 401", async () => {
+    requirePermission.mockRejectedValueOnce(new ForbiddenError("no"));
+    expect((await handler(url())).status).toBe(403);
+
+    requirePermission.mockRejectedValueOnce(new SessionExpiredError());
+    expect((await handler(url())).status).toBe(401);
+
+    expect(service).not.toHaveBeenCalled();
+    expect(requirePermission).toHaveBeenCalledWith("routes:assign-team");
+  });
+
+  it("returns 400 for an out-of-range limit instead of throwing", async () => {
+    expect((await handler(url("?limit=999"))).status).toBe(400);
+    expect(service).not.toHaveBeenCalled();
+  });
+
+  it("searches as the signed-in user with the parsed, bounded query", async () => {
+    service.mockResolvedValue([{ id: "x" }]);
+
+    const response = await handler(url("?q=ab"));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ [key]: [{ id: "x" }] });
+    expect(service).toHaveBeenCalledWith({ q: "ab", limit: 20 }, "u1", "SUPERVISOR");
   });
 });

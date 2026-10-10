@@ -31,7 +31,9 @@ export default async function RouteVisitsPage() {
       <RouteList
         routes={routes.map((route) => ({
           id: route.id,
-          date: route.date ? route.date.toISOString() : null,
+          code: route.code,
+          startDate: route.startDate ? route.startDate.toISOString() : null,
+          endDate: route.endDate ? route.endDate.toISOString() : null,
           visitorName: route.visitorName,
           editable: route.editable,
           items: route.items,

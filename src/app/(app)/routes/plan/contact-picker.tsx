@@ -7,10 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { useTypeahead } from "@/lib/hooks/use-typeahead";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import { ROUTE_SEARCH_LIMIT, type RouteContactIssue } from "@/lib/schemas/route";
-
-import { useTypeahead } from "./use-typeahead";
 
 export type SelectedContact = {
   contactId: string;

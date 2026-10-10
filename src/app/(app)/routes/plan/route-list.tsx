@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatDate } from "@/lib/format-date";
+import { formatDateRange } from "@/lib/format-date";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 
 type RouteItem = {
@@ -13,7 +13,9 @@ type RouteItem = {
 };
 type RouteGroup = {
   id: string;
-  date: string | null;
+  code: string;
+  startDate: string | null;
+  endDate: string | null;
   visitorName: string | null;
   editable: boolean;
   items: RouteItem[];
@@ -56,8 +58,10 @@ export function RouteList({
           >
             <div className="flex flex-col gap-1">
               <h3 className="text-sm font-semibold">
-                {route.visitorName ?? dict.unassignedLabel}
-                {route.date ? ` — ${formatDate(new Date(route.date))}` : ` (${dict.noDateYet})`}
+                {route.code} · {route.visitorName ?? dict.unassignedLabel}
+                {route.startDate && route.endDate
+                  ? ` — ${formatDateRange(route.startDate, route.endDate)}`
+                  : ` (${dict.noDateYet})`}
               </h3>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-muted-foreground">

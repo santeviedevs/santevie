@@ -23,7 +23,9 @@ export async function enrichRouteForVisits(
 
   return {
     id: route.id,
-    date: route.date ? route.date.toISOString() : null,
+    code: route.code,
+    startDate: route.startDate ? route.startDate.toISOString() : null,
+    endDate: route.endDate ? route.endDate.toISOString() : null,
     visitorName: route.visitorName,
     editable: route.editable,
     items: route.items,
