@@ -3,13 +3,14 @@ import { redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { getServerDictionary } from "@/lib/i18n/server";
+import { todayInKinshasa } from "@/lib/week";
 import { auth } from "@/server/auth";
 import { hasPermission } from "@/server/auth/permissions";
 import { getMyFollowUps } from "@/server/services/follow-up-service";
 import { getMyRoutesForHome } from "@/server/services/route-service";
 
-import { FollowUpsWidget } from "./activities/follow-ups-widget";
-import { MyRoutesSection } from "./my-routes-section";
+import { HomeFollowUpsList } from "./home-follow-ups";
+import { PlannedVisitsSection } from "./planned-visits-section";
 
 // User-scoped — it shows the signed-in user's own routes and follow-ups.
 export const dynamic = "force-dynamic";
@@ -41,23 +42,26 @@ async function HomeRoutes({ userId }: { userId: string }) {
   const dict = await getServerDictionary();
   const routes = await getMyRoutesForHome(userId);
 
-  return <MyRoutesSection routes={routes} dict={dict.routesPage} />;
+  return <PlannedVisitsSection routes={routes} dict={dict.routesPage} />;
 }
 
 async function HomeFollowUps({ userId }: { userId: string }) {
   const dict = await getServerDictionary();
   const t = dict.activitiesPage;
-  const { pending, overdue } = await getMyFollowUps(userId);
+  const { pending } = await getMyFollowUps(userId);
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-medium">{t.followUpsHeading}</h2>
+        <div>
+          <h2 className="text-sm font-medium">{t.homeFollowUpsHeading}</h2>
+          <p className="text-xs text-muted-foreground">{t.homeFollowUpsHelp}</p>
+        </div>
         <Button render={<Link href="/activities/follow-ups" />} variant="outline" size="sm">
           {t.myFollowUps}
         </Button>
       </div>
-      <FollowUpsWidget pending={pending} overdue={overdue} dict={t} />
+      <HomeFollowUpsList pending={pending} today={todayInKinshasa()} dict={t} />
     </div>
   );
 }

@@ -24,15 +24,19 @@ vi.mock("@/server/services/route-service", () => ({ getMyRoutesForHome }));
 vi.mock("@/lib/i18n/server", () => ({
   getServerDictionary: vi.fn().mockResolvedValue({
     nav: { home: "Home" },
-    activitiesPage: { followUpsHeading: "Pending follow-ups", myFollowUps: "My Follow-Ups" },
+    activitiesPage: {
+      homeFollowUpsHeading: "Follow-ups",
+      homeFollowUpsHelp: "Follow-ups that need your attention.",
+      myFollowUps: "My Follow-Ups",
+    },
   }),
 }));
 
-vi.mock("./my-routes-section", () => ({ MyRoutesSection: () => null }));
+vi.mock("./planned-visits-section", () => ({ PlannedVisitsSection: () => null }));
 
-// The widget is a client component with its own server-action imports;
+// The list is a client component with its own server-action imports;
 // irrelevant to what's under test here.
-vi.mock("./activities/follow-ups-widget", () => ({ FollowUpsWidget: () => null }));
+vi.mock("./home-follow-ups", () => ({ HomeFollowUpsList: () => null }));
 
 const { default: Home } = await import("./page");
 

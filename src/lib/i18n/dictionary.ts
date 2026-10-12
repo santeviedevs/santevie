@@ -557,6 +557,9 @@ export type Dictionary = {
     contactVisitCancelled: string;
     cancelRemaining: string;
     contactsCountSuffix: string;
+    plannedVisitsHeading: string;
+    plannedVisitsHelp: string;
+    colPeriod: string;
   };
   // S3-07's marketing activity planning and follow-ups — one screen
   // combining the pending/overdue widget, the create form, and the month
@@ -565,6 +568,9 @@ export type Dictionary = {
     title: string;
     myFollowUps: string;
     followUpsHeading: string;
+    homeFollowUpsHeading: string;
+    homeFollowUpsHelp: string;
+    dueToday: string;
     newActivity: string;
     typeLabel: string;
     typeCampaign: string;
@@ -1391,11 +1397,17 @@ const en: Dictionary = {
     contactVisitCancelled: "Contact visit cancelled",
     cancelRemaining: "Cancel remaining visits",
     contactsCountSuffix: "contacts",
+    plannedVisitsHeading: "Planned Visits",
+    plannedVisitsHelp: "Your upcoming visits for this week and next week.",
+    colPeriod: "Period",
   },
   activitiesPage: {
     title: "Marketing Activities",
     myFollowUps: "My Follow-Ups",
     followUpsHeading: "Pending follow-ups",
+    homeFollowUpsHeading: "Follow-ups",
+    homeFollowUpsHelp: "Follow-ups that need your attention.",
+    dueToday: "Due today",
     newActivity: "New activity",
     typeLabel: "Type",
     typeCampaign: "Campaign",
@@ -2200,11 +2212,17 @@ const fr: Dictionary = {
     contactVisitCancelled: "Visite du contact annulée",
     cancelRemaining: "Annuler les visites restantes",
     contactsCountSuffix: "contacts",
+    plannedVisitsHeading: "Visites planifiées",
+    plannedVisitsHelp: "Vos visites à venir pour cette semaine et la semaine prochaine.",
+    colPeriod: "Période",
   },
   activitiesPage: {
     title: "Activités marketing",
     myFollowUps: "Mes suivis",
     followUpsHeading: "Suivis en attente",
+    homeFollowUpsHeading: "Suivis",
+    homeFollowUpsHelp: "Suivis nécessitant votre attention.",
+    dueToday: "À faire aujourd'hui",
     newActivity: "Nouvelle activité",
     typeLabel: "Type",
     typeCampaign: "Campagne",
