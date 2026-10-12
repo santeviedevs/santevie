@@ -100,3 +100,60 @@ describe("RouteFilters", () => {
     expect(replace).toHaveBeenCalledWith("/routes/assign");
   });
 });
+
+describe("RouteFilters without the status filter (Add Routes)", () => {
+  it("offers only search, assignee, From and To — in that order, in one row", () => {
+    const { container } = render(
+      <RouteFilters filters={base} assigneeLabel={null} showStatus={false} dict={dict} />,
+    );
+
+    expect(screen.queryByLabelText("colStatus")).not.toBeInTheDocument();
+    const row = container.firstElementChild as HTMLElement;
+    expect(row.className).toContain("lg:flex-nowrap");
+
+    const [from, to] = Array.from(row.querySelectorAll<HTMLInputElement>("input[type='date']"));
+    const ordered = [
+      screen.getByLabelText("filterSearchPlaceholder"),
+      screen.getByPlaceholderText("filterAnyAssignee"),
+      from!,
+      to!,
+    ];
+    for (let i = 0; i < ordered.length - 1; i++) {
+      expect(ordered[i]!.compareDocumentPosition(ordered[i + 1]!)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+    }
+  });
+
+  it("keeps the same URL behaviour: filter change drops the page, To can't precede From", () => {
+    search = "page=4";
+    const { container } = render(
+      <RouteFilters
+        filters={{ ...base, from: "2026-06-20" }}
+        assigneeLabel={null}
+        showStatus={false}
+        dict={dict}
+      />,
+    );
+    const [from, to] = Array.from(
+      container.querySelectorAll<HTMLInputElement>("input[type='date']"),
+    );
+
+    expect(to).toHaveAttribute("min", "2026-06-20");
+    fireEvent.change(from!, { target: { value: "2026-06-22" } });
+    expect(replace).toHaveBeenCalledWith("/routes/assign?from=2026-06-22");
+  });
+
+  it("doesn't treat a stray status in the URL as an active filter", () => {
+    render(
+      <RouteFilters
+        filters={{ ...base, status: "MISSED" }}
+        assigneeLabel={null}
+        showStatus={false}
+        dict={dict}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "filterClear" })).not.toBeInTheDocument();
+  });
+});

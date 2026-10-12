@@ -6,7 +6,11 @@ const requirePermission = vi.fn();
 vi.mock("@/server/auth/require-permission", () => ({ requirePermission }));
 
 const listRoutesForContent = vi.fn();
-vi.mock("@/server/services/route-service", () => ({ listRoutesForContent }));
+const getAssigneeFilterLabel = vi.fn();
+vi.mock("@/server/services/route-service", () => ({
+  listRoutesForContent,
+  getAssigneeFilterLabel,
+}));
 
 vi.mock("@/lib/i18n/server", () => ({
   getServerDictionary: vi.fn(async () => getDictionary("en")),
@@ -15,6 +19,7 @@ vi.mock("@/lib/i18n/server", () => ({
 vi.mock("next/link", () => ({ default: () => null }));
 vi.mock("@/components/pagination-controls", () => ({ PaginationControls: () => null }));
 vi.mock("../route-tabs", () => ({ RouteTabs: () => null }));
+vi.mock("../route-filters", () => ({ RouteFilters: () => null }));
 vi.mock("./route-list", () => ({ RouteList: () => null }));
 
 const { default: Page } = await import("./page");
@@ -60,6 +65,53 @@ describe("Add Routes page", () => {
       { page: 1, pageSize: 10 },
       "sup-1",
       "SUPERVISOR",
+    );
+  });
+
+  it("has search, assignee and date-range filters only — no status filter", async () => {
+    const page = await render();
+    const [filters] = findAll(page, byName("RouteFilters"));
+
+    expect(filters!.props).toMatchObject({ showStatus: false });
+  });
+
+  it("reads the filters from the URL and hands them to the service", async () => {
+    await render({
+      q: " RT-1 ",
+      assigneeId: "u1",
+      from: "2026-06-01",
+      to: "2026-06-30",
+      page: "2",
+    });
+
+    expect(listRoutesForContent).toHaveBeenCalledWith(
+      { q: "RT-1", assigneeId: "u1", from: "2026-06-01", to: "2026-06-30", page: 2, pageSize: 10 },
+      "sup-1",
+      "SUPERVISOR",
+    );
+  });
+
+  it("resolves the selected assignee's name for the filter, within the actor's reach", async () => {
+    getAssigneeFilterLabel.mockResolvedValue("Jo (E1)");
+    const page = await render({ assigneeId: "u1" });
+    const [filters] = findAll(page, byName("RouteFilters"));
+
+    expect(getAssigneeFilterLabel).toHaveBeenCalledWith("u1", "sup-1", "SUPERVISOR");
+    expect(filters!.props).toMatchObject({ assigneeLabel: "Jo (E1)" });
+  });
+
+  it("doesn't look an assignee up when none is selected", async () => {
+    await render();
+    expect(getAssigneeFilterLabel).not.toHaveBeenCalled();
+  });
+
+  it("uses a 'no routes match' message when filters are active, the plain one otherwise", async () => {
+    const plain = await render();
+    expect(findAll(plain, byName("RouteList"))[0]!.props!.emptyLabel).toBe("No routes yet.");
+
+    const filtered = await render({ q: "zzz" });
+    expect(findAll(filtered, byName("RouteList"))[0]!.props!.emptyLabel).toBe(
+      "No routes match these filters.",
     );
   });
 

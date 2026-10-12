@@ -66,9 +66,17 @@ function RouteCodeCell({ route, dict }: { route: RouteGroupSummary; dict: Dict }
 // route (its code is the real link, for keyboard and screen readers); there
 // is no separate Edit button. From md up it is a table, below it stacked rows
 // so a phone never scrolls sideways.
-export function RouteList({ routes, dict }: { routes: RouteGroupSummary[]; dict: Dict }) {
+export function RouteList({
+  routes,
+  dict,
+  emptyLabel,
+}: {
+  routes: RouteGroupSummary[];
+  dict: Dict;
+  emptyLabel: string;
+}) {
   if (routes.length === 0) {
-    return <p className="text-sm text-muted-foreground">{dict.noRoutesYet}</p>;
+    return <p className="text-sm text-muted-foreground">{emptyLabel}</p>;
   }
 
   return (

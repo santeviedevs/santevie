@@ -446,18 +446,36 @@ export async function getPermittedTerritoryIds(userId: string): Promise<Set<stri
   return ids;
 }
 
+// Whose assigned routes the actor's lists may show: their own and everyone
+// downstream of them (ADMIN: anyone's — undefined means "no restriction").
+// The actor is included so a route they assigned to themselves stays visible
+// to them; assertCanActOnRoute already lets the assignee act on it.
+async function assignedScopeUserIds(
+  actorId: string,
+  actorRoleName: string,
+): Promise<string[] | undefined> {
+  if (actorRoleName === "ADMIN") return undefined;
+  return [actorId, ...(await getDownstreamUserIds(actorId))];
+}
+
 // Add Routes list — the actor's own unassigned drafts plus any route already
-// assigned within their downstream chain (ADMIN: all), one page at a time,
-// newest first. Same scope as the Assign Routes table.
+// assigned to them or within their downstream chain (ADMIN: all), one page at a time,
+// newest first, narrowed by search, assignee and date range. Same scope as
+// the Assign Routes table.
 export async function listRoutesForContent(
   params: RouteListParams,
   actorId: string,
   actorRoleName: string,
 ): Promise<PagedResult<RouteGroupSummary>> {
-  const assignedUserIds =
-    actorRoleName === "ADMIN" ? undefined : await getDownstreamUserIds(actorId);
+  const assignedUserIds = await assignedScopeUserIds(actorId, actorRoleName);
   const { routes, total } = await findEditableRoutesPage({
     scope: { creatorId: actorId, assignedUserIds },
+    filters: {
+      q: params.q || undefined,
+      assigneeId: params.assigneeId,
+      from: params.from ? parseDateOnly(params.from) : undefined,
+      to: params.to ? parseDateOnly(params.to) : undefined,
+    },
     ...toSkipTake(params),
   });
   return {
@@ -477,8 +495,7 @@ export async function listRoutesForAssignment(
   actorId: string,
   actorRoleName: string,
 ): Promise<PagedResult<RouteGroupSummary>> {
-  const assignedUserIds =
-    actorRoleName === "ADMIN" ? undefined : await getDownstreamUserIds(actorId);
+  const assignedUserIds = await assignedScopeUserIds(actorId, actorRoleName);
   const now = new Date();
   const { routes, total } = await findRoutesPage({
     scope: { creatorId: actorId, assignedUserIds },

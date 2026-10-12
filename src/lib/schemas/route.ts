@@ -170,11 +170,15 @@ export type AssigneeSearchQuery = z.infer<typeof assigneeSearchQuerySchema>;
 
 export const ROUTE_TABLE_PAGE_SIZE = 10;
 
-// URL query of the Add Routes list: pagination only. Malformed values fall
-// back to page 1 / the same default size as the Assign Routes table, and an
-// oversized page size is clamped to the shared ceiling — same stance as
-// routeFiltersSchema.
+// URL query of the Add Routes list: search, assignee and date range, plus
+// pagination. Malformed values fall back to "absent" / page 1 / the same
+// default size as the Assign Routes table, and an oversized page size is
+// clamped to the shared ceiling — same stance as routeFiltersSchema.
 export const routeListParamsSchema = z.object({
+  q: z.string().trim().max(100).optional().catch(undefined),
+  assigneeId: id.optional().catch(undefined),
+  from: z.iso.date().optional().catch(undefined),
+  to: z.iso.date().optional().catch(undefined),
   page: z.coerce.number().int().min(1).catch(1),
   pageSize: z.coerce
     .number()
