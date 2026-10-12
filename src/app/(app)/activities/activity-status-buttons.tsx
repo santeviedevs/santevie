@@ -6,16 +6,16 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 
-import { type ActivityFormState, updateActivityStatusAction } from "./actions";
+import { type ActivityFormState, updateAssignmentStatusAction } from "./actions";
 
-// The assignee's way to respond: mark a planned activity done or cancel it.
-// Only rendered for a PLANNED activity the viewer owns (or, for a manager,
-// manages) — the server re-checks both.
+// The assignee's way to respond: mark their planned assignment done or
+// cancel it. Only rendered for a PLANNED assignment the viewer holds (or,
+// for a manager, manages) — the server re-checks both.
 export function ActivityStatusButtons({
-  activityId,
+  assignmentId,
   dict,
 }: {
-  activityId: string;
+  assignmentId: string;
   dict: Dictionary["activitiesPage"];
 }) {
   const [isPending, startTransition] = useTransition();
@@ -25,9 +25,12 @@ export function ActivityStatusButtons({
     setError(null);
     startTransition(async () => {
       const formData = new FormData();
-      formData.set("id", activityId);
+      formData.set("assignmentId", assignmentId);
       formData.set("status", status);
-      const result: ActivityFormState = await updateActivityStatusAction({ error: null }, formData);
+      const result: ActivityFormState = await updateAssignmentStatusAction(
+        { error: null },
+        formData,
+      );
       if (result.error) {
         setError(result.error);
         return;

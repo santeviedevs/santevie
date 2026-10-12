@@ -3,13 +3,20 @@ import { prisma } from "@/server/db";
 import type { Prisma } from "../../../generated/prisma/client";
 
 const listInclude = {
-  activity: {
+  assignment: {
     select: {
       id: true,
-      type: true,
-      date: true,
-      center: { select: { id: true, name: true } },
-      territory: { select: { id: true, code: true } },
+      userId: true,
+      scheduledDate: true,
+      activity: {
+        select: {
+          id: true,
+          name: true,
+          type: true,
+          center: { select: { id: true, name: true } },
+          territory: { select: { id: true, code: true } },
+        },
+      },
     },
   },
 } satisfies Prisma.FollowUpInclude;
@@ -32,22 +39,25 @@ export function completeFollowUpRow(id: string, actorId: string): Promise<Follow
   });
 }
 
-// Every PENDING follow-up owned by `ownerId`, regardless of due date — the
-// caller (follow-up-service.ts) splits this into "pending" vs "overdue"
-// relative to the business date it's asked about, rather than this query
-// baking in a notion of "today" itself.
-export function findPendingFollowUpsForOwner(ownerId: string): Promise<FollowUpRow[]> {
+// Every PENDING follow-up raised against this one user's assignments,
+// regardless of due date — the caller (follow-up-service.ts) splits this
+// into "pending" vs "overdue" relative to the business date it's asked
+// about, rather than this query baking in a notion of "today" itself.
+export function findPendingFollowUpsForUser(userId: string): Promise<FollowUpRow[]> {
   return prisma.followUp.findMany({
-    where: { ownerId, status: "PENDING" },
+    where: { status: "PENDING", assignment: { userId } },
     include: listInclude,
     orderBy: { dueDate: "asc" },
   });
 }
 
-// `ownerIds: undefined` means unrestricted (ADMIN).
-export function findPendingFollowUps(ownerIds: string[] | undefined): Promise<FollowUpRow[]> {
+// `userIds: undefined` means unrestricted (ADMIN).
+export function findPendingFollowUps(userIds: string[] | undefined): Promise<FollowUpRow[]> {
   return prisma.followUp.findMany({
-    where: { status: "PENDING", ...(ownerIds ? { ownerId: { in: ownerIds } } : {}) },
+    where: {
+      status: "PENDING",
+      ...(userIds ? { assignment: { userId: { in: userIds } } } : {}),
+    },
     include: listInclude,
     orderBy: { dueDate: "asc" },
   });

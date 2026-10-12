@@ -2,14 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const createFollowUpRow = vi.fn();
 const completeFollowUpRow = vi.fn();
-const findPendingFollowUpsForOwner = vi.fn();
+const findPendingFollowUpsForUser = vi.fn();
 const findPendingFollowUps = vi.fn();
 const findFollowUpById = vi.fn();
 vi.mock("@/server/repositories/follow-up-repository", () => ({
   createFollowUpRow,
   completeFollowUpRow,
   findFollowUpById,
-  findPendingFollowUpsForOwner,
+  findPendingFollowUpsForUser,
   findPendingFollowUps,
 }));
 
@@ -19,35 +19,40 @@ vi.mock("@/server/scope", () => ({ getUserScope, scopeUserIds }));
 
 // The ownership rule itself is covered in activity-service.test.ts; here it
 // is only a gate that either lets the call through or throws.
-const getActivityForAction = vi.fn();
+const getAssignmentForAction = vi.fn();
 vi.mock("./activity-service", async () => {
   const actual = await vi.importActual<typeof import("./activity-service")>("./activity-service");
-  return { ...actual, getActivityForAction };
+  return { ...actual, getAssignmentForAction };
 });
 
-const {
-  ActivityUnassignedError,
-  completeFollowUp,
-  createFollowUp,
-  getMyFollowUps,
-  getTeamOverdueFollowUps,
-} = await import("./follow-up-service");
-const { ActivityNotAuthorizedError, ActivityNotFoundError } = await import("./activity-service");
+const { completeFollowUp, createFollowUp, getMyFollowUps, getTeamOverdueFollowUps } =
+  await import("./follow-up-service");
+const { ActivityNotAuthorizedError, AssignmentNotActionableError, AssignmentNotFoundError } =
+  await import("./activity-service");
 
 const NOW = new Date("2026-06-15T12:00:00.000Z");
 
-function followUp(id: string, dueDate: string, status: "PENDING" | "DONE", ownerId = "owner-1") {
+function followUp(
+  id: string,
+  dueDate: string,
+  status: "PENDING" | "DONE",
+  assignmentUserId = "owner-1",
+) {
   return {
     id,
     dueDate: new Date(dueDate),
     status,
-    ownerId,
-    activity: {
-      id: "activity-1",
-      type: "CAMPAIGN",
-      date: new Date(dueDate),
-      center: null,
-      territory: null,
+    assignment: {
+      id: "assignment-1",
+      userId: assignmentUserId,
+      activity: {
+        id: "activity-1",
+        name: "Spring campaign",
+        type: "CAMPAIGN",
+        date: new Date(dueDate),
+        center: null,
+        territory: null,
+      },
     },
   };
 }
@@ -58,7 +63,7 @@ beforeEach(() => {
 
 describe("getMyFollowUps overdue calculation", () => {
   it("a follow-up due yesterday with PENDING status counts as overdue", async () => {
-    findPendingFollowUpsForOwner.mockResolvedValue([
+    findPendingFollowUpsForUser.mockResolvedValue([
       followUp("f-1", "2026-06-14T00:00:00.000Z", "PENDING"),
     ]);
 
@@ -70,7 +75,7 @@ describe("getMyFollowUps overdue calculation", () => {
   });
 
   it("a follow-up due tomorrow does not count as overdue, but is still pending", async () => {
-    findPendingFollowUpsForOwner.mockResolvedValue([
+    findPendingFollowUpsForUser.mockResolvedValue([
       followUp("f-2", "2026-06-16T00:00:00.000Z", "PENDING"),
     ]);
 
@@ -81,10 +86,7 @@ describe("getMyFollowUps overdue calculation", () => {
   });
 
   it("a DONE follow-up never appears — the repository query itself already excludes it", async () => {
-    // findPendingFollowUpsForOwner only ever returns PENDING rows (query
-    // filters status: "PENDING"), so a completed follow-up due yesterday
-    // simply isn't in what the mock returns here.
-    findPendingFollowUpsForOwner.mockResolvedValue([]);
+    findPendingFollowUpsForUser.mockResolvedValue([]);
 
     const { pending, overdue } = await getMyFollowUps("owner-1", NOW);
 
@@ -120,37 +122,41 @@ describe("getTeamOverdueFollowUps scope enforcement", () => {
 describe("createFollowUp", () => {
   const MANAGER = { user: { id: "manager-1", roleName: "MANAGER" } };
 
-  it("gives the follow-up to the activity's assignee, not the creator", async () => {
-    getActivityForAction.mockResolvedValue({ id: "activity-1", ownerId: "delegate-1" });
+  it("creates the follow-up against the given assignment", async () => {
+    getAssignmentForAction.mockResolvedValue({
+      id: "assignment-1",
+      status: "PLANNED",
+      userId: "delegate-1",
+    });
     createFollowUpRow.mockResolvedValue(followUp("f-1", "2026-06-20T00:00:00.000Z", "PENDING"));
 
-    await createFollowUp({ activityId: "activity-1", dueDate: "2026-06-20" }, MANAGER, true);
+    await createFollowUp({ assignmentId: "assignment-1", dueDate: "2026-06-20" }, MANAGER, true);
 
     const data = createFollowUpRow.mock.calls[0]![0];
-    expect(data.owner).toEqual({ connect: { id: "delegate-1" } });
+    expect(data.assignment).toEqual({ connect: { id: "assignment-1" } });
     expect(data.createdBy).toBe("manager-1");
   });
 
-  it("refuses a follow-up on an unassigned activity", async () => {
-    getActivityForAction.mockResolvedValue({ id: "activity-1", ownerId: null });
+  it("refuses a follow-up on an assignment that's no longer planned", async () => {
+    getAssignmentForAction.mockResolvedValue({ id: "assignment-1", status: "CANCELLED" });
 
     await expect(
-      createFollowUp({ activityId: "activity-1", dueDate: "2026-06-20" }, MANAGER, true),
-    ).rejects.toBeInstanceOf(ActivityUnassignedError);
+      createFollowUp({ assignmentId: "assignment-1", dueDate: "2026-06-20" }, MANAGER, true),
+    ).rejects.toBeInstanceOf(AssignmentNotActionableError);
     expect(createFollowUpRow).not.toHaveBeenCalled();
   });
 
   it("propagates the ownership check failing", async () => {
-    getActivityForAction.mockRejectedValue(new ActivityNotAuthorizedError());
+    getAssignmentForAction.mockRejectedValue(new ActivityNotAuthorizedError());
 
     await expect(
-      createFollowUp({ activityId: "activity-1", dueDate: "2026-06-20" }, MANAGER, false),
+      createFollowUp({ assignmentId: "assignment-1", dueDate: "2026-06-20" }, MANAGER, false),
     ).rejects.toBeInstanceOf(ActivityNotAuthorizedError);
   });
 });
 
 describe("completeFollowUp", () => {
-  it("lets the follow-up's owner complete it", async () => {
+  it("lets the follow-up's assignee complete it", async () => {
     findFollowUpById.mockResolvedValue(
       followUp("f-1", "2026-06-14T00:00:00.000Z", "PENDING", "owner-1"),
     );
@@ -178,7 +184,7 @@ describe("completeFollowUp", () => {
     findFollowUpById.mockResolvedValue(null);
 
     await expect(completeFollowUp("missing", "owner-1")).rejects.toBeInstanceOf(
-      ActivityNotFoundError,
+      AssignmentNotFoundError,
     );
   });
 });

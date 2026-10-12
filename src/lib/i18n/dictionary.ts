@@ -37,6 +37,7 @@ export type Dictionary = {
     visits: string;
     activitiesGroup: string;
     activities: string;
+    myActivities: string;
     followUps: string;
   };
   header: {
@@ -572,6 +573,7 @@ export type Dictionary = {
     homeFollowUpsHelp: string;
     dueToday: string;
     newActivity: string;
+    nameLabel: string;
     typeLabel: string;
     typeCampaign: string;
     typeEvent: string;
@@ -608,6 +610,7 @@ export type Dictionary = {
     newActivityPageTitle: string;
     newActivityButton: string;
     noActivities: string;
+    noActivitiesMatch: string;
     unassignedLabel: string;
     assignedToPrefix: string;
     assignToLabel: string;
@@ -622,8 +625,49 @@ export type Dictionary = {
     markActivityDone: string;
     markActivityCancelled: string;
     activityUpdated: string;
-    filterAll: string;
-    filterUnassigned: string;
+    // My Activities sub-nav
+    subTabActivities: string;
+    // Activity List table + filters
+    colActivity: string;
+    colType: string;
+    colAssignees: string;
+    colCreatedBy: string;
+    colCreatedOn: string;
+    colStatus: string;
+    filterSearchPlaceholder: string;
+    filterAllTypes: string;
+    filterAllStatuses: string;
+    filterFrom: string;
+    filterTo: string;
+    filterClear: string;
+    // Activity detail/edit page
+    editActivityTitle: string;
+    backToActivityList: string;
+    assignmentsHeading: string;
+    noAssignments: string;
+    // Assignment screen: controls, table, filters
+    activityFieldLabel: string;
+    addAction: string;
+    assignFormIncomplete: string;
+    searchActivitiesPlaceholder: string;
+    noMatchingActivities: string;
+    searchAssigneesPlaceholder: string;
+    noMatchingAssignees: string;
+    searching: string;
+    searchFailed: string;
+    colAssignedTo: string;
+    colScheduledDate: string;
+    noAssignmentsYet: string;
+    noAssignmentsMatch: string;
+    // Assignment detail/manage page
+    assignmentDetailTitle: string;
+    backToAssignmentList: string;
+    reassignHeading: string;
+    cancelAssignmentAction: string;
+    cancelAssignmentConfirm: string;
+    assignmentCancelled: string;
+    assignmentReassigned: string;
+    noActionsHint: string;
   };
   // The Calendar screen: a month-grid view of the viewer's own holidays,
   // weekly-offs and leave status, plus a Holidays tab (the same
@@ -937,6 +981,7 @@ const en: Dictionary = {
     visits: "Visits",
     activitiesGroup: "Marketing",
     activities: "Activities",
+    myActivities: "My Activities",
     followUps: "Follow-Ups",
   },
   header: {
@@ -1409,6 +1454,7 @@ const en: Dictionary = {
     homeFollowUpsHelp: "Follow-ups that need your attention.",
     dueToday: "Due today",
     newActivity: "New activity",
+    nameLabel: "Name",
     typeLabel: "Type",
     typeCampaign: "Campaign",
     typeEvent: "Event",
@@ -1445,6 +1491,7 @@ const en: Dictionary = {
     newActivityPageTitle: "New activity",
     newActivityButton: "New activity",
     noActivities: "No activities yet.",
+    noActivitiesMatch: "No activities match these filters.",
     unassignedLabel: "Unassigned",
     assignedToPrefix: "Assigned to",
     assignToLabel: "Assign to",
@@ -1459,8 +1506,45 @@ const en: Dictionary = {
     markActivityDone: "Mark done",
     markActivityCancelled: "Cancel",
     activityUpdated: "Activity updated",
-    filterAll: "All",
-    filterUnassigned: "Unassigned only",
+    subTabActivities: "Activities",
+    colActivity: "Activity",
+    colType: "Type",
+    colAssignees: "Assignees",
+    colCreatedBy: "Created by",
+    colCreatedOn: "Created on",
+    colStatus: "Status",
+    filterSearchPlaceholder: "Search by activity name...",
+    filterAllTypes: "All types",
+    filterAllStatuses: "All statuses",
+    filterFrom: "From",
+    filterTo: "To",
+    filterClear: "Clear filters",
+    editActivityTitle: "Edit activity",
+    backToActivityList: "Back to activity list",
+    assignmentsHeading: "Assignments",
+    noAssignments: "No one is assigned to this activity yet.",
+    activityFieldLabel: "Activity",
+    addAction: "+ Add",
+    assignFormIncomplete: "Choose an activity and an assignee.",
+    searchActivitiesPlaceholder: "Search activities...",
+    noMatchingActivities: "No matching activities.",
+    searchAssigneesPlaceholder: "Search assignees...",
+    noMatchingAssignees: "No matching assignees.",
+    searching: "Searching...",
+    searchFailed: "Search failed.",
+    colAssignedTo: "Assigned to",
+    colScheduledDate: "Date",
+    noAssignmentsYet: "No assignments yet.",
+    noAssignmentsMatch: "No assignments match these filters.",
+    assignmentDetailTitle: "Assignment",
+    backToAssignmentList: "Back to assignment",
+    reassignHeading: "Reassign",
+    cancelAssignmentAction: "Cancel assignment",
+    cancelAssignmentConfirm:
+      "This cancels only this one assignment. Other assignments on the same activity, if any, are not affected.",
+    assignmentCancelled: "Assignment cancelled",
+    assignmentReassigned: "Assignment reassigned",
+    noActionsHint: "This assignment is no longer planned, so it can't be changed.",
   },
   calendarPage: {
     tabCalendar: "Calendar",
@@ -1749,6 +1833,7 @@ const fr: Dictionary = {
     visits: "Visites",
     activitiesGroup: "Marketing",
     activities: "Activités",
+    myActivities: "Mes activités",
     followUps: "Suivis",
   },
   header: {
@@ -2224,6 +2309,7 @@ const fr: Dictionary = {
     homeFollowUpsHelp: "Suivis nécessitant votre attention.",
     dueToday: "À faire aujourd'hui",
     newActivity: "Nouvelle activité",
+    nameLabel: "Nom",
     typeLabel: "Type",
     typeCampaign: "Campagne",
     typeEvent: "Événement",
@@ -2260,6 +2346,7 @@ const fr: Dictionary = {
     newActivityPageTitle: "Nouvelle activité",
     newActivityButton: "Nouvelle activité",
     noActivities: "Aucune activité pour le moment.",
+    noActivitiesMatch: "Aucune activité ne correspond à ces filtres.",
     unassignedLabel: "Non affectée",
     assignedToPrefix: "Affectée à",
     assignToLabel: "Affecter à",
@@ -2274,8 +2361,45 @@ const fr: Dictionary = {
     markActivityDone: "Marquer comme faite",
     markActivityCancelled: "Annuler",
     activityUpdated: "Activité mise à jour",
-    filterAll: "Toutes",
-    filterUnassigned: "Non affectées seulement",
+    subTabActivities: "Activités",
+    colActivity: "Activité",
+    colType: "Type",
+    colAssignees: "Affectés",
+    colCreatedBy: "Créée par",
+    colCreatedOn: "Créée le",
+    colStatus: "Statut",
+    filterSearchPlaceholder: "Rechercher par nom d'activité...",
+    filterAllTypes: "Tous les types",
+    filterAllStatuses: "Tous les statuts",
+    filterFrom: "Du",
+    filterTo: "Au",
+    filterClear: "Effacer les filtres",
+    editActivityTitle: "Modifier l'activité",
+    backToActivityList: "Retour à la liste des activités",
+    assignmentsHeading: "Affectations",
+    noAssignments: "Personne n'est encore affecté à cette activité.",
+    activityFieldLabel: "Activité",
+    addAction: "+ Ajouter",
+    assignFormIncomplete: "Choisissez une activité et un affecté.",
+    searchActivitiesPlaceholder: "Rechercher des activités...",
+    noMatchingActivities: "Aucune activité correspondante.",
+    searchAssigneesPlaceholder: "Rechercher des affectés...",
+    noMatchingAssignees: "Aucun affecté correspondant.",
+    searching: "Recherche...",
+    searchFailed: "La recherche a échoué.",
+    colAssignedTo: "Affecté à",
+    colScheduledDate: "Date",
+    noAssignmentsYet: "Aucune affectation pour le moment.",
+    noAssignmentsMatch: "Aucune affectation ne correspond à ces filtres.",
+    assignmentDetailTitle: "Affectation",
+    backToAssignmentList: "Retour à l'affectation",
+    reassignHeading: "Réaffecter",
+    cancelAssignmentAction: "Annuler l'affectation",
+    cancelAssignmentConfirm:
+      "Seule cette affectation sera annulée. Les autres affectations de la même activité, s'il y en a, ne sont pas concernées.",
+    assignmentCancelled: "Affectation annulée",
+    assignmentReassigned: "Affectation réaffectée",
+    noActionsHint: "Cette affectation n'est plus planifiée, elle ne peut plus être modifiée.",
   },
   calendarPage: {
     tabCalendar: "Calendrier",

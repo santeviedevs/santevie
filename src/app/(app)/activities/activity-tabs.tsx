@@ -3,11 +3,12 @@ import Link from "next/link";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import { cn } from "@/lib/utils";
 
-type ActivityTabKey = "list" | "assign" | "calendar" | "mine";
+type ActivityTabKey = "list" | "assign" | "calendar";
 
 // Route-based pill bar, same pattern as calendar/calendar-tabs.tsx. A
-// manager (activities:assign) gets the full set; everyone else sees only the
-// activities assigned to them and the calendar of those same activities.
+// manager (activities:assign) gets the full set — the team-wide Activity
+// List, Assignment and Calendar screens. My Activities and Follow-Ups live
+// outside this group, as their own sidebar entries under Marketing.
 export function ActivityTabs({
   active,
   canAssign,
@@ -23,10 +24,7 @@ export function ActivityTabs({
         { key: "assign", href: "/activities/assign", label: dict.tabAssignment },
         { key: "calendar", href: "/activities/calendar", label: dict.tabCalendar },
       ]
-    : [
-        { key: "mine", href: "/activities", label: dict.tabMyActivities },
-        { key: "calendar", href: "/activities/calendar", label: dict.tabCalendar },
-      ];
+    : [{ key: "calendar", href: "/activities/calendar", label: dict.tabCalendar }];
 
   return (
     <div className="inline-flex w-fit gap-1 rounded-lg bg-muted p-1">

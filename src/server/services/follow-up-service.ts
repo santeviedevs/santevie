@@ -4,25 +4,27 @@ import {
   createFollowUpRow,
   findFollowUpById,
   findPendingFollowUps,
-  findPendingFollowUpsForOwner,
+  findPendingFollowUpsForUser,
   type FollowUpRow,
 } from "@/server/repositories/follow-up-repository";
 import { getUserScope, type ScopeSession, scopeUserIds } from "@/server/scope";
 
 import {
   ActivityNotAuthorizedError,
-  ActivityNotFoundError,
-  getActivityForAction,
+  AssignmentNotActionableError,
+  AssignmentNotFoundError,
+  getAssignmentForAction,
 } from "./activity-service";
 
 export type FollowUpSummary = {
   id: string;
   dueDate: Date;
   status: string;
+  assignmentId: string;
   activity: {
     id: string;
+    name: string;
     type: string;
-    date: Date;
     center: { id: string; name: string } | null;
     territory: { id: string; code: string } | null;
   };
@@ -33,42 +35,37 @@ function toSummary(row: FollowUpRow): FollowUpSummary {
     id: row.id,
     dueDate: row.dueDate,
     status: row.status,
-    activity: row.activity,
+    assignmentId: row.assignment.id,
+    activity: row.assignment.activity,
   };
 }
 
-export class ActivityUnassignedError extends Error {
-  constructor() {
-    super("Assign this activity to someone before adding a follow-up.");
-    this.name = "ActivityUnassignedError";
-  }
-}
-
-// The follow-up belongs to the activity's assignee, whoever creates it — a
-// manager adding one for their team doesn't take ownership of it.
+// The follow-up belongs to the assignment it's raised against, whoever
+// creates it — a manager adding one for their team doesn't take ownership
+// of it. The assignment must still be PLANNED: no point raising a follow-up
+// against work that's already done or cancelled.
 export async function createFollowUp(
   input: CreateFollowUpInput,
   session: ScopeSession,
   canAssign: boolean,
 ): Promise<FollowUpSummary> {
-  const activity = await getActivityForAction(input.activityId, session, canAssign);
-  if (!activity.ownerId) throw new ActivityUnassignedError();
+  const assignment = await getAssignmentForAction(input.assignmentId, session, canAssign);
+  if (assignment.status !== "PLANNED") throw new AssignmentNotActionableError();
 
   const created = await createFollowUpRow({
-    activity: { connect: { id: input.activityId } },
+    assignment: { connect: { id: input.assignmentId } },
     dueDate: new Date(input.dueDate),
-    owner: { connect: { id: activity.ownerId } },
     createdBy: session.user.id,
     updatedBy: session.user.id,
   });
   return toSummary(created);
 }
 
-// Only the follow-up's own owner can complete it.
+// Only the follow-up's own assignee can complete it.
 export async function completeFollowUp(id: string, actorId: string): Promise<FollowUpSummary> {
   const followUp = await findFollowUpById(id);
-  if (!followUp) throw new ActivityNotFoundError();
-  if (followUp.ownerId !== actorId) throw new ActivityNotAuthorizedError();
+  if (!followUp) throw new AssignmentNotFoundError();
+  if (followUp.assignment.userId !== actorId) throw new ActivityNotAuthorizedError();
 
   const updated = await completeFollowUpRow(id, actorId);
   return toSummary(updated);
@@ -82,7 +79,7 @@ export async function getMyFollowUps(
   userId: string,
   asOf: Date = new Date(),
 ): Promise<{ pending: FollowUpSummary[]; overdue: FollowUpSummary[] }> {
-  const rows = await findPendingFollowUpsForOwner(userId);
+  const rows = await findPendingFollowUpsForUser(userId);
   const summaries = rows.map(toSummary);
   const overdue = summaries.filter((f) => f.dueDate.getTime() < asOf.getTime());
   return { pending: summaries, overdue };

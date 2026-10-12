@@ -3,9 +3,12 @@
 import { revalidatePath } from "next/cache";
 
 import {
-  assignActivitySchema,
+  cancelAssignmentSchema,
   createActivitySchema,
-  updateActivityStatusSchema,
+  createAssignmentSchema,
+  reassignAssignmentSchema,
+  updateActivitySchema,
+  updateAssignmentStatusSchema,
 } from "@/lib/schemas/activity";
 import { completeFollowUpSchema, createFollowUpSchema } from "@/lib/schemas/follow-up";
 import { hasPermission, type Permission } from "@/server/auth/permissions";
@@ -13,17 +16,18 @@ import { requirePermission, SessionExpiredError } from "@/server/auth/require-pe
 import {
   ActivityNotAuthorizedError,
   ActivityNotFoundError,
-  ActivityNotReassignableError,
-  assignActivity,
   AssigneeOutsideScopeError,
+  AssignmentNotActionableError,
+  AssignmentNotFoundError,
+  cancelAssignment,
   createActivity,
-  updateActivityStatus,
+  createAssignment,
+  DuplicateAssignmentError,
+  reassignAssignment,
+  updateActivity,
+  updateAssignmentStatus,
 } from "@/server/services/activity-service";
-import {
-  ActivityUnassignedError,
-  completeFollowUp,
-  createFollowUp,
-} from "@/server/services/follow-up-service";
+import { completeFollowUp, createFollowUp } from "@/server/services/follow-up-service";
 
 export type ActivityFormState = { error: string | null; sessionExpired?: boolean };
 
@@ -36,16 +40,16 @@ async function requireActivityPermission(permission: Permission) {
   }
 }
 
-// Same shape as mapRouteError in routes/actions.ts: a known business-rule
-// error becomes a user-facing message, anything else is a real failure and
-// is rethrown.
+// A known business-rule error becomes a user-facing message; anything else
+// is a real failure and is rethrown.
 function mapActivityError(error: unknown): string {
   if (
     error instanceof ActivityNotFoundError ||
     error instanceof ActivityNotAuthorizedError ||
-    error instanceof ActivityNotReassignableError ||
     error instanceof AssigneeOutsideScopeError ||
-    error instanceof ActivityUnassignedError
+    error instanceof AssignmentNotFoundError ||
+    error instanceof AssignmentNotActionableError ||
+    error instanceof DuplicateAssignmentError
   ) {
     return error.message;
   }
@@ -54,12 +58,13 @@ function mapActivityError(error: unknown): string {
 
 function revalidateActivityScreens() {
   // "layout" covers every route under /activities (list, assignment,
-  // calendar, follow-ups), however the tabs are split across routes.
+  // calendar, follow-ups, detail pages), however the tabs are split across
+  // routes.
   revalidatePath("/activities", "layout");
 }
 
-// Creating is a manager action: the activity starts unassigned and is given
-// to someone on the Assignment step.
+// Creating is a manager action: the activity starts unassigned — the
+// Assignment screen is where it's given to one or more people.
 export async function createActivityAction(
   _prevState: ActivityFormState,
   formData: FormData,
@@ -68,6 +73,7 @@ export async function createActivityAction(
   if (!session) return { error: null, sessionExpired: true };
 
   const parsed = createActivitySchema.safeParse({
+    name: formData.get("name"),
     type: formData.get("type"),
     date: formData.get("date"),
     centerId: formData.get("centerId") || undefined,
@@ -84,23 +90,28 @@ export async function createActivityAction(
   return { error: null };
 }
 
-export async function assignActivityAction(
+export async function updateActivityAction(
   _prevState: ActivityFormState,
   formData: FormData,
 ): Promise<ActivityFormState> {
   const session = await requireActivityPermission("activities:assign");
   if (!session) return { error: null, sessionExpired: true };
 
-  const parsed = assignActivitySchema.safeParse({
+  const parsed = updateActivitySchema.safeParse({
     id: formData.get("id"),
-    ownerId: formData.get("ownerId"),
+    name: formData.get("name"),
+    type: formData.get("type"),
+    date: formData.get("date"),
+    centerId: formData.get("centerId") || undefined,
+    territoryId: formData.get("territoryId") || undefined,
+    notes: formData.get("notes") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check the highlighted fields." };
   }
 
   try {
-    await assignActivity(parsed.data, session);
+    await updateActivity(parsed.data, session, true);
   } catch (error) {
     return { error: mapActivityError(error) };
   }
@@ -109,15 +120,89 @@ export async function assignActivityAction(
   return { error: null };
 }
 
-export async function updateActivityStatusAction(
+export async function createAssignmentAction(
+  _prevState: ActivityFormState,
+  formData: FormData,
+): Promise<ActivityFormState> {
+  const session = await requireActivityPermission("activities:assign");
+  if (!session) return { error: null, sessionExpired: true };
+
+  const parsed = createAssignmentSchema.safeParse({
+    activityId: formData.get("activityId"),
+    userId: formData.get("userId"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Check the highlighted fields." };
+  }
+
+  try {
+    await createAssignment(parsed.data, session);
+  } catch (error) {
+    return { error: mapActivityError(error) };
+  }
+
+  revalidateActivityScreens();
+  return { error: null };
+}
+
+export async function reassignAssignmentAction(
+  _prevState: ActivityFormState,
+  formData: FormData,
+): Promise<ActivityFormState> {
+  const session = await requireActivityPermission("activities:assign");
+  if (!session) return { error: null, sessionExpired: true };
+
+  const parsed = reassignAssignmentSchema.safeParse({
+    assignmentId: formData.get("assignmentId"),
+    userId: formData.get("userId"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Check the highlighted fields." };
+  }
+
+  try {
+    await reassignAssignment(parsed.data, session);
+  } catch (error) {
+    return { error: mapActivityError(error) };
+  }
+
+  revalidateActivityScreens();
+  return { error: null };
+}
+
+export async function cancelAssignmentAction(
+  _prevState: ActivityFormState,
+  formData: FormData,
+): Promise<ActivityFormState> {
+  const session = await requireActivityPermission("activities:assign");
+  if (!session) return { error: null, sessionExpired: true };
+
+  const parsed = cancelAssignmentSchema.safeParse({
+    assignmentId: formData.get("assignmentId"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Check the highlighted fields." };
+  }
+
+  try {
+    await cancelAssignment(parsed.data.assignmentId, session);
+  } catch (error) {
+    return { error: mapActivityError(error) };
+  }
+
+  revalidateActivityScreens();
+  return { error: null };
+}
+
+export async function updateAssignmentStatusAction(
   _prevState: ActivityFormState,
   formData: FormData,
 ): Promise<ActivityFormState> {
   const session = await requireActivityPermission("activities:respond-own");
   if (!session) return { error: null, sessionExpired: true };
 
-  const parsed = updateActivityStatusSchema.safeParse({
-    id: formData.get("id"),
+  const parsed = updateAssignmentStatusSchema.safeParse({
+    assignmentId: formData.get("assignmentId"),
     status: formData.get("status"),
   });
   if (!parsed.success) {
@@ -125,9 +210,9 @@ export async function updateActivityStatusAction(
   }
 
   try {
-    await updateActivityStatus(
-      parsed.data.id,
-      parsed.data.status,
+    await updateAssignmentStatus(
+      parsed.data.assignmentId,
+      parsed.data.status as "DONE" | "CANCELLED",
       session,
       hasPermission(session.user.permissions, "activities:assign"),
     );
@@ -147,7 +232,7 @@ export async function createFollowUpAction(
   if (!session) return { error: null, sessionExpired: true };
 
   const parsed = createFollowUpSchema.safeParse({
-    activityId: formData.get("activityId"),
+    assignmentId: formData.get("assignmentId"),
     dueDate: formData.get("dueDate"),
   });
   if (!parsed.success) {

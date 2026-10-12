@@ -56,7 +56,9 @@ enum ActivityType {
   OTHER
 }
 
-enum ActivityStatus {
+// Per-assignment, not per-activity: the same activity can be assigned to
+// several users at once, each tracked independently (see ActivityAssignment).
+enum ActivityAssignmentStatus {
   PLANNED
   DONE
   CANCELLED
@@ -180,8 +182,7 @@ model User {
   targetedAttendanceRules AttendanceRule[]          @relation("AttendanceRuleTarget")
   routes                  Route[]
   routeAssignments        RouteAssignment[]
-  ownedActivities         Activity[]
-  ownedFollowUps          FollowUp[]
+  activityAssignments     ActivityAssignment[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -1024,13 +1025,15 @@ model RouteItemContact {
 
 // Exactly one of centerId/territoryId is set, enforced at the Zod boundary
 // (src/lib/schemas/activity.ts), not at this level — Prisma has no native
-// "exactly one of" column constraint.
+// "exactly one of" column constraint. The activity itself carries no
+// assignee or status: who's doing it, and how that's going, is tracked per
+// assignment below, since the same activity can be assigned to several users
+// at once (unlike Route, which has exactly one holder at a time).
 model Activity {
-  id     String         @id @default(cuid())
-  type   ActivityType
-  date   DateTime
-  status ActivityStatus @default(PLANNED)
-  notes  String?
+  id    String       @id @default(cuid())
+  name  String
+  type  ActivityType
+  notes String?
 
   centerId String?
   center   Center? @relation(fields: [centerId], references: [id])
@@ -1038,10 +1041,33 @@ model Activity {
   territoryId String?
   territory   Territory? @relation(fields: [territoryId], references: [id])
 
-  // Null = created but not yet assigned. Only a manager assigns (see
-  // activities:assign); an unassigned activity has no owner to follow up with.
-  ownerId String?
-  owner   User?   @relation(fields: [ownerId], references: [id])
+  assignments ActivityAssignment[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("activities")
+}
+
+// One row per assignee. Reassigning or cancelling one assignment never
+// touches another assignment on the same activity — mirrors the
+// Route/RouteAssignment split (the activity is the content; this is who's
+// doing it), except here more than one row can be PLANNED for the same
+// activity at once, by design. `scheduledDate` lives here, not on Activity:
+// scheduling happens at assignment time, and different assignees of the
+// same activity can be scheduled on different dates.
+model ActivityAssignment {
+  id            String                   @id @default(cuid())
+  status        ActivityAssignmentStatus @default(PLANNED)
+  scheduledDate DateTime
+
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id])
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
   followUps FollowUp[]
 
@@ -1050,13 +1076,17 @@ model Activity {
   updatedBy String?
   updatedAt DateTime @updatedAt
 
-  @@index([ownerId])
-  @@index([date])
-  @@map("activities")
+  @@index([activityId])
+  @@index([userId])
+  @@index([scheduledDate])
+  @@map("activity_assignments")
 }
 
-// Linked to Activity only for now — the doc's "linked to a visit or
-// activity" would also cover Visit, but Visit (while it exists as a bare
+// Linked to an assignment, not the bare activity: with several people
+// possibly assigned to the same activity, each assignee's follow-ups stay
+// theirs, never visible or completable by a different assignee on the same
+// activity. Linked to Activity only for now — the doc's "linked to a visit
+// or activity" would also cover Visit, but Visit (while it exists as a bare
 // table since S1-03) has no working visit-execution feature yet; that's
 // S4-01, Sprint 4. A visitId relation is deferred until that story actually
 // builds visit execution, rather than forward-referencing a feature that
@@ -1066,18 +1096,15 @@ model FollowUp {
   dueDate DateTime
   status  FollowUpStatus @default(PENDING)
 
-  activityId String
-  activity   Activity @relation(fields: [activityId], references: [id])
-
-  ownerId String
-  owner   User   @relation(fields: [ownerId], references: [id])
+  assignmentId String
+  assignment   ActivityAssignment @relation(fields: [assignmentId], references: [id])
 
   createdBy String?
   createdAt DateTime @default(now())
   updatedBy String?
   updatedAt DateTime @updatedAt
 
-  @@index([ownerId])
+  @@index([assignmentId])
   @@index([dueDate])
   @@map("follow_ups")
 }
