@@ -138,7 +138,11 @@ export function MyVisitsList({
   return (
     <div className="flex flex-col gap-6">
       {routes.map((route) => (
-        <div key={route.id} className="flex flex-col gap-2 rounded-md border border-border p-4">
+        <div
+          key={route.id}
+          id={`route-${route.id}`}
+          className="flex scroll-mt-6 flex-col gap-2 rounded-md border border-border p-4"
+        >
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <h3 className="flex items-center gap-2 text-sm font-semibold">
               <CalendarDays className="size-4 text-muted-foreground" aria-hidden />

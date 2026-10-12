@@ -16,25 +16,31 @@ import {
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import { ROUTE_FILTER_STATUSES, type RouteFilters as RouteFiltersValue } from "@/lib/schemas/route";
 
-import { statusLabel } from "../route-status";
-import type { Assignee } from "./assign-form";
+import type { Assignee } from "./assign/assign-form";
+import { statusLabel } from "./route-status";
 
 const ALL = "__all__";
 
-// URL-driven filters for the routes table — same shape as the admin filter
-// bars (e.g. admin/centers/center-filters.tsx): every change rebuilds the
-// query string from scratch without `page`, so a filter change always lands
-// on page 1, and the server re-runs the filtered, paginated query. The search
-// box is debounced; the assignee is a server-side type-ahead like the form's.
+// URL-driven filters shared by the Assign Routes table and the Add Routes
+// list — same shape as the admin filter bars (e.g.
+// admin/centers/center-filters.tsx): every change rebuilds the query string
+// from scratch without `page`, so a filter change always lands on page 1, and
+// the server re-runs the filtered, paginated query. The search box is
+// debounced; the assignee is a server-side type-ahead like the form's. The
+// status filter is optional (`showStatus`): the Assign Routes table has it,
+// the Add Routes list does not.
 export function RouteFilters({
   filters,
   assigneeLabel,
+  showStatus = true,
   dict,
 }: {
-  filters: RouteFiltersValue;
+  filters: Pick<RouteFiltersValue, "q" | "assigneeId" | "from" | "to"> &
+    Partial<Pick<RouteFiltersValue, "status">>;
   // Display text for the assignee currently in the URL, resolved on the
   // server so a reload still shows who is selected.
   assigneeLabel: string | null;
+  showStatus?: boolean;
   dict: Dictionary["routesPage"];
 }) {
   const router = useRouter();
@@ -76,7 +82,7 @@ export function RouteFilters({
   }
 
   const anyFilter = Boolean(
-    filters.q || filters.assigneeId || filters.status || filters.from || filters.to,
+    filters.q || filters.assigneeId || (showStatus && filters.status) || filters.from || filters.to,
   );
 
   return (
@@ -126,29 +132,31 @@ export function RouteFilters({
         />
       </div>
 
-      <Select
-        items={[
-          { value: ALL, label: dict.filterAllStatuses },
-          ...ROUTE_FILTER_STATUSES.map((status) => ({
-            value: status,
-            label: statusLabel(status, dict),
-          })),
-        ]}
-        value={filters.status ?? ALL}
-        onValueChange={(value) => update({ status: value && value !== ALL ? value : "" })}
-      >
-        <SelectTrigger className="w-full sm:w-44 sm:shrink-0" aria-label={dict.colStatus}>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ALL}>{dict.filterAllStatuses}</SelectItem>
-          {ROUTE_FILTER_STATUSES.map((status) => (
-            <SelectItem key={status} value={status}>
-              {statusLabel(status, dict)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {showStatus ? (
+        <Select
+          items={[
+            { value: ALL, label: dict.filterAllStatuses },
+            ...ROUTE_FILTER_STATUSES.map((status) => ({
+              value: status,
+              label: statusLabel(status, dict),
+            })),
+          ]}
+          value={filters.status ?? ALL}
+          onValueChange={(value) => update({ status: value && value !== ALL ? value : "" })}
+        >
+          <SelectTrigger className="w-full sm:w-44 sm:shrink-0" aria-label={dict.colStatus}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>{dict.filterAllStatuses}</SelectItem>
+            {ROUTE_FILTER_STATUSES.map((status) => (
+              <SelectItem key={status} value={status}>
+                {statusLabel(status, dict)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : null}
 
       <label className="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground">
         {dict.filterFrom}

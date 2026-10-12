@@ -95,12 +95,12 @@ beforeEach(() => vi.clearAllMocks());
 
 describe("Add Routes list", () => {
   it("shows the empty message when there are no routes", () => {
-    render(<RouteList routes={[]} dict={dict} />);
+    render(<RouteList routes={[]} dict={dict} emptyLabel="No routes yet." />);
     expect(screen.getByText("No routes yet.")).toBeInTheDocument();
   });
 
   it("has the agreed columns and no Actions column", () => {
-    const { container } = render(<RouteList routes={[route()]} dict={dict} />);
+    const { container } = render(<RouteList routes={[route()]} dict={dict} emptyLabel="" />);
     const headers = within(container.querySelector("table") as HTMLElement).getAllByRole(
       "columnheader",
     );
@@ -115,7 +115,7 @@ describe("Add Routes list", () => {
   });
 
   it("shows the code with its status, the assignee, the period, the centers and the contacts", () => {
-    const { container } = render(<RouteList routes={[route()]} dict={dict} />);
+    const { container } = render(<RouteList routes={[route()]} dict={dict} emptyLabel="" />);
     const row = within(container.querySelector("table tbody tr") as HTMLElement);
 
     expect(row.getByText("RT-00014")).toBeInTheDocument();
@@ -127,7 +127,7 @@ describe("Add Routes list", () => {
   });
 
   it("summarises contact statuses, listing only the ones that occur", () => {
-    const { container } = render(<RouteList routes={[route()]} dict={dict} />);
+    const { container } = render(<RouteList routes={[route()]} dict={dict} emptyLabel="" />);
     expect(
       within(container.querySelector("table tbody tr") as HTMLElement).getByText(
         "(1 completed · 3 pending)",
@@ -138,7 +138,7 @@ describe("Add Routes list", () => {
       id: "r3",
       items: [item(1, [contact(1, "MISSED"), contact(2, "CANCELLED")])],
     });
-    const second = render(<RouteList routes={[all]} dict={dict} />);
+    const second = render(<RouteList routes={[all]} dict={dict} emptyLabel="" />);
     expect(
       within(second.container.querySelector("table tbody tr") as HTMLElement).getByText(
         "(1 missed · 1 cancelled)",
@@ -147,7 +147,7 @@ describe("Add Routes list", () => {
   });
 
   it("clearly marks a route nobody holds yet: Unassigned, with dashes for assignee and period", () => {
-    const { container } = render(<RouteList routes={[unassigned()]} dict={dict} />);
+    const { container } = render(<RouteList routes={[unassigned()]} dict={dict} emptyLabel="" />);
     const row = container.querySelector("table tbody tr") as HTMLElement;
     const cells = within(row).getAllByRole("cell");
 
@@ -157,7 +157,7 @@ describe("Add Routes list", () => {
   });
 
   it("has no Edit button — the code is the link, and the whole row opens the route", () => {
-    const { container } = render(<RouteList routes={[route()]} dict={dict} />);
+    const { container } = render(<RouteList routes={[route()]} dict={dict} emptyLabel="" />);
     const body = within(container.querySelector("table tbody") as HTMLElement);
 
     expect(body.queryByRole("button")).not.toBeInTheDocument();
@@ -169,7 +169,7 @@ describe("Add Routes list", () => {
   });
 
   it("is a plain table with no card border, and visibly interactive on hover", () => {
-    const { container } = render(<RouteList routes={[route()]} dict={dict} />);
+    const { container } = render(<RouteList routes={[route()]} dict={dict} emptyLabel="" />);
     const wrapper = container.querySelector("div.hidden.md\\:block") as HTMLElement;
     const row = container.querySelector("table tbody tr") as HTMLElement;
 
@@ -179,7 +179,7 @@ describe("Add Routes list", () => {
   });
 
   it("renders stacked rows for small screens, each one link to the same page", () => {
-    const { container } = render(<RouteList routes={[route()]} dict={dict} />);
+    const { container } = render(<RouteList routes={[route()]} dict={dict} emptyLabel="" />);
     const card = within(container.querySelector("ul.md\\:hidden") as HTMLElement).getByRole("link");
 
     expect(card).toHaveAttribute("href", "/routes/add/r1");

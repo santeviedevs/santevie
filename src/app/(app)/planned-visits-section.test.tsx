@@ -4,13 +4,25 @@ import { describe, expect, it, vi } from "vitest";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import type { HomeRoutes, RouteGroupSummary } from "@/server/services/route-service";
 
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+
 vi.mock("next/link", () => ({
   default: ({ children, href }: { children: React.ReactNode; href: string }) => (
     <a href={href}>{children}</a>
   ),
 }));
 
-const { MyRoutesSection } = await import("./my-routes-section");
+// jsdom has no ResizeObserver, which the table's scroll container expects.
+vi.stubGlobal(
+  "ResizeObserver",
+  class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  },
+);
+
+const { PlannedVisitsSection } = await import("./planned-visits-section");
 
 // Every dictionary key reads back as its own name, so assertions don't
 // depend on translated copy.
@@ -75,9 +87,9 @@ function home(thisWeek: RouteGroupSummary[], upcoming: RouteGroupSummary[]): Hom
   };
 }
 
-describe("MyRoutesSection", () => {
+describe("PlannedVisitsSection", () => {
   it("shows the clear empty state when nothing is assigned for either week", () => {
-    render(<MyRoutesSection routes={home([], [])} dict={dict} />);
+    render(<PlannedVisitsSection routes={home([], [])} dict={dict} />);
 
     expect(screen.getByText("noRoutesThisWeekOrNext")).toBeInTheDocument();
     expect(screen.queryByText("thisWeekHeading")).not.toBeInTheDocument();
@@ -85,7 +97,7 @@ describe("MyRoutesSection", () => {
 
   it("shows This Week and Upcoming Week as two stacked sections, This Week first", () => {
     render(
-      <MyRoutesSection
+      <PlannedVisitsSection
         routes={home([route()], [route({ id: "r2", code: "RT-00002" })])}
         dict={dict}
       />,
@@ -98,28 +110,62 @@ describe("MyRoutesSection", () => {
     ]);
   });
 
-  it("lists a route spanning both weeks, whole, in each section", () => {
+  it("lists a route spanning both weeks, whole, in each section — code and counts, not every center/contact", () => {
     const spanning = route();
-    render(<MyRoutesSection routes={home([spanning], [spanning])} dict={dict} />);
+    render(<PlannedVisitsSection routes={home([spanning], [spanning])} dict={dict} />);
 
     for (const section of screen.getAllByRole("region")) {
-      expect(within(section).getByText("RT-00001")).toBeInTheDocument();
-      expect(within(section).getByText(/Alpha Clinic/)).toBeInTheDocument();
-      expect(within(section).getByText(/Dr Bravo/)).toBeInTheDocument();
+      expect(within(section).getAllByText("RT-00001").length).toBeGreaterThan(0);
     }
+    // The compact table shows counts, never every center/contact name.
+    expect(screen.queryByText(/Alpha Clinic/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Dr Bravo/)).not.toBeInTheDocument();
   });
 
   it("says so when only one of the weeks is empty", () => {
-    render(<MyRoutesSection routes={home([route()], [])} dict={dict} />);
+    render(<PlannedVisitsSection routes={home([route()], [])} dict={dict} />);
 
     expect(screen.getByText("noRoutesUpcomingWeek")).toBeInTheDocument();
     expect(screen.queryByText("noRoutesThisWeek")).not.toBeInTheDocument();
   });
 
-  it("shows each route's status and links to the Visits workflow", () => {
-    render(<MyRoutesSection routes={home([route({ status: "IN_PROGRESS" })], [])} dict={dict} />);
+  it("shows no status badge and links to the Visits workflow, scoped to the assignment", () => {
+    render(
+      <PlannedVisitsSection routes={home([route({ status: "IN_PROGRESS" })], [])} dict={dict} />,
+    );
 
-    expect(screen.getByText("statusInProgress")).toBeInTheDocument();
+    expect(screen.queryByText("statusInProgress")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "openVisits" })).toHaveAttribute("href", "/visits");
+    const rowLinks = screen.getAllByRole("link", { name: "RT-00001" });
+    for (const link of rowLinks) {
+      expect(link).toHaveAttribute("href", "/visits#route-r1");
+    }
+  });
+
+  it("shows the compact Centers/Contacts count, not an itemized list", () => {
+    render(
+      <PlannedVisitsSection
+        routes={home(
+          [
+            route({
+              items: [
+                route().items[0]!,
+                {
+                  ...route().items[0]!,
+                  id: "i2",
+                  contacts: [],
+                },
+              ],
+            }),
+          ],
+          [],
+        )}
+        dict={dict}
+      />,
+    );
+
+    expect(
+      screen.getAllByText("2 itemsCountSuffix · 1 contactsCountSuffix").length,
+    ).toBeGreaterThan(0);
   });
 });

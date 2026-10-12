@@ -99,10 +99,14 @@ function routeScopeWhere(scope: RouteScope): Prisma.RouteWhereInput {
 // count always matches what the list can show.
 export async function findEditableRoutesPage(params: {
   scope: RouteScope;
+  filters: Pick<RouteTableFilters, "q" | "assigneeId" | "from" | "to">;
   skip: number;
   take: number;
 }): Promise<{ routes: RouteWithItems[]; total: number }> {
-  const where = routeScopeWhere(params.scope);
+  // Filters only ever narrow the actor's scope, never widen it.
+  const where: Prisma.RouteWhereInput = {
+    AND: [routeScopeWhere(params.scope), ...filterClauses(params.filters)],
+  };
   const [routes, total] = await Promise.all([
     prisma.route.findMany({
       where,
@@ -166,14 +170,14 @@ function statusWhere(
   }
 }
 
-function tableWhere(
-  scope: RouteScope,
-  filters: RouteTableFilters,
-  today: Date,
-): Prisma.RouteWhereInput {
-  // The table lists existing assignments only — unassigned routes are picked
-  // in the assign form instead — and the actor's scope still applies on top.
-  const and: Prisma.RouteWhereInput[] = [routeScopeWhere(scope), { userId: { not: null } }];
+// The filters both route lists share: search (route code, or the name/code of
+// any of its centers or contacts), assignee, and date range (overlap with [from, to],
+// either bound optional). An unassigned route has no assignee and no dates,
+// so the assignee and date filters naturally leave it out.
+function filterClauses(
+  filters: Pick<RouteTableFilters, "q" | "assigneeId" | "from" | "to">,
+): Prisma.RouteWhereInput[] {
+  const and: Prisma.RouteWhereInput[] = [];
 
   if (filters.q) {
     const contains = { contains: filters.q, mode: "insensitive" as const };
@@ -181,13 +185,35 @@ function tableWhere(
       OR: [
         { code: contains },
         { items: { some: { center: { OR: [{ name: contains }, { code: contains }] } } } },
+        {
+          items: {
+            some: {
+              contacts: { some: { contact: { OR: [{ name: contains }, { code: contains }] } } },
+            },
+          },
+        },
       ],
     });
   }
   if (filters.assigneeId) and.push({ userId: filters.assigneeId });
-  // Date-range filter = overlap with [from, to], either bound optional.
   if (filters.from) and.push({ endDate: { gte: filters.from } });
   if (filters.to) and.push({ startDate: { lte: filters.to } });
+
+  return and;
+}
+
+function tableWhere(
+  scope: RouteScope,
+  filters: RouteTableFilters,
+  today: Date,
+): Prisma.RouteWhereInput {
+  // The table lists existing assignments only — unassigned routes are picked
+  // in the assign form instead — and the actor's scope still applies on top.
+  const and: Prisma.RouteWhereInput[] = [
+    routeScopeWhere(scope),
+    { userId: { not: null } },
+    ...filterClauses(filters),
+  ];
   if (filters.status) and.push(statusWhere(filters.status, today));
 
   return { AND: and };

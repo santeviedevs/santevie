@@ -1532,12 +1532,25 @@ describe("listRoutesForAssignment", () => {
     const result = await listRoutesForAssignment(filters, "supervisor-1", "SUPERVISOR");
     expect(findRoutesPage).toHaveBeenCalledWith(
       expect.objectContaining({
-        scope: { creatorId: "supervisor-1", assignedUserIds: ["delegate-1"] },
+        scope: { creatorId: "supervisor-1", assignedUserIds: ["supervisor-1", "delegate-1"] },
         skip: 20,
         take: 20,
       }),
     );
     expect(result).toMatchObject({ total: 45, page: 2, pageSize: 20 });
+  });
+
+  it("includes the actor's own assignments in their scope, so a route assigned to themselves stays visible", async () => {
+    getDownstreamUserIds.mockResolvedValue([]);
+    findRoutesPage.mockResolvedValue({ routes: [], total: 0 });
+
+    await listRoutesForAssignment({ page: 1, pageSize: 20 }, "supervisor-1", "SUPERVISOR");
+
+    expect(findRoutesPage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scope: { creatorId: "supervisor-1", assignedUserIds: ["supervisor-1"] },
+      }),
+    );
   });
 
   it("gives ADMIN no scope restriction", async () => {
@@ -1849,11 +1862,46 @@ describe("listRoutesForContent", () => {
     );
 
     expect(findEditableRoutesPage).toHaveBeenCalledWith({
-      scope: { creatorId: "supervisor-1", assignedUserIds: ["delegate-1"] },
+      scope: { creatorId: "supervisor-1", assignedUserIds: ["supervisor-1", "delegate-1"] },
+      filters: { q: undefined, assigneeId: undefined, from: undefined, to: undefined },
       skip: 20,
       take: 10,
     });
     expect(result).toMatchObject({ total: 25, page: 3, pageSize: 10 });
+  });
+
+  it("passes search, assignee and date range to the query, dates parsed to calendar dates", async () => {
+    getDownstreamUserIds.mockResolvedValue([]);
+    findEditableRoutesPage.mockResolvedValueOnce({ routes: [], total: 0 });
+
+    await listRoutesForContent(
+      { page: 1, pageSize: 10, q: "RT-0", assigneeId: "u1", from: "2026-06-16", to: "2026-06-30" },
+      "supervisor-1",
+      "SUPERVISOR",
+    );
+
+    expect(findEditableRoutesPage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filters: {
+          q: "RT-0",
+          assigneeId: "u1",
+          from: new Date("2026-06-16T00:00:00.000Z"),
+          to: new Date("2026-06-30T00:00:00.000Z"),
+        },
+        scope: { creatorId: "supervisor-1", assignedUserIds: ["supervisor-1"] },
+      }),
+    );
+  });
+
+  it("includes routes assigned to the actor themselves in the Add Routes scope", async () => {
+    getDownstreamUserIds.mockResolvedValue([]);
+    findEditableRoutesPage.mockResolvedValueOnce({ routes: [], total: 0 });
+
+    await listRoutesForContent({ page: 1, pageSize: 10 }, "sup-1", "SUPERVISOR");
+
+    expect(findEditableRoutesPage).toHaveBeenCalledWith(
+      expect.objectContaining({ scope: { creatorId: "sup-1", assignedUserIds: ["sup-1"] } }),
+    );
   });
 
   it("scopes a non-admin to their own drafts and their downstream team; ADMIN is unrestricted", async () => {
@@ -1861,7 +1909,7 @@ describe("listRoutesForContent", () => {
     findEditableRoutesPage.mockResolvedValueOnce({ routes: [], total: 0 });
     await listRoutesForContent({ page: 1, pageSize: 10 }, "s1", "SUPERVISOR");
     expect(findEditableRoutesPage).toHaveBeenLastCalledWith(
-      expect.objectContaining({ scope: { creatorId: "s1", assignedUserIds: ["d1", "d2"] } }),
+      expect.objectContaining({ scope: { creatorId: "s1", assignedUserIds: ["s1", "d1", "d2"] } }),
     );
 
     getDownstreamUserIds.mockClear();

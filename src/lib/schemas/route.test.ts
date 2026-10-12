@@ -215,15 +215,34 @@ describe("assign-form search schemas", () => {
 });
 
 describe("routeListParamsSchema (Add Routes list)", () => {
-  it("defaults to page 1 and the same page size as the Assign Routes table", () => {
+  it("defaults to no filters, page 1 and the same page size as the Assign Routes table", () => {
     expect(routeListParamsSchema.parse({})).toEqual({ page: 1, pageSize: ROUTE_TABLE_PAGE_SIZE });
   });
 
-  it("degrades a malformed page or size instead of failing the page", () => {
-    expect(routeListParamsSchema.parse({ page: "-2", pageSize: "abc" })).toEqual({
-      page: 1,
-      pageSize: ROUTE_TABLE_PAGE_SIZE,
+  it("accepts search, assignee and a date range, trimming the search", () => {
+    expect(
+      routeListParamsSchema.parse({
+        q: "  RT-1 ",
+        assigneeId: "u1",
+        from: "2026-06-01",
+        to: "2026-06-30",
+      }),
+    ).toMatchObject({ q: "RT-1", assigneeId: "u1", from: "2026-06-01", to: "2026-06-30" });
+  });
+
+  it("has no status filter — a status in the URL is ignored", () => {
+    expect(routeListParamsSchema.parse({ status: "MISSED" })).not.toHaveProperty("status");
+  });
+
+  it("degrades malformed values to 'absent' instead of failing the page", () => {
+    const parsed = routeListParamsSchema.parse({
+      q: "x".repeat(101),
+      from: "not-a-date",
+      to: "2026-13-45",
+      page: "-2",
+      pageSize: "abc",
     });
+    expect(parsed).toEqual({ page: 1, pageSize: ROUTE_TABLE_PAGE_SIZE });
   });
 
   it("clamps an oversized page size to the shared ceiling", () => {
