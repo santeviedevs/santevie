@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-export type ActivityCalendarEntry = { id: string; date: Date; type: string; status: string };
+export type ActivityCalendarEntry = { id: string; date: Date; type: string; name: string };
 
 // Self-contained month grid, deliberately not reusing calendar/calendar-grid.tsx
 // — that component is tightly coupled to CalendarDay's holiday/leave shape
@@ -60,7 +60,7 @@ export function ActivityCalendar({
                   </span>
                   {(byDate.get(dateKey) ?? []).map((entry) => (
                     <Badge key={entry.id} variant="secondary" className="w-fit max-w-full truncate">
-                      {entry.type}
+                      {entry.name}
                     </Badge>
                   ))}
                 </>

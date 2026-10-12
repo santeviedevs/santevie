@@ -17,16 +17,31 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 
-import { type ActivityFormState, createActivityAction } from "./actions";
+import { type ActivityFormState, createActivityAction, updateActivityAction } from "./actions";
 
 type Option = { id: string; label: string };
 type Target = "center" | "territory";
 
+export type EditableActivity = {
+  id: string;
+  name: string;
+  type: "CAMPAIGN" | "EVENT" | "OTHER";
+  centerId: string | null;
+  territoryId: string | null;
+  notes: string | null;
+};
+
+// Creation and editing share one form: creating is a manager action
+// (activities:assign) that starts the activity unassigned — the Assignment
+// screen is where it's given to one or more people; editing goes through
+// the same permission and authorization boundary the service enforces again.
 export function ActivityForm({
+  activity,
   centers,
   territories,
   dict,
 }: {
+  activity?: EditableActivity;
   centers: Option[];
   territories: Option[];
   dict: Dictionary["activitiesPage"];
@@ -35,36 +50,50 @@ export function ActivityForm({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const [type, setType] = useState<"CAMPAIGN" | "EVENT" | "OTHER">("CAMPAIGN");
-  const [target, setTarget] = useState<Target>("center");
-  const [centerId, setCenterId] = useState(centers[0]?.id ?? "");
-  const [territoryId, setTerritoryId] = useState(territories[0]?.id ?? "");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [notes, setNotes] = useState("");
+  const [name, setName] = useState(activity?.name ?? "");
+  const [type, setType] = useState<"CAMPAIGN" | "EVENT" | "OTHER">(activity?.type ?? "CAMPAIGN");
+  const [target, setTarget] = useState<Target>(activity?.territoryId ? "territory" : "center");
+  const [centerId, setCenterId] = useState(activity?.centerId ?? centers[0]?.id ?? "");
+  const [territoryId, setTerritoryId] = useState(activity?.territoryId ?? territories[0]?.id ?? "");
+  const [notes, setNotes] = useState(activity?.notes ?? "");
 
   function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
     startTransition(async () => {
       const formData = new FormData();
+      if (activity) formData.set("id", activity.id);
+      formData.set("name", name);
       formData.set("type", type);
-      formData.set("date", date);
       formData.set("notes", notes);
       if (target === "center") formData.set("centerId", centerId);
       if (target === "territory") formData.set("territoryId", territoryId);
 
-      const result: ActivityFormState = await createActivityAction({ error: null }, formData);
+      const result: ActivityFormState = activity
+        ? await updateActivityAction({ error: null }, formData)
+        : await createActivityAction({ error: null }, formData);
       if (result.error) {
         setError(result.error);
         return;
       }
-      toast.success(dict.activityCreated);
-      router.push("/activities");
+      toast.success(activity ? dict.activityUpdated : dict.activityCreated);
+      router.push(activity ? `/activities/${activity.id}` : "/activities");
     });
   }
 
   return (
     <form onSubmit={onSubmit} className="flex max-w-md flex-col gap-3">
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="name">{dict.nameLabel}</Label>
+        <Input
+          id="name"
+          disabled={isPending}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
+      </div>
+
       <div className="flex flex-col gap-2">
         <Label htmlFor="type">{dict.typeLabel}</Label>
         <Select
@@ -86,17 +115,6 @@ export function ActivityForm({
             <SelectItem value="OTHER">{dict.typeOther}</SelectItem>
           </SelectContent>
         </Select>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="date">{dict.dateLabel}</Label>
-        <Input
-          id="date"
-          type="date"
-          disabled={isPending}
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-        />
       </div>
 
       <div className="flex flex-col gap-2">

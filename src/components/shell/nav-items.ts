@@ -38,6 +38,7 @@ type NavKey =
   | "visits"
   | "activitiesGroup"
   | "activities"
+  | "myActivities"
   | "followUps"
   | "installGuide";
 
@@ -159,7 +160,10 @@ export const NAV_ITEM_DEFS: NavItemDef[] = [
     key: "activitiesGroup",
     icon: CalendarDays,
     children: [
-      { href: "/activities", key: "activities", permission: "activities:respond-own" },
+      // Only a manager/admin creates or assigns activities, so the
+      // team-wide list (and its Assignment/Calendar tabs) is theirs alone.
+      { href: "/activities", key: "activities", permission: "activities:assign" },
+      { href: "/activities/my", key: "myActivities", permission: "activities:respond-own" },
       { href: "/activities/follow-ups", key: "followUps", permission: "activities:respond-own" },
     ],
   },

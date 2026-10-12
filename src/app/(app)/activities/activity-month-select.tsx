@@ -10,19 +10,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// Same pattern as calendar/calendar-month-select.tsx, pointed at /activities
-// instead of /calendar — kept as its own small component rather than
-// generalizing the original with a basePath prop, since the two screens'
-// query params already happen to match (year/month) but have no other
-// reason to stay coupled.
+// Same pattern as calendar/calendar-month-select.tsx, pointed at an
+// activities calendar instead of /calendar — kept as its own small
+// component rather than generalizing the original with a basePath prop,
+// since the two screens' query params already happen to match (year/month)
+// but have no other reason to stay coupled. `basePath` distinguishes the
+// team-wide calendar (/activities/calendar) from the personal one nested
+// under My Activities (/activities/my/calendar).
 export function ActivityMonthSelect({
   year,
   month,
   language,
+  basePath,
 }: {
   year: number;
   month: number;
   language: string;
+  basePath: string;
 }) {
   const router = useRouter();
 
@@ -36,7 +40,7 @@ export function ActivityMonthSelect({
   const years = Array.from({ length: 6 }, (_, i) => currentYear - 2 + i);
 
   function go(nextYear: number, nextMonth: number) {
-    router.push(`/activities/calendar?year=${nextYear}&month=${nextMonth}`);
+    router.push(`${basePath}?year=${nextYear}&month=${nextMonth}`);
   }
 
   return (

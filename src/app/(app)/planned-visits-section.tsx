@@ -108,7 +108,7 @@ function WeekSection({
 }) {
   return (
     <section className="flex flex-col gap-2" aria-label={heading}>
-      <h3 className="flex flex-wrap items-baseline gap-2 text-sm font-medium">
+      <h3 className="flex flex-wrap items-baseline gap-2 text-base font-medium">
         {heading}
         <span className="text-xs font-normal text-muted-foreground">
           {formatDate(range.start)} – {formatDate(range.end)}
@@ -135,7 +135,7 @@ export function PlannedVisitsSection({ routes, dict }: { routes: HomeRoutes; dic
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-sm font-medium">{dict.plannedVisitsHeading}</h2>
+          <h2 className="text-xl font-medium">{dict.plannedVisitsHeading}</h2>
           <p className="text-xs text-muted-foreground">{dict.plannedVisitsHelp}</p>
         </div>
         <Button render={<Link href="/visits" />} variant="outline" size="sm">

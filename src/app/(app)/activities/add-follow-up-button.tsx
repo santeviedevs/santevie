@@ -10,10 +10,10 @@ import type { Dictionary } from "@/lib/i18n/dictionary";
 import { type ActivityFormState, createFollowUpAction } from "./actions";
 
 export function AddFollowUpButton({
-  activityId,
+  assignmentId,
   dict,
 }: {
-  activityId: string;
+  assignmentId: string;
   dict: Dictionary["activitiesPage"];
 }) {
   const [open, setOpen] = useState(false);
@@ -33,7 +33,7 @@ export function AddFollowUpButton({
     setError(null);
     startTransition(async () => {
       const formData = new FormData();
-      formData.set("activityId", activityId);
+      formData.set("assignmentId", assignmentId);
       formData.set("dueDate", dueDate);
       const result: ActivityFormState = await createFollowUpAction({ error: null }, formData);
       if (result.error) {
