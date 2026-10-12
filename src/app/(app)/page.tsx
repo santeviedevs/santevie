@@ -54,7 +54,7 @@ async function HomeFollowUps({ userId }: { userId: string }) {
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-sm font-medium">{t.homeFollowUpsHeading}</h2>
+          <h2 className="text-xl font-medium">{t.homeFollowUpsHeading}</h2>
           <p className="text-xs text-muted-foreground">{t.homeFollowUpsHelp}</p>
         </div>
         <Button render={<Link href="/activities/follow-ups" />} variant="outline" size="sm">
