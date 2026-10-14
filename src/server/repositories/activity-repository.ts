@@ -99,6 +99,7 @@ const assignmentExecutionInclude = {
       prescriptionsGenerated: true,
       businessValueGenerated: true,
       samplesProvided: true,
+      availability: true,
       product: { select: { id: true, name: true } },
     },
   },
@@ -261,6 +262,7 @@ export async function replaceAssignmentProductResults(
     prescriptionsGenerated?: number | null;
     businessValueGenerated?: number | null;
     samplesProvided?: number | null;
+    availability?: string | null;
   }[],
   actorId: string,
   db: Db = prisma,
@@ -275,6 +277,7 @@ export async function replaceAssignmentProductResults(
       prescriptionsGenerated: r.prescriptionsGenerated ?? null,
       businessValueGenerated: r.businessValueGenerated ?? null,
       samplesProvided: r.samplesProvided ?? null,
+      availability: r.availability ?? null,
       createdBy: actorId,
       updatedBy: actorId,
     })),
@@ -359,6 +362,41 @@ export function updateAssignmentStatusRow(
     data: { status, updatedBy: actorId },
     include: assignmentInclude,
   });
+}
+
+// Just enough to decide what auto-follow-up(s) a completed assignment
+// should get — the type's chain config, and (for the per-participant fan-
+// out) which invited participants this delegate actually marked present.
+// Read inside the same transaction as the status write (see
+// activity-service's updateAssignmentStatus) so the decision is made from
+// the same snapshot that gets committed.
+const assignmentCompletionSelect = {
+  id: true,
+  userId: true,
+  activity: {
+    select: {
+      type: {
+        select: {
+          defaultFollowUpInitialOffsetDays: true,
+          defaultFollowUpRecurrenceIntervalDays: true,
+          defaultFollowUpSeriesDurationDays: true,
+          defaultFollowUpPerParticipant: true,
+        },
+      },
+    },
+  },
+  results: { select: { id: true, present: true } },
+} satisfies Prisma.ActivityAssignmentSelect;
+
+export type AssignmentCompletionContext = Prisma.ActivityAssignmentGetPayload<{
+  select: typeof assignmentCompletionSelect;
+}>;
+
+export function findAssignmentCompletionContext(
+  id: string,
+  db: Db = prisma,
+): Promise<AssignmentCompletionContext | null> {
+  return db.activityAssignment.findUnique({ where: { id }, select: assignmentCompletionSelect });
 }
 
 export type ActivityQuery = {

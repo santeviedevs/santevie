@@ -15,14 +15,17 @@ import {
   type ActivityAssignmentRow,
   type ActivityQuery,
   type ActivityRow,
+  type AssignmentCompletionContext,
   type AssignmentExecutionRow,
   countActivities,
   countAssignments,
   createActivityRow,
   createAssignmentRow,
+  type Db,
   findActivePlannedAssignment,
   findActivityById,
   findAssignmentById,
+  findAssignmentCompletionContext,
   findAssignmentExecutionById,
   listActivities,
   listAssignments,
@@ -36,6 +39,7 @@ import {
   updateAssignmentExecutionRow,
   updateAssignmentStatusRow,
 } from "@/server/repositories/activity-repository";
+import { createFollowUpRow } from "@/server/repositories/follow-up-repository";
 import {
   findAllUsersInScope,
   findUserById,
@@ -132,6 +136,7 @@ export type ActivityAssignmentSummary = {
   id: string;
   status: string;
   scheduledDate: Date;
+  executionRecordedAt: Date | null;
   user: { id: string; name: string };
   activity: {
     id: string;
@@ -182,6 +187,7 @@ function toActivityAssignmentSummary(row: ActivityAssignmentRow): ActivityAssign
     id: row.id,
     status: row.status,
     scheduledDate: row.scheduledDate,
+    executionRecordedAt: row.executionRecordedAt,
     user: row.user,
     activity: row.activity,
   };
@@ -388,7 +394,10 @@ export async function getAssignmentDetail(
   return null;
 }
 
-async function assertAssigneeInScope(userId: string, scope: Scope): Promise<void> {
+// Exported for follow-up-service.ts's reassignFollowUp — same "is this a
+// valid, active, in-scope user to hand work to" check reassignAssignment
+// already uses.
+export async function assertAssigneeInScope(userId: string, scope: Scope): Promise<void> {
   const assignee = await findUserById(userId, scopeUserIds(scope));
   if (!assignee || assignee.status !== "ACTIVE") throw new AssigneeOutsideScopeError();
 }
@@ -460,9 +469,70 @@ export async function cancelAssignment(assignmentId: string, session: ScopeSessi
   await updateAssignmentStatusRow(assignmentId, "CANCELLED", session.user.id);
 }
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+function addDays(date: Date, days: number): Date {
+  return new Date(date.getTime() + days * MS_PER_DAY);
+}
+
+// Trigger 1 of the follow-up chain engine (Marketing Activity.md §3.5): on
+// completion, create whichever auto-follow-up(s) this activity type is
+// configured for. RTM-style types (defaultFollowUpPerParticipant) fan out
+// one follow-up per participant marked present, no chain. Every other
+// configured type gets a single assignment-level follow-up that may itself
+// chain forward (seriesIntervalDays/seriesEndDate copied onto the row, not
+// re-read from the type at each step — see completeFollowUp's
+// advanceFollowUpChain for why). A type with no initialOffsetDays
+// configured gets nothing here; manual follow-up only.
+async function createCompletionFollowUps(
+  context: AssignmentCompletionContext,
+  actorId: string,
+  tx: Db,
+): Promise<void> {
+  const { type } = context.activity;
+  if (type.defaultFollowUpInitialOffsetDays == null) return;
+  const completedAt = new Date();
+
+  if (type.defaultFollowUpPerParticipant) {
+    const present = context.results.filter((result) => result.present);
+    for (const result of present) {
+      await createFollowUpRow(
+        {
+          assignment: { connect: { id: context.id } },
+          participantResult: { connect: { id: result.id } },
+          owner: { connect: { id: context.userId } },
+          dueDate: addDays(completedAt, type.defaultFollowUpInitialOffsetDays),
+          createdBy: actorId,
+          updatedBy: actorId,
+        },
+        tx,
+      );
+    }
+    return;
+  }
+
+  await createFollowUpRow(
+    {
+      assignment: { connect: { id: context.id } },
+      owner: { connect: { id: context.userId } },
+      dueDate: addDays(completedAt, type.defaultFollowUpInitialOffsetDays),
+      seriesIntervalDays: type.defaultFollowUpRecurrenceIntervalDays ?? undefined,
+      seriesEndDate:
+        type.defaultFollowUpSeriesDurationDays != null
+          ? addDays(completedAt, type.defaultFollowUpSeriesDurationDays)
+          : undefined,
+      createdBy: actorId,
+      updatedBy: actorId,
+    },
+    tx,
+  );
+}
+
 // The assignee's own response — mark their assignment done or cancel it.
 // `canAssign` additionally lets a manager do this on behalf of someone in
-// their scope, same reach as every other per-assignment action.
+// their scope, same reach as every other per-assignment action. Completing
+// (DONE) is wrapped in one transaction together with any auto-follow-up
+// creation: if follow-up creation fails, the assignment must not end up
+// DONE with a missing chain (confirmed requirement, §3.5).
 export async function updateAssignmentStatus(
   assignmentId: string,
   status: "DONE" | "CANCELLED",
@@ -472,7 +542,17 @@ export async function updateAssignmentStatus(
   const assignment = await getAssignmentForAction(assignmentId, session, canAssign);
   if (assignment.status !== "PLANNED") throw new AssignmentNotActionableError();
 
-  const updated = await updateAssignmentStatusRow(assignmentId, status, session.user.id);
+  if (status === "CANCELLED") {
+    const updated = await updateAssignmentStatusRow(assignmentId, status, session.user.id);
+    return toActivityAssignmentSummary(updated);
+  }
+
+  const updated = await runInTransaction(async (tx) => {
+    const row = await updateAssignmentStatusRow(assignmentId, status, session.user.id, tx);
+    const context = await findAssignmentCompletionContext(assignmentId, tx);
+    if (context) await createCompletionFollowUps(context, session.user.id, tx);
+    return row;
+  });
   return toActivityAssignmentSummary(updated);
 }
 
@@ -524,6 +604,11 @@ export async function updateAssignmentExecution(
           : { disconnect: true },
         foodExpense: input.foodExpense ?? null,
         transportExpense: input.transportExpense ?? null,
+        // Set on every save, not just the first — the signal this tracks
+        // is "has the delegate ever visited execution," which a later
+        // edit still satisfies. Read by the My Activities "Mark done"
+        // guard (see the schema comment on this field).
+        executionRecordedAt: new Date(),
         updatedBy: session.user.id,
       },
       tx,

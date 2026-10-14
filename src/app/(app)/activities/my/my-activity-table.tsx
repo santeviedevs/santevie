@@ -26,6 +26,7 @@ export type MyActivityRow = {
   type: { id: string; code: string; name: string };
   status: string;
   scheduledDate: string;
+  executionRecorded: boolean;
 };
 
 function detailHref(row: MyActivityRow): string {
@@ -44,7 +45,11 @@ function Actions({ row, dict }: { row: MyActivityRow; dict: Dict }) {
         {dict.recordResultsAction}
       </Button>
       <AddFollowUpButton assignmentId={row.assignmentId} dict={dict} />
-      <ActivityStatusButtons assignmentId={row.assignmentId} dict={dict} />
+      <ActivityStatusButtons
+        assignmentId={row.assignmentId}
+        executionRecorded={row.executionRecorded}
+        dict={dict}
+      />
     </div>
   );
 }

@@ -40,7 +40,7 @@ export type EditableActivity = {
   foodExpense: string | null;
   transportExpense: string | null;
   notes: string | null;
-  productIds: string[];
+  products: { productId: string; availability: string | null }[];
   participantContactIds: string[];
 };
 
@@ -112,10 +112,31 @@ export function ActivityForm({
   const [foodExpense, setFoodExpense] = useState(activity?.foodExpense ?? "");
   const [transportExpense, setTransportExpense] = useState(activity?.transportExpense ?? "");
   const [notes, setNotes] = useState(activity?.notes ?? "");
-  const [productIds, setProductIds] = useState<string[]>(activity?.productIds ?? []);
+  const [products, setProducts] = useState<{ productId: string; availability: string | null }[]>(
+    activity?.products ?? [],
+  );
   const [participantContactIds, setParticipantContactIds] = useState<string[]>(
     activity?.participantContactIds ?? [],
   );
+  const productIds = products.map((p) => p.productId);
+
+  // The multi-select only ever hands back the full set of selected ids —
+  // reconcile that against `products` rather than replacing it wholesale,
+  // so a product's already-entered availability survives re-renders (only
+  // newly added ids start out with availability: null).
+  function setProductIds(ids: string[]) {
+    setProducts((prev) =>
+      ids.map(
+        (id) => prev.find((p) => p.productId === id) ?? { productId: id, availability: null },
+      ),
+    );
+  }
+
+  function updateProductAvailability(productId: string, availability: string | null) {
+    setProducts((prev) =>
+      prev.map((p) => (p.productId === productId ? { ...p, availability } : p)),
+    );
+  }
 
   const selectedType = typeOptions.find((t) => t.id === typeId);
   const fields = sharedFieldsFor(selectedType?.code);
@@ -149,7 +170,11 @@ export function ActivityForm({
       if (transportExpense) formData.set("transportExpense", transportExpense);
       formData.set(
         "productsJson",
-        JSON.stringify(fields.products ? productIds.map((productId) => ({ productId })) : []),
+        JSON.stringify(
+          fields.products
+            ? products.map((p) => ({ productId: p.productId, availability: p.availability }))
+            : [],
+        ),
       );
       formData.set(
         "participantContactIdsJson",
@@ -402,6 +427,24 @@ export function ActivityForm({
             noMatchesLabel={dict.noOptionsAvailable}
             disabled={isPending}
           />
+          {products.length > 0 ? (
+            <div className="flex flex-col gap-2 rounded-md border border-border p-3">
+              {products.map((p) => (
+                <div key={p.productId} className="flex items-center gap-2">
+                  <span className="min-w-0 flex-1 truncate text-sm">
+                    {productOptions.find((o) => o.id === p.productId)?.label ?? p.productId}
+                  </span>
+                  <Input
+                    className="w-48"
+                    placeholder={dict.availabilityLabel}
+                    value={p.availability ?? ""}
+                    onChange={(e) => updateProductAvailability(p.productId, e.target.value || null)}
+                    disabled={isPending}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
 

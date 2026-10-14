@@ -603,7 +603,27 @@ export type Dictionary = {
     overdue: string;
     markDone: string;
     followUpCompleted: string;
-    teamOverdue: string;
+    followUpDetailTitle: string;
+    backToFollowUps: string;
+    backToTeamFollowUps: string;
+    outcomeLabel: string;
+    productAvailableLabel: string;
+    completeFollowUpAction: string;
+    reassignFollowUpHeading: string;
+    newOwnerLabel: string;
+    followUpReassigned: string;
+    reassignmentHistoryHeading: string;
+    noReassignments: string;
+    ownerLabel: string;
+    participantLabel: string;
+    dueDateLabel: string;
+    followUpStatusPending: string;
+    followUpStatusDone: string;
+    filterOverdueOnly: string;
+    noFollowUpsMatch: string;
+    colWhere: string;
+    colOwner: string;
+    teamFollowUps: string;
     dueDateColumn: string;
     targetColumn: string;
     today: string;
@@ -636,6 +656,9 @@ export type Dictionary = {
     statusDone: string;
     statusCancelled: string;
     markActivityDone: string;
+    markDoneConfirmTitle: string;
+    markDoneConfirmDescription: string;
+    executionNotRecordedHint: string;
     markActivityCancelled: string;
     activityUpdated: string;
     // My Activities sub-nav
@@ -705,6 +728,7 @@ export type Dictionary = {
     productResultsHeading: string;
     businessValueGeneratedLabel: string;
     samplesProvidedLabel: string;
+    availabilityLabel: string;
     saveResults: string;
     savingResults: string;
     resultsSaved: string;
@@ -1525,7 +1549,27 @@ const en: Dictionary = {
     overdue: "Overdue",
     markDone: "Mark done",
     followUpCompleted: "Follow-up completed",
-    teamOverdue: "Team Overdue Follow-Ups",
+    followUpDetailTitle: "Follow-up",
+    backToFollowUps: "Back to follow-ups",
+    backToTeamFollowUps: "Back to team follow-ups",
+    outcomeLabel: "Outcome",
+    productAvailableLabel: "Product available",
+    completeFollowUpAction: "Mark done",
+    reassignFollowUpHeading: "Reassign",
+    newOwnerLabel: "New owner",
+    followUpReassigned: "Follow-up reassigned",
+    reassignmentHistoryHeading: "Reassignment history",
+    noReassignments: "No reassignments yet.",
+    ownerLabel: "Owner",
+    participantLabel: "Participant",
+    dueDateLabel: "Due date",
+    followUpStatusPending: "Pending",
+    followUpStatusDone: "Done",
+    filterOverdueOnly: "Overdue only",
+    noFollowUpsMatch: "No follow-ups match these filters.",
+    colWhere: "Location",
+    colOwner: "Owner",
+    teamFollowUps: "Team Follow-Ups",
     dueDateColumn: "Due date",
     targetColumn: "Center / Territory",
     today: "Today",
@@ -1558,6 +1602,10 @@ const en: Dictionary = {
     statusDone: "Done",
     statusCancelled: "Cancelled",
     markActivityDone: "Mark done",
+    markDoneConfirmTitle: "Mark this activity done?",
+    markDoneConfirmDescription:
+      "This finalizes the assignment and, for some activity types, automatically schedules a follow-up. This can't be undone from here.",
+    executionNotRecordedHint: "Record results before marking this activity done.",
     markActivityCancelled: "Cancel",
     activityUpdated: "Activity updated",
     subTabActivities: "Activities",
@@ -1623,6 +1671,7 @@ const en: Dictionary = {
     productResultsHeading: "Products",
     businessValueGeneratedLabel: "Business value generated",
     samplesProvidedLabel: "Samples provided",
+    availabilityLabel: "Availability",
     saveResults: "Save results",
     savingResults: "Saving…",
     resultsSaved: "Results saved",
@@ -2421,7 +2470,27 @@ const fr: Dictionary = {
     overdue: "En retard",
     markDone: "Marquer comme fait",
     followUpCompleted: "Suivi terminé",
-    teamOverdue: "Suivis en retard de l'équipe",
+    followUpDetailTitle: "Suivi",
+    backToFollowUps: "Retour aux suivis",
+    backToTeamFollowUps: "Retour aux suivis de l'équipe",
+    outcomeLabel: "Résultat",
+    productAvailableLabel: "Produit disponible",
+    completeFollowUpAction: "Marquer comme fait",
+    reassignFollowUpHeading: "Réaffecter",
+    newOwnerLabel: "Nouveau responsable",
+    followUpReassigned: "Suivi réaffecté",
+    reassignmentHistoryHeading: "Historique des réaffectations",
+    noReassignments: "Aucune réaffectation pour le moment.",
+    ownerLabel: "Responsable",
+    participantLabel: "Participant",
+    dueDateLabel: "Échéance",
+    followUpStatusPending: "En attente",
+    followUpStatusDone: "Terminé",
+    filterOverdueOnly: "En retard uniquement",
+    noFollowUpsMatch: "Aucun suivi ne correspond à ces filtres.",
+    colWhere: "Lieu",
+    colOwner: "Responsable",
+    teamFollowUps: "Suivis de l'équipe",
     dueDateColumn: "Échéance",
     targetColumn: "Centre / Territoire",
     today: "Aujourd'hui",
@@ -2454,6 +2523,11 @@ const fr: Dictionary = {
     statusDone: "Terminée",
     statusCancelled: "Annulée",
     markActivityDone: "Marquer comme faite",
+    markDoneConfirmTitle: "Marquer cette activité comme faite ?",
+    markDoneConfirmDescription:
+      "Cela finalise l'affectation et, pour certains types d'activité, planifie automatiquement un suivi. Cette action ne peut pas être annulée depuis cet écran.",
+    executionNotRecordedHint:
+      "Enregistrez les résultats avant de marquer cette activité comme faite.",
     markActivityCancelled: "Annuler",
     activityUpdated: "Activité mise à jour",
     subTabActivities: "Activités",
@@ -2519,6 +2593,7 @@ const fr: Dictionary = {
     productResultsHeading: "Produits",
     businessValueGeneratedLabel: "Valeur commerciale générée",
     samplesProvidedLabel: "Échantillons fournis",
+    availabilityLabel: "Disponibilité",
     saveResults: "Enregistrer les résultats",
     savingResults: "Enregistrement…",
     resultsSaved: "Résultats enregistrés",

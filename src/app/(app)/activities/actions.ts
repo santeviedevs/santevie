@@ -11,7 +11,11 @@ import {
   updateAssignmentExecutionSchema,
   updateAssignmentStatusSchema,
 } from "@/lib/schemas/activity";
-import { completeFollowUpSchema, createFollowUpSchema } from "@/lib/schemas/follow-up";
+import {
+  completeFollowUpSchema,
+  createFollowUpSchema,
+  reassignFollowUpSchema,
+} from "@/lib/schemas/follow-up";
 import { hasPermission, type Permission } from "@/server/auth/permissions";
 import { requirePermission, SessionExpiredError } from "@/server/auth/require-permission";
 import {
@@ -29,7 +33,11 @@ import {
   updateAssignmentExecution,
   updateAssignmentStatus,
 } from "@/server/services/activity-service";
-import { completeFollowUp, createFollowUp } from "@/server/services/follow-up-service";
+import {
+  completeFollowUp,
+  createFollowUp,
+  reassignFollowUp,
+} from "@/server/services/follow-up-service";
 
 // Products/participants travel as JSON in a hidden field — FormData has no
 // native array/nested-object encoding, and this keeps the client-side form
@@ -294,13 +302,46 @@ export async function completeFollowUpAction(
   const session = await requireActivityPermission("activities:respond-own");
   if (!session) return { error: null, sessionExpired: true };
 
-  const parsed = completeFollowUpSchema.safeParse({ id: formData.get("id") });
+  const parsed = completeFollowUpSchema.safeParse({
+    id: formData.get("id"),
+    outcome: formData.get("outcome") || undefined,
+    prescriptionsGenerated: formData.get("prescriptionsGenerated") || undefined,
+    businessValueGenerated: formData.get("businessValueGenerated") || undefined,
+    productAvailable: formData.get("productAvailable") || undefined,
+  });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check the highlighted fields." };
   }
 
   try {
-    await completeFollowUp(parsed.data.id, session.user.id);
+    await completeFollowUp(parsed.data, session.user.id);
+  } catch (error) {
+    return { error: mapActivityError(error) };
+  }
+
+  revalidateActivityScreens();
+  return { error: null };
+}
+
+// Manager-level: moves a follow-up's ownership in place, independent of
+// the assignment it was raised against — same reach as reassignAssignment.
+export async function reassignFollowUpAction(
+  _prevState: ActivityFormState,
+  formData: FormData,
+): Promise<ActivityFormState> {
+  const session = await requireActivityPermission("activities:assign");
+  if (!session) return { error: null, sessionExpired: true };
+
+  const parsed = reassignFollowUpSchema.safeParse({
+    id: formData.get("id"),
+    newOwnerId: formData.get("newOwnerId"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Check the highlighted fields." };
+  }
+
+  try {
+    await reassignFollowUp(parsed.data, session);
   } catch (error) {
     return { error: mapActivityError(error) };
   }

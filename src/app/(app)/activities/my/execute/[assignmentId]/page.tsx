@@ -86,6 +86,7 @@ export default async function AssignmentExecutionPage({ params }: ExecutionPageP
               prescriptionsGenerated: existing?.prescriptionsGenerated ?? null,
               businessValueGenerated: existing?.businessValueGenerated?.toString() ?? null,
               samplesProvided: existing?.samplesProvided ?? null,
+              availability: existing?.availability ?? null,
             };
           }),
         }}

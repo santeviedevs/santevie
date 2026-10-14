@@ -72,6 +72,7 @@ export default async function MyActivitiesPage({ searchParams }: MyActivitiesPag
           type: assignment.activity.type,
           status: assignment.status,
           scheduledDate: assignment.scheduledDate.toISOString(),
+          executionRecorded: assignment.executionRecordedAt !== null,
         }))}
         dict={t}
         emptyLabel={anyFilter ? t.noActivitiesMatch : t.noActivities}

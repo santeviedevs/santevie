@@ -48,8 +48,20 @@ const SHARED_DEFAULT: SharedFieldSet = {
 
 const SHARED_FIELDS: Record<string, SharedFieldSet> = {
   RTM: { ...SHARED_DEFAULT, products: true, participants: true, usesLocation: true },
-  CPN: { ...SHARED_DEFAULT, requiresCenter: true, prescriberCount: true, participants: true },
-  CPS: { ...SHARED_DEFAULT, requiresCenter: true, prescriberCount: true, participants: true },
+  CPN: {
+    ...SHARED_DEFAULT,
+    requiresCenter: true,
+    prescriberCount: true,
+    participants: true,
+    products: true,
+  },
+  CPS: {
+    ...SHARED_DEFAULT,
+    requiresCenter: true,
+    prescriberCount: true,
+    participants: true,
+    products: true,
+  },
   CME: {
     ...SHARED_DEFAULT,
     speaker: true,
@@ -97,6 +109,13 @@ export function sharedFieldsFor(code: string | undefined): SharedFieldSet {
 export type ExecutionFieldSet = {
   participants: boolean;
   products: boolean;
+  // La Garde only: whether each product was actually available on this
+  // specific visit — distinct from `products` (which only controls whether
+  // the per-product prescriptions/business/samples results render at all).
+  // La Garde is typically a different delegate each night, so this can
+  // genuinely differ visit to visit; no other type lists this as an
+  // execution-time field in the client's own brief.
+  productAvailability: boolean;
   pregnantWomenReached: boolean;
   childrenConsulted: boolean;
   actualParticipants: boolean;
@@ -110,6 +129,7 @@ export type ExecutionFieldSet = {
 const EXECUTION_DEFAULT: ExecutionFieldSet = {
   participants: false,
   products: false,
+  productAvailability: false,
   pregnantWomenReached: false,
   childrenConsulted: false,
   actualParticipants: false,
@@ -122,8 +142,18 @@ const EXECUTION_DEFAULT: ExecutionFieldSet = {
 
 const EXECUTION_FIELDS: Record<string, ExecutionFieldSet> = {
   RTM: { ...EXECUTION_DEFAULT, participants: true, products: true },
-  CPN: { ...EXECUTION_DEFAULT, pregnantWomenReached: true, hcpBeneficiaryFeedback: true },
-  CPS: { ...EXECUTION_DEFAULT, childrenConsulted: true, hcpBeneficiaryFeedback: true },
+  CPN: {
+    ...EXECUTION_DEFAULT,
+    products: true,
+    pregnantWomenReached: true,
+    hcpBeneficiaryFeedback: true,
+  },
+  CPS: {
+    ...EXECUTION_DEFAULT,
+    products: true,
+    childrenConsulted: true,
+    hcpBeneficiaryFeedback: true,
+  },
   CME: {
     ...EXECUTION_DEFAULT,
     participants: true,
@@ -156,6 +186,7 @@ const EXECUTION_FIELDS: Record<string, ExecutionFieldSet> = {
     ...EXECUTION_DEFAULT,
     participants: true,
     products: true,
+    productAvailability: true,
     nightShiftTiming: true,
     expenses: true,
   },

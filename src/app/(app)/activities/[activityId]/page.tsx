@@ -83,7 +83,7 @@ export default async function ActivityDetailPage({ params }: ActivityDetailPageP
             foodExpense: activity.foodExpense,
             transportExpense: activity.transportExpense,
             notes: activity.notes,
-            productIds: activity.products.map((p) => p.productId),
+            products: activity.products,
             participantContactIds: activity.participantContactIds,
           }}
           centers={centers.map((c) => ({

@@ -38,6 +38,7 @@ type ProductResult = {
   prescriptionsGenerated: number | null;
   businessValueGenerated: string | null;
   samplesProvided: number | null;
+  availability: string | null;
 };
 
 export type ExecutionAssignment = {
@@ -184,6 +185,7 @@ export function AssignmentExecutionForm({
                   ? Number(p.businessValueGenerated)
                   : null,
                 samplesProvided: p.samplesProvided,
+                availability: fields.productAvailability ? p.availability || null : null,
               }))
             : [],
         ),
@@ -298,6 +300,16 @@ export function AssignmentExecutionForm({
                     disabled={isPending || locked}
                   />
                 </div>
+                {fields.productAvailability ? (
+                  <Input
+                    placeholder={dict.availabilityLabel}
+                    value={p.availability ?? ""}
+                    onChange={(e) =>
+                      updateProduct(p.productId, { availability: e.target.value || null })
+                    }
+                    disabled={isPending || locked}
+                  />
+                ) : null}
               </div>
             ))}
           </div>

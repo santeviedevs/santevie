@@ -186,17 +186,21 @@ model User {
   contractDurationUnit  ContractDurationUnit?
   contractExpiryDate    DateTime?             @db.Date
 
-  visits                  Visit[]
-  orders                  Order[]
-  attendances             Attendance[]
-  targets                 Target[]
-  territoryAssignments    UserTerritoryAssignment[]
-  leaves                  Leave[]
-  ownedAttendanceRules    AttendanceRule[]          @relation("AttendanceRuleOwner")
-  targetedAttendanceRules AttendanceRule[]          @relation("AttendanceRuleTarget")
-  routes                  Route[]
-  routeAssignments        RouteAssignment[]
-  activityAssignments     ActivityAssignment[]
+  visits                    Visit[]
+  orders                    Order[]
+  attendances               Attendance[]
+  targets                   Target[]
+  territoryAssignments      UserTerritoryAssignment[]
+  leaves                    Leave[]
+  ownedAttendanceRules      AttendanceRule[]          @relation("AttendanceRuleOwner")
+  targetedAttendanceRules   AttendanceRule[]          @relation("AttendanceRuleTarget")
+  routes                    Route[]
+  routeAssignments          RouteAssignment[]
+  activityAssignments       ActivityAssignment[]
+  ownedFollowUps            FollowUp[]                @relation("FollowUpOwner")
+  followUpReassignedFrom    FollowUpReassignment[]    @relation("FollowUpReassignPrevOwner")
+  followUpReassignedTo      FollowUpReassignment[]    @relation("FollowUpReassignNewOwner")
+  followUpReassignmentsMade FollowUpReassignment[]    @relation("FollowUpReassignActor")
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -1066,6 +1070,15 @@ model ActivityTypeDef {
   defaultFollowUpInitialOffsetDays      Int?
   defaultFollowUpRecurrenceIntervalDays Int?
   defaultFollowUpSeriesDurationDays     Int?
+  // true only for RTM: on completion, create one FollowUp per present
+  // participant (fan-out), instead of the single assignment-level chain
+  // every other configured type uses. A separate explicit flag rather than
+  // inferring "per-participant" from recurrenceIntervalDays being null —
+  // those are two different axes (who the follow-up is about vs. whether it
+  // repeats) and collapsing them would misclassify a future type that wants
+  // either a non-repeating assignment-level follow-up or a repeating
+  // per-participant one.
+  defaultFollowUpPerParticipant         Boolean @default(false)
 
   activities Activity[]
 
@@ -1250,6 +1263,17 @@ model ActivityAssignment {
   results        AssignmentParticipantResult[]
   productResults AssignmentProductResult[]
 
+  // Set by updateAssignmentExecution every time the delegate saves the
+  // execution form — including a save where every field was left blank,
+  // since the signal this exists for is "the delegate has visited
+  // execution at least once," not "some field is non-null" (a type like
+  // Necessity-Driven can legitimately have a sparse execution form). The
+  // My Activities "Mark done" button reads this to warn/disable before a
+  // delegate marks an assignment DONE with no recorded results — a trap
+  // confirmed in practice: RTM's per-participant follow-up fan-out finds
+  // nothing to do when nobody was ever marked present.
+  executionRecordedAt DateTime?
+
   outcomeNotes        String? // general feedback, all standard-event types
   // CPN / CPS: client explicitly separates HCP feedback from the feedback
   // of the pregnant women / children reached — kept as two distinct fields
@@ -1299,10 +1323,9 @@ model ActivityAssignment {
 // This assignee's own record of a participant's actual presence/outcome —
 // as opposed to ActivityParticipant above, which is the shared invited
 // list. `unplanned` covers a doctor this delegate met who wasn't on the
-// original invited list (allowed, flagged, not rejected). Story B adds the
-// other side of this relation (FollowUp.participantResultId, deliberately
-// not @unique so a participant can hold several follow-ups over a chain) —
-// not added here, since FollowUp itself is out of scope for this story.
+// original invited list (allowed, flagged, not rejected). The other side of
+// this relation is FollowUp.participantResultId — deliberately not
+// @unique there, so a participant can hold several follow-ups over a chain.
 model AssignmentParticipantResult {
   id           String             @id @default(cuid())
   assignmentId String
@@ -1315,6 +1338,8 @@ model AssignmentParticipantResult {
 
   feedback               String?
   prescriptionsGenerated Int?
+
+  followUps FollowUp[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -1343,6 +1368,13 @@ model AssignmentProductResult {
   prescriptionsGenerated Int?
   businessValueGenerated Decimal? @db.Decimal(14, 2)
   samplesProvided        Int?
+  // La Garde: whether this product was actually available on this specific
+  // visit — distinct from ActivityProduct.availability (the shared,
+  // planned fact set once at creation). La Garde is typically a different
+  // delegate each night, so availability can genuinely differ visit to
+  // visit; this is that per-assignment record, not a duplicate of the
+  // shared one.
+  availability           String?
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -1370,6 +1402,47 @@ model FollowUp {
   assignmentId String
   assignment   ActivityAssignment @relation(fields: [assignmentId], references: [id])
 
+  // Set = this follow-up is about one specific invited participant (RTM's
+  // one-per-present-prescriber chain, optionally CME/Nurse); null = an
+  // assignment-level chain with no single participant in mind. Deliberately
+  // NOT @unique — a participant can hold several follow-ups across a chain
+  // (e.g. a repeated CME series for the same doctor). Getting this wrong
+  // was caught during design, see the §3.4 note in Marketing Activity.md.
+  participantResultId String?
+  participantResult   AssignmentParticipantResult? @relation(fields: [participantResultId], references: [id])
+
+  // Decoupled from assignment.userId on purpose: reassigning a follow-up
+  // must not require reassigning the whole assignment it was raised
+  // against. Backfilled from assignment.userId for every pre-existing row.
+  ownerId String
+  owner   User   @relation("FollowUpOwner", fields: [ownerId], references: [id])
+
+  // Filled on completion, not just a status flip — distinct from the
+  // generic PENDING/DONE status, and from the type-specific numeric/boolean
+  // fields below (which exist so reports can aggregate "business generated
+  // via follow-ups" or filter "product unavailable", rather than hiding
+  // that data inside free text).
+  outcome                String?
+  prescriptionsGenerated Int?
+  businessValueGenerated Decimal? @db.Decimal(14, 2)
+  productAvailable       Boolean?
+
+  // Chain config, copied forward from ActivityTypeDef's
+  // defaultFollowUp*Days fields onto each generated FollowUp (not re-read
+  // from the type at every step) so a later change to the type's config
+  // never silently reshapes an in-flight chain. Null = no further link
+  // (RTM's chain, or any manually-created follow-up).
+  seriesIntervalDays Int?
+  seriesEndDate      DateTime?
+
+  // One child per parent — the @unique on parentFollowUpId is what makes a
+  // concurrent duplicate completion produce at most one child.
+  parentFollowUpId String?   @unique
+  parentFollowUp   FollowUp? @relation("FollowUpChain", fields: [parentFollowUpId], references: [id])
+  childFollowUp    FollowUp? @relation("FollowUpChain")
+
+  reassignments FollowUpReassignment[]
+
   createdBy String?
   createdAt DateTime @default(now())
   updatedBy String?
@@ -1377,7 +1450,32 @@ model FollowUp {
 
   @@index([assignmentId])
   @@index([dueDate])
+  @@index([participantResultId])
+  @@index([ownerId])
   @@map("follow_ups")
+}
+
+// Audit trail for FollowUp.ownerId changes — reassignFollowUp updates the
+// current row's ownerId in place (unlike assignment reassignment, which
+// cancels and recreates a new row) and writes one of these in the same
+// transaction, so ownership history stays visible even though the owning
+// row itself doesn't carry its own past.
+model FollowUpReassignment {
+  id         String   @id @default(cuid())
+  followUpId String
+  followUp   FollowUp @relation(fields: [followUpId], references: [id])
+
+  previousOwnerId String
+  previousOwner   User   @relation("FollowUpReassignPrevOwner", fields: [previousOwnerId], references: [id])
+  newOwnerId      String
+  newOwner        User   @relation("FollowUpReassignNewOwner", fields: [newOwnerId], references: [id])
+
+  reassignedBy     String
+  reassignedByUser User     @relation("FollowUpReassignActor", fields: [reassignedBy], references: [id])
+  reassignedAt     DateTime @default(now())
+
+  @@index([followUpId])
+  @@map("follow_up_reassignments")
 }
 
 // --- Contacts (doctors, nurses, other professionals) ---

@@ -362,18 +362,22 @@ async function main() {
     initialOffsetDays,
     recurrenceIntervalDays,
     seriesDurationDays,
+    perParticipant,
   ] of [
-    ["PRESCRIPTION", "Prescription Activity", "PRESCRIPTION_TRACKING", null, null, null],
-    ["EMBALLAGE", "Emballage / Notice", "EMBALLAGE", null, null, null],
-    ["RTM", "RTM (Round Table Meeting)", "STANDARD_EVENT", 2, null, null],
-    ["CPN", "CPN", "STANDARD_EVENT", null, null, null],
-    ["CPS", "CPS", "STANDARD_EVENT", null, null, null],
-    ["CME", "CME", "STANDARD_EVENT", 3, 30, 90],
-    ["NURSE_CONFERENCE", "Nurse Conference", "STANDARD_EVENT", 3, 30, 90],
-    ["BONJOUR", "Bonjour", "STANDARD_EVENT", null, null, null],
-    ["NECESSITY_DRIVEN", "Necessity-Driven", "STANDARD_EVENT", 30, 30, 90],
-    ["MATINEE_SCIENTIFIQUE", "Matinee Scientifique", "STANDARD_EVENT", null, null, null],
-    ["LA_GARDE", "La Garde", "STANDARD_EVENT", null, null, null],
+    ["PRESCRIPTION", "Prescription Activity", "PRESCRIPTION_TRACKING", null, null, null, false],
+    ["EMBALLAGE", "Emballage / Notice", "EMBALLAGE", null, null, null, false],
+    // RTM fans out one follow-up per present participant rather than a
+    // single assignment-level chain — see the schema comment on
+    // ActivityTypeDef.defaultFollowUpPerParticipant.
+    ["RTM", "RTM (Round Table Meeting)", "STANDARD_EVENT", 2, null, null, true],
+    ["CPN", "CPN", "STANDARD_EVENT", null, null, null, false],
+    ["CPS", "CPS", "STANDARD_EVENT", null, null, null, false],
+    ["CME", "CME", "STANDARD_EVENT", 3, 30, 90, false],
+    ["NURSE_CONFERENCE", "Nurse Conference", "STANDARD_EVENT", 3, 30, 90, false],
+    ["BONJOUR", "Bonjour", "STANDARD_EVENT", null, null, null, false],
+    ["NECESSITY_DRIVEN", "Necessity-Driven", "STANDARD_EVENT", 30, 30, 90, false],
+    ["MATINEE_SCIENTIFIQUE", "Matinee Scientifique", "STANDARD_EVENT", null, null, null, false],
+    ["LA_GARDE", "La Garde", "STANDARD_EVENT", null, null, null, false],
   ] as const) {
     await prisma.activityTypeDef.upsert({
       where: { code },
@@ -385,6 +389,7 @@ async function main() {
         defaultFollowUpInitialOffsetDays: initialOffsetDays,
         defaultFollowUpRecurrenceIntervalDays: recurrenceIntervalDays,
         defaultFollowUpSeriesDurationDays: seriesDurationDays,
+        defaultFollowUpPerParticipant: perParticipant,
       },
     });
   }

@@ -108,6 +108,14 @@ const assignmentProductResultInput = z.object({
   prescriptionsGenerated: z.coerce.number().int().min(0).nullish(),
   businessValueGenerated: z.coerce.number().min(0).nullish(),
   samplesProvided: z.coerce.number().int().min(0).nullish(),
+  // La Garde only (activity-type-fields.ts's productAvailability flag):
+  // whether this product was actually available on this specific visit —
+  // distinct from ActivityProduct.availability, the shared/planned fact set
+  // at creation. La Garde is typically a different delegate each night, so
+  // availability can genuinely differ visit to visit; this is the
+  // execution-time (per-assignment) record of that, not a second copy of
+  // the same shared fact.
+  availability: z.string().trim().max(200).nullish(),
 });
 
 export const updateAssignmentExecutionSchema = z.object({

@@ -15,6 +15,7 @@ const listRequirementCategories = vi.fn();
 const findActivePlannedAssignment = vi.fn();
 const createAssignmentRow = vi.fn();
 const updateAssignmentStatusRow = vi.fn();
+const findAssignmentCompletionContext = vi.fn();
 const runInTransaction = vi.fn();
 const listActivities = vi.fn();
 const countActivities = vi.fn();
@@ -37,6 +38,7 @@ vi.mock("@/server/repositories/activity-repository", () => ({
   findActivePlannedAssignment,
   createAssignmentRow,
   updateAssignmentStatusRow,
+  findAssignmentCompletionContext,
   runInTransaction: (fn: (tx: unknown) => unknown) => runInTransaction(fn),
   listActivities,
   countActivities,
@@ -44,6 +46,9 @@ vi.mock("@/server/repositories/activity-repository", () => ({
   countAssignments,
   searchActivities,
 }));
+
+const createFollowUpRow = vi.fn();
+vi.mock("@/server/repositories/follow-up-repository", () => ({ createFollowUpRow }));
 
 const findUserById = vi.fn();
 const findUserIdsByRoleName = vi.fn();
@@ -129,7 +134,27 @@ beforeEach(() => {
   getUserScope.mockResolvedValue(TEAM_SCOPE);
   findUserIdsByRoleName.mockResolvedValue(["admin-1"]);
   runInTransaction.mockImplementation((fn: (tx: unknown) => unknown) => fn({}));
+  findAssignmentCompletionContext.mockResolvedValue(null);
 });
+
+// Minimal AssignmentCompletionContext shape — see
+// activity-repository.ts's findAssignmentCompletionContext.
+function completionContext(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "assignment-1",
+    userId: "delegate-1",
+    activity: {
+      type: {
+        defaultFollowUpInitialOffsetDays: null,
+        defaultFollowUpRecurrenceIntervalDays: null,
+        defaultFollowUpSeriesDurationDays: null,
+        defaultFollowUpPerParticipant: false,
+      },
+    },
+    results: [],
+    ...overrides,
+  };
+}
 
 describe("createActivity", () => {
   it("creates the activity unassigned, attributed to the creator", async () => {
@@ -488,7 +513,14 @@ describe("updateAssignmentStatus", () => {
 
     await updateAssignmentStatus("assignment-1", "DONE", DELEGATE, false);
 
-    expect(updateAssignmentStatusRow).toHaveBeenCalledWith("assignment-1", "DONE", "delegate-1");
+    // DONE is wrapped in a transaction together with any auto-follow-up
+    // creation (§3.5) — the mocked tx object is the 4th arg.
+    expect(updateAssignmentStatusRow).toHaveBeenCalledWith(
+      "assignment-1",
+      "DONE",
+      "delegate-1",
+      {},
+    );
   });
 
   it("blocks a delegate from changing someone else's assignment by id", async () => {
@@ -530,6 +562,136 @@ describe("updateAssignmentStatus", () => {
     await expect(
       updateAssignmentStatus("assignment-1", "CANCELLED", MANAGER, true),
     ).rejects.toBeInstanceOf(AssignmentNotActionableError);
+  });
+
+  // Trigger 1 of the follow-up chain engine (Marketing Activity.md §3.5):
+  // completion creates whichever auto-follow-up(s) the type is configured
+  // for, inside the same transaction as the status write.
+  it("rtm_completion_creates_one_followup_per_present_participant", async () => {
+    findAssignmentById.mockResolvedValue(assignment());
+    updateAssignmentStatusRow.mockResolvedValue(assignment({ status: "DONE" }));
+    findAssignmentCompletionContext.mockResolvedValue(
+      completionContext({
+        activity: {
+          type: {
+            defaultFollowUpInitialOffsetDays: 2,
+            defaultFollowUpRecurrenceIntervalDays: null,
+            defaultFollowUpSeriesDurationDays: null,
+            defaultFollowUpPerParticipant: true,
+          },
+        },
+        results: [
+          { id: "result-present-1", present: true },
+          { id: "result-present-2", present: true },
+          { id: "result-absent-1", present: false },
+        ],
+      }),
+    );
+
+    await updateAssignmentStatus("assignment-1", "DONE", DELEGATE, false);
+
+    expect(createFollowUpRow).toHaveBeenCalledTimes(2);
+    const calls = createFollowUpRow.mock.calls.map((call) => call[0]);
+    expect(calls.map((c) => c.participantResult)).toEqual([
+      { connect: { id: "result-present-1" } },
+      { connect: { id: "result-present-2" } },
+    ]);
+    for (const data of calls) {
+      expect(data.owner).toEqual({ connect: { id: "delegate-1" } });
+      expect(data.seriesIntervalDays).toBeUndefined();
+      expect(data.seriesEndDate).toBeUndefined();
+    }
+  });
+
+  it("cme_completion_creates_first_followup_at_plus3_with_90day_window", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-01T00:00:00.000Z"));
+    findAssignmentById.mockResolvedValue(assignment());
+    updateAssignmentStatusRow.mockResolvedValue(assignment({ status: "DONE" }));
+    findAssignmentCompletionContext.mockResolvedValue(
+      completionContext({
+        activity: {
+          type: {
+            defaultFollowUpInitialOffsetDays: 3,
+            defaultFollowUpRecurrenceIntervalDays: 30,
+            defaultFollowUpSeriesDurationDays: 90,
+            defaultFollowUpPerParticipant: false,
+          },
+        },
+      }),
+    );
+
+    await updateAssignmentStatus("assignment-1", "DONE", DELEGATE, false);
+
+    expect(createFollowUpRow).toHaveBeenCalledTimes(1);
+    const data = createFollowUpRow.mock.calls[0]![0];
+    expect(data.owner).toEqual({ connect: { id: "delegate-1" } });
+    expect(data.dueDate).toEqual(new Date("2026-06-04T00:00:00.000Z"));
+    expect(data.seriesIntervalDays).toBe(30);
+    expect(data.seriesEndDate).toEqual(new Date("2026-08-30T00:00:00.000Z"));
+    vi.useRealTimers();
+  });
+
+  it("necessity_driven_chain_same_mechanics_over_90_days", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-01T00:00:00.000Z"));
+    findAssignmentById.mockResolvedValue(assignment());
+    updateAssignmentStatusRow.mockResolvedValue(assignment({ status: "DONE" }));
+    findAssignmentCompletionContext.mockResolvedValue(
+      completionContext({
+        activity: {
+          type: {
+            defaultFollowUpInitialOffsetDays: 30,
+            defaultFollowUpRecurrenceIntervalDays: 30,
+            defaultFollowUpSeriesDurationDays: 90,
+            defaultFollowUpPerParticipant: false,
+          },
+        },
+      }),
+    );
+
+    await updateAssignmentStatus("assignment-1", "DONE", DELEGATE, false);
+
+    const data = createFollowUpRow.mock.calls[0]![0];
+    expect(data.dueDate).toEqual(new Date("2026-07-01T00:00:00.000Z"));
+    expect(data.seriesIntervalDays).toBe(30);
+    expect(data.seriesEndDate).toEqual(new Date("2026-08-30T00:00:00.000Z"));
+    vi.useRealTimers();
+  });
+
+  it("creates no follow-up for a type with no configured offset (manual only)", async () => {
+    findAssignmentById.mockResolvedValue(assignment());
+    updateAssignmentStatusRow.mockResolvedValue(assignment({ status: "DONE" }));
+    findAssignmentCompletionContext.mockResolvedValue(completionContext());
+
+    await updateAssignmentStatus("assignment-1", "DONE", DELEGATE, false);
+
+    expect(createFollowUpRow).not.toHaveBeenCalled();
+  });
+
+  it("followup_creation_failure_rolls_back_status_change", async () => {
+    findAssignmentById.mockResolvedValue(assignment());
+    updateAssignmentStatusRow.mockResolvedValue(assignment({ status: "DONE" }));
+    findAssignmentCompletionContext.mockResolvedValue(
+      completionContext({
+        activity: {
+          type: {
+            defaultFollowUpInitialOffsetDays: 3,
+            defaultFollowUpRecurrenceIntervalDays: 30,
+            defaultFollowUpSeriesDurationDays: 90,
+            defaultFollowUpPerParticipant: false,
+          },
+        },
+      }),
+    );
+    createFollowUpRow.mockRejectedValue(new Error("db write failed"));
+
+    // The whole call rejects rather than returning a "DONE" summary — in
+    // a real transaction this means the status write never commits either,
+    // since both happen inside the same runInTransaction callback.
+    await expect(updateAssignmentStatus("assignment-1", "DONE", DELEGATE, false)).rejects.toThrow(
+      "db write failed",
+    );
   });
 });
 
