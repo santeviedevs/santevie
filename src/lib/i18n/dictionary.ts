@@ -582,6 +582,19 @@ export type Dictionary = {
     targetLabel: string;
     targetCenter: string;
     targetTerritory: string;
+    territoryFieldLabel: string;
+    centerFieldLabel: string;
+    locationLabel: string;
+    departmentLabel: string;
+    speakerLabel: string;
+    speakerNone: string;
+    foodExpenseLabel: string;
+    transportExpenseLabel: string;
+    productsLabel: string;
+    productsPlaceholder: string;
+    participantsLabel: string;
+    participantsPlaceholder: string;
+    noOptionsAvailable: string;
     notesLabel: string;
     save: string;
     saving: string;
@@ -668,6 +681,34 @@ export type Dictionary = {
     assignmentCancelled: string;
     assignmentReassigned: string;
     noActionsHint: string;
+    recordResultsAction: string;
+    recordResultsTitle: string;
+    outcomeNotesLabel: string;
+    hcpFeedbackLabel: string;
+    beneficiaryFeedbackLabel: string;
+    commitmentsLabel: string;
+    prescriberCountLabel: string;
+    pregnantWomenReachedLabel: string;
+    childrenConsultedLabel: string;
+    expectedParticipantsLabel: string;
+    actualParticipantsLabel: string;
+    nightShiftTimingLabel: string;
+    requirementCategoryLabel: string;
+    requirementValueLabel: string;
+    supportProvidedLabel: string;
+    recipientLabel: string;
+    recipientNone: string;
+    participantResultsHeading: string;
+    presentLabel: string;
+    perPersonFeedbackLabel: string;
+    prescriptionsGeneratedLabel: string;
+    productResultsHeading: string;
+    businessValueGeneratedLabel: string;
+    samplesProvidedLabel: string;
+    saveResults: string;
+    savingResults: string;
+    resultsSaved: string;
+    executionLockedHint: string;
   };
   // The Calendar screen: a month-grid view of the viewer's own holidays,
   // weekly-offs and leave status, plus a Holidays tab (the same
@@ -1463,6 +1504,19 @@ const en: Dictionary = {
     targetLabel: "Applies to",
     targetCenter: "A center",
     targetTerritory: "A territory",
+    territoryFieldLabel: "Territory",
+    centerFieldLabel: "Centre",
+    locationLabel: "Location",
+    departmentLabel: "Department",
+    speakerLabel: "Speaker",
+    speakerNone: "None",
+    foodExpenseLabel: "Food expense",
+    transportExpenseLabel: "Transport expense",
+    productsLabel: "Products",
+    productsPlaceholder: "Search products…",
+    participantsLabel: "Invited participants",
+    participantsPlaceholder: "Search contacts…",
+    noOptionsAvailable: "None available.",
     notesLabel: "Notes",
     save: "Save",
     saving: "Saving...",
@@ -1545,6 +1599,34 @@ const en: Dictionary = {
     assignmentCancelled: "Assignment cancelled",
     assignmentReassigned: "Assignment reassigned",
     noActionsHint: "This assignment is no longer planned, so it can't be changed.",
+    recordResultsAction: "Record results",
+    recordResultsTitle: "Record your results",
+    outcomeNotesLabel: "General feedback",
+    hcpFeedbackLabel: "Feedback from HCPs",
+    beneficiaryFeedbackLabel: "Feedback from beneficiaries",
+    commitmentsLabel: "Commitments",
+    prescriberCountLabel: "Number of prescribers",
+    pregnantWomenReachedLabel: "Pregnant women reached",
+    childrenConsultedLabel: "Children consulted",
+    expectedParticipantsLabel: "Expected participants",
+    actualParticipantsLabel: "Actual participants",
+    nightShiftTimingLabel: "Night-shift timing",
+    requirementCategoryLabel: "Requirement category",
+    requirementValueLabel: "Quantity / value",
+    supportProvidedLabel: "Support provided",
+    recipientLabel: "Recipient",
+    recipientNone: "None",
+    participantResultsHeading: "Participants",
+    presentLabel: "Present",
+    perPersonFeedbackLabel: "Feedback",
+    prescriptionsGeneratedLabel: "Prescriptions generated",
+    productResultsHeading: "Products",
+    businessValueGeneratedLabel: "Business value generated",
+    samplesProvidedLabel: "Samples provided",
+    saveResults: "Save results",
+    savingResults: "Saving…",
+    resultsSaved: "Results saved",
+    executionLockedHint: "This assignment is no longer planned, so results can't be changed.",
   },
   calendarPage: {
     tabCalendar: "Calendar",
@@ -2318,6 +2400,19 @@ const fr: Dictionary = {
     targetLabel: "S'applique à",
     targetCenter: "Un centre",
     targetTerritory: "Un territoire",
+    territoryFieldLabel: "Territoire",
+    centerFieldLabel: "Centre",
+    locationLabel: "Lieu",
+    departmentLabel: "Département",
+    speakerLabel: "Intervenant",
+    speakerNone: "Aucun",
+    foodExpenseLabel: "Frais de restauration",
+    transportExpenseLabel: "Frais de transport",
+    productsLabel: "Produits",
+    productsPlaceholder: "Rechercher des produits…",
+    participantsLabel: "Participants invités",
+    participantsPlaceholder: "Rechercher des contacts…",
+    noOptionsAvailable: "Aucune option disponible.",
     notesLabel: "Notes",
     save: "Enregistrer",
     saving: "Enregistrement...",
@@ -2400,6 +2495,35 @@ const fr: Dictionary = {
     assignmentCancelled: "Affectation annulée",
     assignmentReassigned: "Affectation réaffectée",
     noActionsHint: "Cette affectation n'est plus planifiée, elle ne peut plus être modifiée.",
+    recordResultsAction: "Enregistrer les résultats",
+    recordResultsTitle: "Enregistrer vos résultats",
+    outcomeNotesLabel: "Retour général",
+    hcpFeedbackLabel: "Retour des professionnels de santé",
+    beneficiaryFeedbackLabel: "Retour des bénéficiaires",
+    commitmentsLabel: "Engagements",
+    prescriberCountLabel: "Nombre de prescripteurs",
+    pregnantWomenReachedLabel: "Femmes enceintes touchées",
+    childrenConsultedLabel: "Enfants consultés",
+    expectedParticipantsLabel: "Participants attendus",
+    actualParticipantsLabel: "Participants réels",
+    nightShiftTimingLabel: "Horaire de garde de nuit",
+    requirementCategoryLabel: "Catégorie de besoin",
+    requirementValueLabel: "Quantité / valeur",
+    supportProvidedLabel: "Soutien apporté",
+    recipientLabel: "Bénéficiaire",
+    recipientNone: "Aucun",
+    participantResultsHeading: "Participants",
+    presentLabel: "Présent",
+    perPersonFeedbackLabel: "Retour",
+    prescriptionsGeneratedLabel: "Prescriptions générées",
+    productResultsHeading: "Produits",
+    businessValueGeneratedLabel: "Valeur commerciale générée",
+    samplesProvidedLabel: "Échantillons fournis",
+    saveResults: "Enregistrer les résultats",
+    savingResults: "Enregistrement…",
+    resultsSaved: "Résultats enregistrés",
+    executionLockedHint:
+      "Cette affectation n'est plus planifiée, les résultats ne peuvent plus être modifiés.",
   },
   calendarPage: {
     tabCalendar: "Calendrier",

@@ -3,6 +3,7 @@ import { getServerDictionary } from "@/lib/i18n/server";
 import { totalPages } from "@/lib/pagination";
 import { activityAssignmentFiltersSchema } from "@/lib/schemas/activity";
 import { requirePermission } from "@/server/auth/require-permission";
+import { listStandardEventActivityTypes } from "@/server/repositories/activity-repository";
 import {
   getAssigneeFilterLabel,
   getAssignmentsPageForViewer,
@@ -37,7 +38,7 @@ export default async function ActivityAssignmentPage({ searchParams }: Assignmen
   const filters = activityAssignmentFiltersSchema.parse({
     q: firstValue(params.q),
     assigneeId: firstValue(params.assigneeId),
-    type: firstValue(params.type),
+    typeId: firstValue(params.typeId),
     status: firstValue(params.status),
     from: firstValue(params.from),
     to: firstValue(params.to),
@@ -45,15 +46,21 @@ export default async function ActivityAssignmentPage({ searchParams }: Assignmen
     pageSize: firstValue(params.pageSize),
   });
 
-  const [result, assigneeLabel] = await Promise.all([
+  const [result, assigneeLabel, typeOptions] = await Promise.all([
     getAssignmentsPageForViewer(session, filters, filters),
     filters.assigneeId
       ? getAssigneeFilterLabel(filters.assigneeId, session.user.id, session)
       : Promise.resolve(null),
+    listStandardEventActivityTypes(),
   ]);
 
   const anyFilter = Boolean(
-    filters.q || filters.assigneeId || filters.type || filters.status || filters.from || filters.to,
+    filters.q ||
+    filters.assigneeId ||
+    filters.typeId ||
+    filters.status ||
+    filters.from ||
+    filters.to,
   );
 
   return (
@@ -64,7 +71,13 @@ export default async function ActivityAssignmentPage({ searchParams }: Assignmen
       <AssignActivityForm dict={t} />
 
       <section className="flex flex-col gap-4">
-        <ActivityFilters filters={filters} assigneeLabel={assigneeLabel} showAssignee dict={t} />
+        <ActivityFilters
+          filters={filters}
+          assigneeLabel={assigneeLabel}
+          showAssignee
+          typeOptions={typeOptions}
+          dict={t}
+        />
 
         <ActivityAssignmentsTable
           assignments={result.items.map((assignment) => ({

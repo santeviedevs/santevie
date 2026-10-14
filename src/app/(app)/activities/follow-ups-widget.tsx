@@ -13,7 +13,11 @@ import { type ActivityFormState, completeFollowUpAction } from "./actions";
 type FollowUp = {
   id: string;
   dueDate: Date;
-  activity: { type: string; center: { name: string } | null; territory: { code: string } | null };
+  activity: {
+    type: { id: string; code: string; name: string };
+    center: { name: string } | null;
+    territory: { code: string } | null;
+  };
 };
 
 export function FollowUpsWidget({

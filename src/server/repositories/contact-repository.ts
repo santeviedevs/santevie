@@ -99,6 +99,17 @@ export function findContactReferenceIds(contactId: string) {
   });
 }
 
+// Contacts selectable for an activity's invited-participant list or
+// speaker — active only, same "active-only selection list vs. full
+// readable history" split as listActiveCentersForSelection.
+export function listActiveContactsForSelection() {
+  return prisma.contact.findMany({
+    where: { status: "ACTIVE" },
+    select: { id: true, name: true, code: true },
+    orderBy: { name: "asc" },
+  });
+}
+
 // --- Lookups ---
 
 export function listContactTypes() {

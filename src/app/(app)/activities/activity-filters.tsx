@@ -17,17 +17,11 @@ import type { Dictionary } from "@/lib/i18n/dictionary";
 import { ACTIVITY_ASSIGNMENT_STATUSES } from "@/lib/schemas/activity";
 
 const ALL = "__all__";
-const ACTIVITY_TYPES = ["CAMPAIGN", "EVENT", "OTHER"] as const;
 
 export type AssigneeOption = { id: string; name: string; employeeCode: string; roleName: string };
+export type ActivityTypeOption = { id: string; name: string };
 
 type Dict = Dictionary["activitiesPage"];
-
-function typeLabel(type: string, dict: Dict): string {
-  if (type === "CAMPAIGN") return dict.typeCampaign;
-  if (type === "EVENT") return dict.typeEvent;
-  return dict.typeOther;
-}
 
 function statusLabel(status: string, dict: Dict): string {
   if (status === "PLANNED") return dict.statusPlanned;
@@ -43,11 +37,12 @@ export function ActivityFilters({
   filters,
   assigneeLabel,
   showAssignee = false,
+  typeOptions,
   dict,
 }: {
   filters: {
     q?: string;
-    type?: string;
+    typeId?: string;
     status?: string;
     assigneeId?: string;
     from?: string;
@@ -55,6 +50,7 @@ export function ActivityFilters({
   };
   assigneeLabel?: string | null;
   showAssignee?: boolean;
+  typeOptions: ActivityTypeOption[];
   dict: Dict;
 }) {
   const router = useRouter();
@@ -76,7 +72,7 @@ export function ActivityFilters({
   }, []);
 
   function update(
-    changes: Partial<Record<"q" | "type" | "status" | "assigneeId" | "from" | "to", string>>,
+    changes: Partial<Record<"q" | "typeId" | "status" | "assigneeId" | "from" | "to", string>>,
   ) {
     const next = new URLSearchParams(searchParams.toString());
     next.delete("page");
@@ -98,7 +94,7 @@ export function ActivityFilters({
 
   const anyFilter = Boolean(
     filters.q ||
-    filters.type ||
+    filters.typeId ||
     filters.status ||
     (showAssignee && filters.assigneeId) ||
     filters.from ||
@@ -155,19 +151,19 @@ export function ActivityFilters({
       <Select
         items={[
           { value: ALL, label: dict.filterAllTypes },
-          ...ACTIVITY_TYPES.map((type) => ({ value: type, label: typeLabel(type, dict) })),
+          ...typeOptions.map((type) => ({ value: type.id, label: type.name })),
         ]}
-        value={filters.type ?? ALL}
-        onValueChange={(value) => update({ type: value && value !== ALL ? value : "" })}
+        value={filters.typeId ?? ALL}
+        onValueChange={(value) => update({ typeId: value && value !== ALL ? value : "" })}
       >
         <SelectTrigger className="w-full sm:w-40 sm:shrink-0" aria-label={dict.typeLabel}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={ALL}>{dict.filterAllTypes}</SelectItem>
-          {ACTIVITY_TYPES.map((type) => (
-            <SelectItem key={type} value={type}>
-              {typeLabel(type, dict)}
+          {typeOptions.map((type) => (
+            <SelectItem key={type.id} value={type.id}>
+              {type.name}
             </SelectItem>
           ))}
         </SelectContent>

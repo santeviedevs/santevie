@@ -12,7 +12,7 @@ const listInclude = {
         select: {
           id: true,
           name: true,
-          type: true,
+          type: { select: { id: true, code: true, name: true } },
           center: { select: { id: true, name: true } },
           territory: { select: { id: true, code: true } },
         },

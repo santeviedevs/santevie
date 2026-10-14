@@ -4,6 +4,14 @@ const createActivityRow = vi.fn();
 const updateActivityRow = vi.fn();
 const findActivityById = vi.fn();
 const findAssignmentById = vi.fn();
+const findAssignmentExecutionById = vi.fn();
+const updateAssignmentExecutionRow = vi.fn();
+const replaceActivityProducts = vi.fn();
+const replaceActivityParticipants = vi.fn();
+const replaceAssignmentParticipantResults = vi.fn();
+const replaceAssignmentProductResults = vi.fn();
+const listStandardEventActivityTypes = vi.fn();
+const listRequirementCategories = vi.fn();
 const findActivePlannedAssignment = vi.fn();
 const createAssignmentRow = vi.fn();
 const updateAssignmentStatusRow = vi.fn();
@@ -18,6 +26,14 @@ vi.mock("@/server/repositories/activity-repository", () => ({
   updateActivityRow,
   findActivityById,
   findAssignmentById,
+  findAssignmentExecutionById,
+  updateAssignmentExecutionRow,
+  replaceActivityProducts,
+  replaceActivityParticipants,
+  replaceAssignmentParticipantResults,
+  replaceAssignmentProductResults,
+  listStandardEventActivityTypes,
+  listRequirementCategories,
   findActivePlannedAssignment,
   createAssignmentRow,
   updateAssignmentStatusRow,
@@ -59,7 +75,9 @@ const {
   createAssignment,
   reassignAssignment,
   cancelAssignment,
+  updateActivity,
   updateAssignmentStatus,
+  updateAssignmentExecution,
   getAssignmentsForMonth,
   getActivitiesPageForViewer,
 } = await import("./activity-service");
@@ -72,10 +90,20 @@ function activity(overrides: Record<string, unknown> = {}) {
   return {
     id: "activity-1",
     name: "Spring campaign",
-    type: "CAMPAIGN",
+    type: { id: "type-campaign", code: "CAMPAIGN", name: "Campaign", category: "STANDARD_EVENT" },
     notes: null,
     center: null,
     territory: null,
+    location: null,
+    departmentName: null,
+    speaker: null,
+    requirementCategory: null,
+    prescriberCount: null,
+    expectedParticipants: null,
+    foodExpense: null,
+    transportExpense: null,
+    products: [],
+    participants: [],
     assignments: [],
     createdBy: "manager-1",
     createdAt: new Date("2026-10-10T00:00:00.000Z"),
@@ -106,15 +134,144 @@ beforeEach(() => {
 describe("createActivity", () => {
   it("creates the activity unassigned, attributed to the creator", async () => {
     createActivityRow.mockResolvedValue(activity());
+    findActivityById.mockResolvedValue(activity());
 
     await createActivity(
-      { name: "Spring campaign", type: "CAMPAIGN", centerId: "center-1" },
+      {
+        name: "Spring campaign",
+        typeId: "type-campaign",
+        centerId: "center-1",
+        products: [],
+        participantContactIds: [],
+      },
       "manager-1",
     );
 
     const data = createActivityRow.mock.calls[0]![0];
     expect(data.name).toBe("Spring campaign");
     expect(data.createdBy).toBe("manager-1");
+    expect(replaceActivityProducts).toHaveBeenCalledWith("activity-1", [], "manager-1", {});
+    expect(replaceActivityParticipants).toHaveBeenCalledWith("activity-1", [], "manager-1", {});
+  });
+});
+
+describe("updateActivity", () => {
+  it("writes the shared plan (type, venue, products, participants) inside one transaction", async () => {
+    findActivityById.mockResolvedValueOnce(activity()).mockResolvedValueOnce(activity());
+    updateActivityRow.mockResolvedValue(activity());
+
+    await updateActivity(
+      {
+        id: "activity-1",
+        name: "Spring campaign",
+        typeId: "type-rtm",
+        centerId: "center-1",
+        location: "Hotel Lumumba",
+        products: [{ productId: "product-1", availability: "In stock" }],
+        participantContactIds: ["contact-1", "contact-2"],
+      },
+      MANAGER,
+      true,
+    );
+
+    const data = updateActivityRow.mock.calls[0]![1];
+    expect(data.type).toEqual({ connect: { id: "type-rtm" } });
+    expect(data.location).toBe("Hotel Lumumba");
+    expect(replaceActivityProducts).toHaveBeenCalledWith(
+      "activity-1",
+      [{ productId: "product-1", availability: "In stock" }],
+      "manager-1",
+      {},
+    );
+    expect(replaceActivityParticipants).toHaveBeenCalledWith(
+      "activity-1",
+      ["contact-1", "contact-2"],
+      "manager-1",
+      {},
+    );
+  });
+
+  it("rejects editing an activity outside the manager's team", async () => {
+    findActivityById.mockResolvedValue(
+      activity({
+        assignments: [{ id: "a-0", status: "PLANNED", user: { id: "other-1" } }],
+        createdBy: "other-mgr",
+      }),
+    );
+
+    await expect(
+      updateActivity(
+        {
+          id: "activity-1",
+          name: "Spring campaign",
+          typeId: "type-campaign",
+          centerId: "center-1",
+          products: [],
+          participantContactIds: [],
+        },
+        MANAGER,
+        true,
+      ),
+    ).rejects.toBeInstanceOf(ActivityNotAuthorizedError);
+    expect(updateActivityRow).not.toHaveBeenCalled();
+  });
+});
+
+describe("updateAssignmentExecution", () => {
+  function executionInput(overrides: Record<string, unknown> = {}) {
+    return {
+      assignmentId: "assignment-1",
+      results: [{ contactId: "contact-1", present: true, unplanned: false }],
+      productResults: [{ productId: "product-1", unplanned: false, prescriptionsGenerated: 5 }],
+      ...overrides,
+    };
+  }
+
+  it("lets the assignee record their own execution while the assignment is still planned", async () => {
+    getUserScope.mockResolvedValue({ kind: "ids", userIds: ["delegate-1"] });
+    findAssignmentById.mockResolvedValue(assignment());
+    updateAssignmentExecutionRow.mockResolvedValue({ id: "assignment-1" });
+    findAssignmentExecutionById.mockResolvedValue({ id: "assignment-1" });
+
+    await updateAssignmentExecution(executionInput(), DELEGATE, false);
+
+    expect(updateAssignmentExecutionRow).toHaveBeenCalled();
+    expect(replaceAssignmentParticipantResults).toHaveBeenCalledWith(
+      "assignment-1",
+      [{ contactId: "contact-1", present: true, unplanned: false }],
+      "delegate-1",
+      {},
+    );
+    expect(replaceAssignmentProductResults).toHaveBeenCalledWith(
+      "assignment-1",
+      [{ productId: "product-1", unplanned: false, prescriptionsGenerated: 5 }],
+      "delegate-1",
+      {},
+    );
+  });
+
+  it("blocks a stranger from recording results on someone else's assignment", async () => {
+    getUserScope.mockResolvedValue({ kind: "ids", userIds: ["delegate-2"] });
+    findAssignmentById.mockResolvedValue(assignment());
+
+    await expect(
+      updateAssignmentExecution(
+        executionInput(),
+        { user: { id: "delegate-2", roleName: "DELEGATE" } },
+        false,
+      ),
+    ).rejects.toBeInstanceOf(ActivityNotAuthorizedError);
+    expect(updateAssignmentExecutionRow).not.toHaveBeenCalled();
+  });
+
+  it("locks execution once the assignment is no longer planned", async () => {
+    getUserScope.mockResolvedValue({ kind: "ids", userIds: ["delegate-1"] });
+    findAssignmentById.mockResolvedValue(assignment({ status: "DONE" }));
+
+    await expect(
+      updateAssignmentExecution(executionInput(), DELEGATE, false),
+    ).rejects.toBeInstanceOf(AssignmentNotActionableError);
+    expect(updateAssignmentExecutionRow).not.toHaveBeenCalled();
   });
 });
 
@@ -413,11 +570,11 @@ describe("getActivitiesPageForViewer", () => {
 
     const result = await getActivitiesPageForViewer(MANAGER, true, PAGE, {
       q: "spring",
-      type: "CAMPAIGN",
+      typeId: "type-campaign",
     });
 
     expect(listActivities).toHaveBeenCalledWith(
-      expect.objectContaining({ skip: 5, take: 5, q: "spring", type: "CAMPAIGN" }),
+      expect.objectContaining({ skip: 5, take: 5, q: "spring", typeId: "type-campaign" }),
     );
     const countQuery = countActivities.mock.calls[0]![0];
     expect(countQuery.q).toBe("spring");

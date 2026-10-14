@@ -50,10 +50,24 @@ enum LeaveStatus {
   REJECTED
 }
 
-enum ActivityType {
-  CAMPAIGN
-  EVENT
-  OTHER
+// Superseded by the ActivityTypeDef lookup table below (Story A: 11
+// client-defined activity types, admin-extensible, with per-type
+// follow-up-interval config) — kept here only as the historical name of
+// what Activity.type used to be, for anyone grepping the migration history.
+// enum ActivityType { CAMPAIGN EVENT OTHER }
+
+// Drives which fields a screen renders for a given ActivityTypeDef:
+// STANDARD_EVENT covers RTM, CPN, CPS, CME, Nurse Conference, Bonjour,
+// Necessity-Driven, Matinee Scientifique, La Garde (one shared-plan +
+// per-delegate-execution model, see Activity/ActivityAssignment below) plus
+// the legacy CAMPAIGN/EVENT/OTHER values. PRESCRIPTION_TRACKING and
+// EMBALLAGE are structurally different (target-accumulation and
+// repeatable-collection respectively) and are modeled as their own
+// standalone tables entirely, not as Activity rows.
+enum ActivityCategory {
+  STANDARD_EVENT
+  PRESCRIPTION_TRACKING
+  EMBALLAGE
 }
 
 // Per-assignment, not per-activity: the same activity can be assigned to
@@ -475,9 +489,11 @@ model Product {
   categoryId String?
   category   ProductCategory? @relation(fields: [categoryId], references: [id])
 
-  orderItems   OrderItem[]
-  targets      Target[]
-  priceHistory ProductPriceHistory[]
+  orderItems               OrderItem[]
+  targets                  Target[]
+  priceHistory             ProductPriceHistory[]
+  activityProducts         ActivityProduct[]
+  assignmentProductResults AssignmentProductResult[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -1021,7 +1037,65 @@ model RouteItemContact {
   @@map("route_item_contacts")
 }
 
-// --- Marketing activity planning and follow-ups (S3-07) ---
+// --- Marketing activity planning and follow-ups (S3-07, extended by the
+// 11-type marketing activity taxonomy described in the project's activity
+// requirements) ---
+
+// Admin-maintained, not a hardcoded enum — the client's 11 activity types
+// (plus the 3 legacy CAMPAIGN/EVENT/OTHER values, preserved as their own
+// rows so existing Activity data needs no reclassification) are expected to
+// grow over time, and each carries its own default auto-follow-up timing.
+//
+// defaultFollowUpInitialOffsetDays: days from activity completion to the
+// first auto-created follow-up (RTM: 2, CME/Nurse Conference: 3,
+// Necessity-Driven: 30). defaultFollowUpRecurrenceIntervalDays: gap between
+// subsequent links in the chain (CME/Nurse Conference and Necessity-Driven:
+// 30; null for types with no chain, e.g. RTM). defaultFollowUpSeriesDurationDays:
+// hard cutoff window from completion (90 for CME/Nurse Conference and
+// Necessity-Driven). CPS, Matinee Scientifique and La Garde ship with all
+// three null — manual follow-up only until an admin configures them. The
+// actual chain-generation logic that reads these lives in Story B
+// (follow-up engine); this table only carries the configuration.
+model ActivityTypeDef {
+  id       String           @id @default(cuid())
+  code     String           @unique
+  name     String
+  category ActivityCategory
+  status   Status           @default(ACTIVE)
+
+  defaultFollowUpInitialOffsetDays      Int?
+  defaultFollowUpRecurrenceIntervalDays Int?
+  defaultFollowUpSeriesDurationDays     Int?
+
+  activities Activity[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("activity_type_defs")
+}
+
+// Necessity-Driven's requirement dropdown — a lookup table (same pattern as
+// CenterType/ProductCategory), not a closed enum, since the client's
+// starting list (hospital materials, personal-use materials, special gifts,
+// hospital painting, pharmacy painting, other) is explicitly extensible.
+model RequirementCategoryDef {
+  id     String @id @default(cuid())
+  code   String @unique
+  name   String
+  status Status @default(ACTIVE)
+
+  activities Activity[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("requirement_category_defs")
+}
 
 // Exactly one of centerId/territoryId is set, enforced at the Zod boundary
 // (src/lib/schemas/activity.ts), not at this level — Prisma has no native
@@ -1029,11 +1103,20 @@ model RouteItemContact {
 // assignee or status: who's doing it, and how that's going, is tracked per
 // assignment below, since the same activity can be assigned to several users
 // at once (unlike Route, which has exactly one holder at a time).
+//
+// Fields on this model are the *shared, planned* facts about the
+// activity/meeting — the same for every delegate assigned to it (what was
+// selected, who was invited, where it is, what it costs to run). Facts that
+// genuinely differ per delegate's own execution (who was actually present,
+// what they personally achieved) live on ActivityAssignment and its child
+// tables below instead — see AssignmentParticipantResult / AssignmentProductResult.
 model Activity {
-  id    String       @id @default(cuid())
+  id    String  @id @default(cuid())
   name  String
-  type  ActivityType
   notes String?
+
+  typeId String
+  type   ActivityTypeDef @relation(fields: [typeId], references: [id])
 
   centerId String?
   center   Center? @relation(fields: [centerId], references: [id])
@@ -1041,14 +1124,101 @@ model Activity {
   territoryId String?
   territory   Territory? @relation(fields: [territoryId], references: [id])
 
-  assignments ActivityAssignment[]
+  // Free-text venue detail, additive to (not a replacement for) center/
+  // territory — covers RTM/CME-style meetings held somewhere not registered
+  // as a Center.
+  location       String?
+  // Sub-location within a hospital Center (Matinee Scientifique's
+  // "centre/department", La Garde's "hospital/Urgence department").
+  departmentName String?
+
+  // CME / Nurse Conference's selected speaker doctor. Shared meeting
+  // information, so it lives here rather than per-assignment.
+  speakerContactId String?
+  speaker          Contact? @relation("ActivitySpeaker", fields: [speakerContactId], references: [id])
+
+  // Necessity-Driven: the client's creation-form spec lists this as the
+  // *only* required field at creation — the manager decides the kind of
+  // need upfront. Contrast with requirementValue/supportProvidedDescription/
+  // recipientContactId on ActivityAssignment below, which stay execution-
+  // time (the delegate records what was actually given when they fulfill
+  // it).
+  requirementCategoryId String?
+  requirementCategory   RequirementCategoryDef? @relation(fields: [requirementCategoryId], references: [id])
+
+  // Expected counts set at creation time — the planning figure, distinct
+  // from ActivityAssignment.actualParticipants (the delegate's own
+  // execution-time count). Two separate fields, not one generic count,
+  // mirroring the client's own wording: CPN/CPS/Bonjour say "prescribers",
+  // Matinee Scientifique/La Garde say "participants".
+  prescriberCount      Int? // CPN / CPS / Bonjour
+  expectedParticipants Int? // Matinee Scientifique / La Garde
+
+  // Shared/organizer-level event cost (one breakfast arranged, one
+  // transport bill for the whole RTM) — distinct from any delegate's own
+  // reported expense on ActivityAssignment below; the two are never summed
+  // automatically.
+  foodExpense      Decimal? @db.Decimal(12, 2)
+  transportExpense Decimal? @db.Decimal(12, 2)
+
+  products     ActivityProduct[]
+  participants ActivityParticipant[]
+  assignments  ActivityAssignment[]
 
   createdBy String?
   createdAt DateTime @default(now())
   updatedBy String?
   updatedAt DateTime @updatedAt
 
+  @@index([typeId])
+  @@index([requirementCategoryId])
   @@map("activities")
+}
+
+// Shared/planned product list for an activity (RTM, CME, Bonjour, Matinee
+// Scientifique, La Garde, etc. all select multiple products up front).
+// `availability` is a shared fact about the product at the venue (La
+// Garde's "product availability") — not delegate-specific, unlike the
+// prescriptions/business/samples outcomes, which live on
+// AssignmentProductResult instead.
+model ActivityProduct {
+  id         String   @id @default(cuid())
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id])
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+
+  availability String?
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([activityId, productId])
+  @@map("activity_products")
+}
+
+// Shared/planned "invited" list for an activity (RTM's invited doctors,
+// CME's participating HCPs). Who actually showed up, and each assignee's
+// own notes on them, is recorded per-assignee on AssignmentParticipantResult
+// instead — this table only records the plan, not the outcome.
+model ActivityParticipant {
+  id         String   @id @default(cuid())
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id])
+  contactId  String
+  contact    Contact  @relation("ActivityParticipantContact", fields: [contactId], references: [id])
+
+  invited Boolean @default(true)
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([activityId, contactId])
+  @@map("activity_participants")
 }
 
 // One row per assignee. Reassigning or cancelling one assignment never
@@ -1058,6 +1228,13 @@ model Activity {
 // activity at once, by design. `scheduledDate` lives here, not on Activity:
 // scheduling happens at assignment time, and different assignees of the
 // same activity can be scheduled on different dates.
+// Fields below the relations are this assignee's own *execution* data —
+// what this one delegate actually did and achieved, independent of any
+// other delegate assigned to the same Activity. Which fields apply is
+// determined by the parent Activity's typeId.category/code at the Zod
+// boundary (src/lib/schemas/activity.ts), not enforced in the database:
+// every field here is nullable and simply left unset for types it doesn't
+// apply to.
 model ActivityAssignment {
   id            String                   @id @default(cuid())
   status        ActivityAssignmentStatus @default(PLANNED)
@@ -1069,7 +1246,43 @@ model ActivityAssignment {
   userId String
   user   User   @relation(fields: [userId], references: [id])
 
-  followUps FollowUp[]
+  followUps      FollowUp[]
+  results        AssignmentParticipantResult[]
+  productResults AssignmentProductResult[]
+
+  outcomeNotes        String? // general feedback, all standard-event types
+  // CPN / CPS: client explicitly separates HCP feedback from the feedback
+  // of the pregnant women / children reached — kept as two distinct fields
+  // rather than one blended outcomeNotes.
+  hcpFeedback         String?
+  beneficiaryFeedback String?
+  // Bonjour: "feedback and commitments" — a commitment is a specific
+  // promise made, distinct in kind from general impression/feedback text.
+  commitments         String?
+
+  pregnantWomenReached Int? // CPN
+  childrenConsulted    Int? // CPS
+  // Expected counts (prescriberCount / expectedParticipants) live on Activity
+  // now, set at creation — this is only ever the delegate's own actual count.
+  actualParticipants   Int? // CME / Nurse Conference / Bonjour / Matinee Scientifique / La Garde
+
+  nightShiftTiming String? // La Garde
+
+  // requirementCategory lives on Activity now (set at creation) — these
+  // three stay execution-time, filled in by the delegate when they fulfill
+  // the need.
+  requirementValue           Decimal? @db.Decimal(14, 2)
+  supportProvidedDescription String? // what was actually given, distinct from the category
+  recipientContactId         String?
+  recipient                  Contact? @relation("ActivityAssignmentRecipient", fields: [recipientContactId], references: [id])
+
+  // This delegate's own expense, if distinct from the shared Activity-level
+  // cost (see Activity.foodExpense above) — e.g. La Garde is typically a
+  // single delegate per night shift, so this is often the figure actually
+  // used. Never summed with the Activity-level figure automatically; a
+  // report must label which one it's showing.
+  foodExpense      Decimal? @db.Decimal(12, 2)
+  transportExpense Decimal? @db.Decimal(12, 2)
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -1079,7 +1292,65 @@ model ActivityAssignment {
   @@index([activityId])
   @@index([userId])
   @@index([scheduledDate])
+  @@index([recipientContactId])
   @@map("activity_assignments")
+}
+
+// This assignee's own record of a participant's actual presence/outcome —
+// as opposed to ActivityParticipant above, which is the shared invited
+// list. `unplanned` covers a doctor this delegate met who wasn't on the
+// original invited list (allowed, flagged, not rejected). Story B adds the
+// other side of this relation (FollowUp.participantResultId, deliberately
+// not @unique so a participant can hold several follow-ups over a chain) —
+// not added here, since FollowUp itself is out of scope for this story.
+model AssignmentParticipantResult {
+  id           String             @id @default(cuid())
+  assignmentId String
+  assignment   ActivityAssignment @relation(fields: [assignmentId], references: [id])
+  contactId    String
+  contact      Contact            @relation("AssignmentParticipantResultContact", fields: [contactId], references: [id])
+
+  present   Boolean @default(false)
+  unplanned Boolean @default(false)
+
+  feedback               String?
+  prescriptionsGenerated Int?
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([assignmentId, contactId])
+  @@map("assignment_participant_results")
+}
+
+// This assignee's own product-level results — kept separate from
+// ActivityProduct.availability (a shared fact about the venue) because
+// prescriptions/business/samples are results this delegate is personally
+// accountable for, not a property of the meeting itself. `unplanned` covers
+// a product this delegate discussed that wasn't on the Activity's planned
+// product list.
+model AssignmentProductResult {
+  id           String             @id @default(cuid())
+  assignmentId String
+  assignment   ActivityAssignment @relation(fields: [assignmentId], references: [id])
+  productId    String
+  product      Product            @relation(fields: [productId], references: [id])
+
+  unplanned Boolean @default(false)
+
+  prescriptionsGenerated Int?
+  businessValueGenerated Decimal? @db.Decimal(14, 2)
+  samplesProvided        Int?
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([assignmentId, productId])
+  @@map("assignment_product_results")
 }
 
 // Linked to an assignment, not the bare activity: with several people
@@ -1189,6 +1460,11 @@ model Contact {
 
   centers    ContactCenter[]
   routeItems RouteItemContact[]
+
+  activitiesAsSpeaker           Activity[]                    @relation("ActivitySpeaker")
+  activityParticipations        ActivityParticipant[]         @relation("ActivityParticipantContact")
+  necessityRecipientAssignments ActivityAssignment[]          @relation("ActivityAssignmentRecipient")
+  assignmentParticipantResults  AssignmentParticipantResult[] @relation("AssignmentParticipantResultContact")
 
   createdBy String?
   createdAt DateTime @default(now())

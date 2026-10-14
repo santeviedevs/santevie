@@ -62,7 +62,7 @@ export function findCenterById(id: string): Promise<CenterWithRelations | null> 
 export function listActiveCentersForSelection() {
   return prisma.center.findMany({
     where: { status: "ACTIVE" },
-    select: { id: true, name: true, code: true, typeId: true },
+    select: { id: true, name: true, code: true, typeId: true, territoryId: true },
     orderBy: { name: "asc" },
   });
 }

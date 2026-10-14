@@ -10,7 +10,7 @@ import { ActivityMonthSelect } from "./activity-month-select";
 type AssignmentEntry = {
   id: string;
   scheduledDate: Date;
-  activity: { type: string; name: string };
+  activity: { type: { id: string; code: string; name: string }; name: string };
 };
 
 // The month nav row (today/prev/next/month-year picker) plus the grid
@@ -82,7 +82,7 @@ export function ActivityCalendarBody({
         entries={assignments.map((assignment) => ({
           id: assignment.id,
           date: assignment.scheduledDate,
-          type: assignment.activity.type,
+          type: assignment.activity.type.code,
           name: assignment.activity.name,
         }))}
       />

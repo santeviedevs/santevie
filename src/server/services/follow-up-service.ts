@@ -24,7 +24,7 @@ export type FollowUpSummary = {
   activity: {
     id: string;
     name: string;
-    type: string;
+    type: { id: string; code: string; name: string };
     center: { id: string; name: string } | null;
     territory: { id: string; code: string } | null;
   };

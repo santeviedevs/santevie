@@ -21,7 +21,7 @@ type Dict = Dictionary["activitiesPage"];
 export type ActivityListRow = {
   id: string;
   name: string;
-  type: string;
+  type: { id: string; code: string; name: string };
   createdAt: string;
   assignments: { id: string; status: string; user: { id: string; name: string } }[];
   createdByName: string | null;
@@ -29,12 +29,6 @@ export type ActivityListRow = {
 
 function detailHref(activity: ActivityListRow): string {
   return `/activities/${activity.id}`;
-}
-
-function typeLabel(type: string, dict: Dict): string {
-  if (type === "CAMPAIGN") return dict.typeCampaign;
-  if (type === "EVENT") return dict.typeEvent;
-  return dict.typeOther;
 }
 
 function AssigneeBadges({ row, dict }: { row: ActivityListRow; dict: Dict }) {
@@ -93,7 +87,7 @@ export function ActivityList({
                     {activity.name}
                   </Link>
                 </TableCell>
-                <TableCell>{typeLabel(activity.type, dict)}</TableCell>
+                <TableCell>{activity.type.name}</TableCell>
                 <TableCell>
                   <AssigneeBadges row={activity} dict={dict} />
                 </TableCell>
@@ -122,7 +116,7 @@ export function ActivityList({
             </Link>
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
               <dt className="text-muted-foreground">{dict.colType}</dt>
-              <dd>{typeLabel(activity.type, dict)}</dd>
+              <dd>{activity.type.name}</dd>
               <dt className="text-muted-foreground">{dict.colAssignees}</dt>
               <dd>
                 <AssigneeBadges row={activity} dict={dict} />

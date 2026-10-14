@@ -8,7 +8,13 @@ import { formatDate } from "@/lib/format-date";
 import { getServerDictionary } from "@/lib/i18n/server";
 import { hasPermission } from "@/server/auth/permissions";
 import { requirePermission } from "@/server/auth/require-permission";
+import {
+  listRequirementCategories,
+  listStandardEventActivityTypes,
+} from "@/server/repositories/activity-repository";
 import { listActiveCentersForSelection } from "@/server/repositories/center-repository";
+import { listActiveContactsForSelection } from "@/server/repositories/contact-repository";
+import { listActiveProductsForSelection } from "@/server/repositories/product-repository";
 import { getActivityDetail } from "@/server/services/activity-service";
 import { listActiveTerritoryOptions } from "@/server/services/territory-service";
 
@@ -37,9 +43,16 @@ export default async function ActivityDetailPage({ params }: ActivityDetailPageP
   const activity = await getActivityDetail(activityId, session, canAssign);
   if (!activity) notFound();
 
-  const [centers, territories] = canAssign
-    ? await Promise.all([listActiveCentersForSelection(), listActiveTerritoryOptions()])
-    : [[], []];
+  const [centers, territories, types, products, contacts, requirementCategories] = canAssign
+    ? await Promise.all([
+        listActiveCentersForSelection(),
+        listActiveTerritoryOptions(),
+        listStandardEventActivityTypes(),
+        listActiveProductsForSelection(),
+        listActiveContactsForSelection(),
+        listRequirementCategories(),
+      ])
+    : [[], [], [], [], [], []];
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -58,16 +71,34 @@ export default async function ActivityDetailPage({ params }: ActivityDetailPageP
           activity={{
             id: activity.id,
             name: activity.name,
-            type: activity.type as "CAMPAIGN" | "EVENT" | "OTHER",
+            typeId: activity.type.id,
             centerId: activity.center?.id ?? null,
             territoryId: activity.territory?.id ?? null,
+            location: activity.location,
+            departmentName: activity.departmentName,
+            speakerContactId: activity.speaker?.id ?? null,
+            requirementCategoryId: activity.requirementCategory?.id ?? null,
+            prescriberCount: activity.prescriberCount,
+            expectedParticipants: activity.expectedParticipants,
+            foodExpense: activity.foodExpense,
+            transportExpense: activity.transportExpense,
             notes: activity.notes,
+            productIds: activity.products.map((p) => p.productId),
+            participantContactIds: activity.participantContactIds,
           }}
-          centers={centers.map((c) => ({ id: c.id, label: `${c.name} (${c.code})` }))}
+          centers={centers.map((c) => ({
+            id: c.id,
+            label: `${c.name} (${c.code})`,
+            territoryId: c.territoryId,
+          }))}
           territories={territories.map((territory) => ({
             id: territory.id,
             label: territory.label,
           }))}
+          typeOptions={types.map((type) => ({ id: type.id, code: type.code, label: type.name }))}
+          productOptions={products.map((p) => ({ id: p.id, label: `${p.name} (${p.code})` }))}
+          contactOptions={contacts.map((c) => ({ id: c.id, label: `${c.name} (${c.code})` }))}
+          requirementCategories={requirementCategories.map((c) => ({ id: c.id, label: c.name }))}
           dict={t}
         />
       ) : (
@@ -75,7 +106,7 @@ export default async function ActivityDetailPage({ params }: ActivityDetailPageP
           <dt className="text-muted-foreground">{t.nameLabel}</dt>
           <dd>{activity.name}</dd>
           <dt className="text-muted-foreground">{t.typeLabel}</dt>
-          <dd>{activity.type}</dd>
+          <dd>{activity.type.name}</dd>
           {activity.notes ? (
             <>
               <dt className="text-muted-foreground">{t.notesLabel}</dt>

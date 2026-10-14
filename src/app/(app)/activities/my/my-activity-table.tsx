@@ -2,6 +2,7 @@ import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 
 import { ClickableTableRow } from "@/components/clickable-table-row";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -22,7 +23,7 @@ export type MyActivityRow = {
   assignmentId: string;
   activityId: string;
   activityName: string;
-  type: string;
+  type: { id: string; code: string; name: string };
   status: string;
   scheduledDate: string;
 };
@@ -31,16 +32,17 @@ function detailHref(row: MyActivityRow): string {
   return `/activities/my/${row.activityId}`;
 }
 
-function typeLabel(type: string, dict: Dict): string {
-  if (type === "CAMPAIGN") return dict.typeCampaign;
-  if (type === "EVENT") return dict.typeEvent;
-  return dict.typeOther;
-}
-
 function Actions({ row, dict }: { row: MyActivityRow; dict: Dict }) {
   if (row.status !== "PLANNED") return null;
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
+      <Button
+        render={<Link href={`/activities/my/execute/${row.assignmentId}`} />}
+        variant="outline"
+        size="sm"
+      >
+        {dict.recordResultsAction}
+      </Button>
       <AddFollowUpButton assignmentId={row.assignmentId} dict={dict} />
       <ActivityStatusButtons assignmentId={row.assignmentId} dict={dict} />
     </div>
@@ -88,7 +90,7 @@ export function MyActivityTable({
                     {row.activityName}
                   </Link>
                 </TableCell>
-                <TableCell>{typeLabel(row.type, dict)}</TableCell>
+                <TableCell>{row.type.name}</TableCell>
                 <TableCell className="whitespace-nowrap">
                   {formatDate(new Date(row.scheduledDate))}
                 </TableCell>
@@ -113,7 +115,7 @@ export function MyActivityTable({
             </Link>
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
               <dt className="text-muted-foreground">{dict.colType}</dt>
-              <dd>{typeLabel(row.type, dict)}</dd>
+              <dd>{row.type.name}</dd>
               <dt className="text-muted-foreground">{dict.colScheduledDate}</dt>
               <dd>{formatDate(new Date(row.scheduledDate))}</dd>
             </dl>

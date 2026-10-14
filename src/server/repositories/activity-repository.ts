@@ -2,9 +2,41 @@ import { prisma } from "@/server/db";
 
 import type { Prisma } from "../../../generated/prisma/client";
 
+const activityTypeSelect = {
+  id: true,
+  code: true,
+  name: true,
+  category: true,
+} satisfies Prisma.ActivityTypeDefSelect;
+
+const requirementCategorySelect = {
+  id: true,
+  code: true,
+  name: true,
+} satisfies Prisma.RequirementCategoryDefSelect;
+
 const activityInclude = {
+  type: { select: activityTypeSelect },
   center: { select: { id: true, name: true, code: true } },
   territory: { select: { id: true, code: true } },
+  speaker: { select: { id: true, name: true } },
+  requirementCategory: { select: requirementCategorySelect },
+  products: {
+    select: {
+      id: true,
+      availability: true,
+      product: { select: { id: true, name: true, code: true } },
+    },
+    orderBy: { createdAt: "asc" },
+  },
+  participants: {
+    select: {
+      id: true,
+      invited: true,
+      contact: { select: { id: true, name: true } },
+    },
+    orderBy: { createdAt: "asc" },
+  },
   assignments: {
     select: {
       id: true,
@@ -18,13 +50,72 @@ const activityInclude = {
 
 export type ActivityRow = Prisma.ActivityGetPayload<{ include: typeof activityInclude }>;
 
+// Full execution detail for one assignment — this delegate's own results,
+// distinct from the shared Activity-level plan above (see the schema
+// comments on ActivityAssignment / AssignmentParticipantResult /
+// AssignmentProductResult for the shared-vs-delegate-specific split).
+const assignmentExecutionInclude = {
+  activity: {
+    select: {
+      id: true,
+      name: true,
+      notes: true,
+      location: true,
+      departmentName: true,
+      foodExpense: true,
+      transportExpense: true,
+      type: { select: activityTypeSelect },
+      center: { select: { id: true, name: true, code: true } },
+      territory: { select: { id: true, code: true } },
+      speaker: { select: { id: true, name: true } },
+      requirementCategory: { select: requirementCategorySelect },
+      prescriberCount: true,
+      expectedParticipants: true,
+      products: {
+        select: { id: true, availability: true, product: { select: { id: true, name: true } } },
+      },
+      participants: {
+        select: { id: true, invited: true, contact: { select: { id: true, name: true } } },
+      },
+    },
+  },
+  user: { select: { id: true, name: true } },
+  results: {
+    select: {
+      id: true,
+      contactId: true,
+      present: true,
+      unplanned: true,
+      feedback: true,
+      prescriptionsGenerated: true,
+      contact: { select: { id: true, name: true } },
+    },
+  },
+  productResults: {
+    select: {
+      id: true,
+      productId: true,
+      unplanned: true,
+      prescriptionsGenerated: true,
+      businessValueGenerated: true,
+      samplesProvided: true,
+      product: { select: { id: true, name: true } },
+    },
+  },
+  recipient: { select: { id: true, name: true } },
+} satisfies Prisma.ActivityAssignmentInclude;
+
+export type AssignmentExecutionRow = Prisma.ActivityAssignmentGetPayload<{
+  include: typeof assignmentExecutionInclude;
+}>;
+
 const assignmentInclude = {
   activity: {
     select: {
       id: true,
       name: true,
-      type: true,
       notes: true,
+      type: { select: activityTypeSelect },
       center: { select: { id: true, name: true, code: true } },
       territory: { select: { id: true, code: true } },
     },
@@ -45,15 +136,19 @@ export function runInTransaction<T>(fn: (tx: Db) => Promise<T>): Promise<T> {
   return prisma.$transaction(fn);
 }
 
-export function createActivityRow(data: Prisma.ActivityCreateInput): Promise<ActivityRow> {
-  return prisma.activity.create({ data, include: activityInclude });
+export function createActivityRow(
+  data: Prisma.ActivityCreateInput,
+  db: Db = prisma,
+): Promise<ActivityRow> {
+  return db.activity.create({ data, include: activityInclude });
 }
 
 export function updateActivityRow(
   id: string,
   data: Prisma.ActivityUpdateInput,
+  db: Db = prisma,
 ): Promise<ActivityRow> {
-  return prisma.activity.update({ where: { id }, data, include: activityInclude });
+  return db.activity.update({ where: { id }, data, include: activityInclude });
 }
 
 export function findActivityById(id: string): Promise<ActivityRow | null> {
@@ -62,6 +157,161 @@ export function findActivityById(id: string): Promise<ActivityRow | null> {
 
 export function findAssignmentById(id: string): Promise<ActivityAssignmentRow | null> {
   return prisma.activityAssignment.findUnique({ where: { id }, include: assignmentInclude });
+}
+
+export function findAssignmentExecutionById(id: string): Promise<AssignmentExecutionRow | null> {
+  return prisma.activityAssignment.findUnique({
+    where: { id },
+    include: assignmentExecutionInclude,
+  });
+}
+
+export function updateAssignmentExecutionRow(
+  id: string,
+  data: Prisma.ActivityAssignmentUpdateInput,
+  db: Db = prisma,
+): Promise<AssignmentExecutionRow> {
+  return db.activityAssignment.update({
+    where: { id },
+    data,
+    include: assignmentExecutionInclude,
+  });
+}
+
+// --- Shared-plan child rows (ActivityProduct / ActivityParticipant) --------
+// Replace-on-write: the create/update Activity Server Action always sends
+// the full intended product/participant list, so the simplest and safest
+// implementation is delete-then-recreate inside the same write, rather than
+// diffing. Both run inside the caller's transaction when one is supplied.
+
+export async function replaceActivityProducts(
+  activityId: string,
+  products: { productId: string; availability?: string | null }[],
+  actorId: string,
+  db: Db = prisma,
+): Promise<void> {
+  await db.activityProduct.deleteMany({ where: { activityId } });
+  if (products.length === 0) return;
+  await db.activityProduct.createMany({
+    data: products.map((p) => ({
+      activityId,
+      productId: p.productId,
+      availability: p.availability ?? null,
+      createdBy: actorId,
+      updatedBy: actorId,
+    })),
+  });
+}
+
+export async function replaceActivityParticipants(
+  activityId: string,
+  contactIds: string[],
+  actorId: string,
+  db: Db = prisma,
+): Promise<void> {
+  await db.activityParticipant.deleteMany({ where: { activityId } });
+  if (contactIds.length === 0) return;
+  await db.activityParticipant.createMany({
+    data: contactIds.map((contactId) => ({
+      activityId,
+      contactId,
+      createdBy: actorId,
+      updatedBy: actorId,
+    })),
+  });
+}
+
+// --- Assignment execution child rows (results / productResults) ------------
+// Same replace-on-write approach as above — the execution form always
+// submits the full set of participant/product results for that assignment.
+
+export async function replaceAssignmentParticipantResults(
+  assignmentId: string,
+  results: {
+    contactId: string;
+    present: boolean;
+    unplanned?: boolean;
+    feedback?: string | null;
+    prescriptionsGenerated?: number | null;
+  }[],
+  actorId: string,
+  db: Db = prisma,
+): Promise<void> {
+  await db.assignmentParticipantResult.deleteMany({ where: { assignmentId } });
+  if (results.length === 0) return;
+  await db.assignmentParticipantResult.createMany({
+    data: results.map((r) => ({
+      assignmentId,
+      contactId: r.contactId,
+      present: r.present,
+      unplanned: r.unplanned ?? false,
+      feedback: r.feedback ?? null,
+      prescriptionsGenerated: r.prescriptionsGenerated ?? null,
+      createdBy: actorId,
+      updatedBy: actorId,
+    })),
+  });
+}
+
+export async function replaceAssignmentProductResults(
+  assignmentId: string,
+  results: {
+    productId: string;
+    unplanned?: boolean;
+    prescriptionsGenerated?: number | null;
+    businessValueGenerated?: number | null;
+    samplesProvided?: number | null;
+  }[],
+  actorId: string,
+  db: Db = prisma,
+): Promise<void> {
+  await db.assignmentProductResult.deleteMany({ where: { assignmentId } });
+  if (results.length === 0) return;
+  await db.assignmentProductResult.createMany({
+    data: results.map((r) => ({
+      assignmentId,
+      productId: r.productId,
+      unplanned: r.unplanned ?? false,
+      prescriptionsGenerated: r.prescriptionsGenerated ?? null,
+      businessValueGenerated: r.businessValueGenerated ?? null,
+      samplesProvided: r.samplesProvided ?? null,
+      createdBy: actorId,
+      updatedBy: actorId,
+    })),
+  });
+}
+
+// --- Active Type lookup ------------------------------------------------------
+
+export type ActivityTypeDefRow = {
+  id: string;
+  code: string;
+  name: string;
+  category: "STANDARD_EVENT" | "PRESCRIPTION_TRACKING" | "EMBALLAGE";
+};
+
+// Only STANDARD_EVENT types are ever selectable on an Activity — Prescription
+// and Emballage are structurally separate (Story C/D), never an Activity row.
+export function listStandardEventActivityTypes(): Promise<ActivityTypeDefRow[]> {
+  return prisma.activityTypeDef.findMany({
+    where: { category: "STANDARD_EVENT", status: "ACTIVE" },
+    select: activityTypeSelect,
+    orderBy: { name: "asc" },
+  });
+}
+
+export function findActivityTypeById(id: string): Promise<ActivityTypeDefRow | null> {
+  return prisma.activityTypeDef.findUnique({ where: { id }, select: activityTypeSelect });
+}
+
+export type RequirementCategoryRow = { id: string; code: string; name: string };
+
+export function listRequirementCategories(): Promise<RequirementCategoryRow[]> {
+  return prisma.requirementCategoryDef.findMany({
+    where: { status: "ACTIVE" },
+    select: { id: true, code: true, name: true },
+    orderBy: { name: "asc" },
+  });
 }
 
 // An activity may have more than one PLANNED assignment for different
@@ -121,7 +371,7 @@ export type ActivityQuery = {
   // assignee to scope on, so the creator stands in for it.
   unassignedCreatorIds?: string[];
   q?: string;
-  type?: string;
+  typeId?: string;
   // Matches activities with at least one assignment in this status.
   status?: string;
   assigneeId?: string;
@@ -149,7 +399,7 @@ function buildActivityWhere(query: ActivityQuery): Prisma.ActivityWhereInput {
     AND: [
       visibility,
       query.q ? { name: { contains: query.q, mode: "insensitive" } } : {},
-      query.type ? { type: query.type as Prisma.EnumActivityTypeFilter["equals"] } : {},
+      query.typeId ? { typeId: query.typeId } : {},
       query.status
         ? {
             assignments: {
@@ -183,7 +433,7 @@ export type ActivityAssignmentQuery = {
   // `undefined` means unrestricted (ADMIN).
   scopeUserIds: string[] | undefined;
   q?: string;
-  type?: string;
+  typeId?: string;
   status?: string;
   assigneeId?: string;
   from?: Date;
@@ -200,9 +450,7 @@ function buildAssignmentWhere(query: ActivityAssignmentQuery): Prisma.ActivityAs
       query.status
         ? { status: query.status as Prisma.EnumActivityAssignmentStatusFilter["equals"] }
         : {},
-      query.type
-        ? { activity: { type: query.type as Prisma.EnumActivityTypeFilter["equals"] } }
-        : {},
+      query.typeId ? { activity: { typeId: query.typeId } } : {},
       query.q ? { activity: { name: { contains: query.q, mode: "insensitive" } } } : {},
       query.from || query.to ? { scheduledDate: { gte: query.from, lt: query.to } } : {},
     ],
@@ -228,7 +476,7 @@ export function countAssignments(query: ActivityAssignmentQuery): Promise<number
 export type ActivitySearchResult = {
   id: string;
   name: string;
-  type: string;
+  type: { id: string; code: string; name: string };
   assignmentCount: number;
 };
 
@@ -251,7 +499,12 @@ export async function searchActivities(params: {
   });
   const rows = await prisma.activity.findMany({
     where,
-    select: { id: true, name: true, type: true, _count: { select: { assignments: true } } },
+    select: {
+      id: true,
+      name: true,
+      type: { select: { id: true, code: true, name: true } },
+      _count: { select: { assignments: true } },
+    },
     orderBy: { createdAt: "desc" },
     take: params.limit,
   });

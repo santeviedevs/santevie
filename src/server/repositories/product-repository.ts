@@ -48,6 +48,17 @@ export function findProductById(id: string): Promise<ProductWithCategory | null>
   return prisma.product.findUnique({ where: { id }, include: listInclude });
 }
 
+// Products selectable for an activity's planned product list — active only,
+// same "active-only selection list vs. full readable history" split as
+// listActiveCentersForSelection.
+export function listActiveProductsForSelection() {
+  return prisma.product.findMany({
+    where: { status: "ACTIVE" },
+    select: { id: true, name: true, code: true },
+    orderBy: { name: "asc" },
+  });
+}
+
 export function listProductCategories() {
   return prisma.productCategory.findMany({
     select: { id: true, code: true, name: true },

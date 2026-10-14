@@ -348,6 +348,64 @@ async function main() {
     });
   }
 
+  // Marketing activity types (Story A). The legacy CAMPAIGN/EVENT/OTHER rows
+  // are created by the migration itself (20261013084403_story_a_activity_taxonomy),
+  // not here, since the migration's backfill needs them to exist before this
+  // seed ever runs. These 11 are the client's own named types; the three
+  // follow-up timing columns are left null for CPN, BONJOUR, CPS, MATINEE_SCIENTIFIQUE
+  // and LA_GARDE — manual follow-up only until the client confirms an interval
+  // (M1), consistent with the activity requirements discussion.
+  for (const [
+    code,
+    name,
+    category,
+    initialOffsetDays,
+    recurrenceIntervalDays,
+    seriesDurationDays,
+  ] of [
+    ["PRESCRIPTION", "Prescription Activity", "PRESCRIPTION_TRACKING", null, null, null],
+    ["EMBALLAGE", "Emballage / Notice", "EMBALLAGE", null, null, null],
+    ["RTM", "RTM (Round Table Meeting)", "STANDARD_EVENT", 2, null, null],
+    ["CPN", "CPN", "STANDARD_EVENT", null, null, null],
+    ["CPS", "CPS", "STANDARD_EVENT", null, null, null],
+    ["CME", "CME", "STANDARD_EVENT", 3, 30, 90],
+    ["NURSE_CONFERENCE", "Nurse Conference", "STANDARD_EVENT", 3, 30, 90],
+    ["BONJOUR", "Bonjour", "STANDARD_EVENT", null, null, null],
+    ["NECESSITY_DRIVEN", "Necessity-Driven", "STANDARD_EVENT", 30, 30, 90],
+    ["MATINEE_SCIENTIFIQUE", "Matinee Scientifique", "STANDARD_EVENT", null, null, null],
+    ["LA_GARDE", "La Garde", "STANDARD_EVENT", null, null, null],
+  ] as const) {
+    await prisma.activityTypeDef.upsert({
+      where: { code },
+      update: {},
+      create: {
+        code,
+        name,
+        category,
+        defaultFollowUpInitialOffsetDays: initialOffsetDays,
+        defaultFollowUpRecurrenceIntervalDays: recurrenceIntervalDays,
+        defaultFollowUpSeriesDurationDays: seriesDurationDays,
+      },
+    });
+  }
+
+  // Necessity-Driven's requirement dropdown — the client's starting list,
+  // extensible later like every other lookup table here.
+  for (const [code, name] of [
+    ["HOSPITAL_MATERIALS", "Hospital materials"],
+    ["PERSONAL_USE_MATERIALS", "Personal-use materials"],
+    ["SPECIAL_GIFTS", "Special gifts"],
+    ["HOSPITAL_PAINTING", "Hospital painting"],
+    ["PHARMACY_PAINTING", "Pharmacy painting"],
+    ["OTHER", "Other"],
+  ]) {
+    await prisma.requirementCategoryDef.upsert({
+      where: { code },
+      update: {},
+      create: { code, name },
+    });
+  }
+
   // Starting USD → CDF rate — Deepak's own figure from the pricing
   // discussion ("today's rate is $1 = 2350 CDF"), set manually and never
   // auto-fetched (see exchange-rate-service.ts).

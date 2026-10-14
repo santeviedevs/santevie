@@ -14,18 +14,12 @@ import { type ActivityFormState, createAssignmentAction } from "../actions";
 export type AssignableActivity = {
   id: string;
   name: string;
-  type: string;
+  type: { id: string; code: string; name: string };
   assignmentCount: number;
 };
 export type Assignee = { id: string; name: string; employeeCode: string; roleName: string };
 
 type Dict = Dictionary["activitiesPage"];
-
-function typeLabel(type: string, dict: Dict): string {
-  if (type === "CAMPAIGN") return dict.typeCampaign;
-  if (type === "EVENT") return dict.typeEvent;
-  return dict.typeOther;
-}
 
 // The compact assignment form above the table: Activity, Assign To, `+ Add`.
 // Both dropdowns are server-side searches scoped to what this user may
@@ -84,7 +78,7 @@ export function AssignActivityForm({ dict }: { dict: Dict }) {
               <span className="flex min-w-0 flex-col">
                 <span className="font-medium">{item.name}</span>
                 <span className="text-xs text-muted-foreground">
-                  {typeLabel(item.type, dict)}
+                  {item.type.name}
                   {item.assignmentCount > 0
                     ? ` — ${item.assignmentCount} ${dict.colAssignees.toLowerCase()}`
                     : ""}
