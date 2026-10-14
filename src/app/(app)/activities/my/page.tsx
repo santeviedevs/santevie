@@ -3,6 +3,7 @@ import { getServerDictionary } from "@/lib/i18n/server";
 import { DEFAULT_PAGE_SIZE, paginationParamsSchema, totalPages } from "@/lib/pagination";
 import { activityListParamsSchema } from "@/lib/schemas/activity";
 import { requirePermission } from "@/server/auth/require-permission";
+import { listStandardEventActivityTypes } from "@/server/repositories/activity-repository";
 import { getMyAssignmentsPage } from "@/server/services/activity-service";
 
 import { ActivityFilters } from "../activity-filters";
@@ -40,7 +41,7 @@ export default async function MyActivitiesPage({ searchParams }: MyActivitiesPag
   });
   const filters = activityListParamsSchema.parse({
     q: firstValue(params.q),
-    type: firstValue(params.type),
+    typeId: firstValue(params.typeId),
     status: firstValue(params.status),
     from: firstValue(params.from),
     to: firstValue(params.to),
@@ -48,9 +49,12 @@ export default async function MyActivitiesPage({ searchParams }: MyActivitiesPag
     pageSize: pagination.pageSize,
   });
 
-  const result = await getMyAssignmentsPage(session, pagination, filters);
+  const [result, typeOptions] = await Promise.all([
+    getMyAssignmentsPage(session, pagination, filters),
+    listStandardEventActivityTypes(),
+  ]);
   const anyFilter = Boolean(
-    filters.q || filters.type || filters.status || filters.from || filters.to,
+    filters.q || filters.typeId || filters.status || filters.from || filters.to,
   );
 
   return (
@@ -58,7 +62,7 @@ export default async function MyActivitiesPage({ searchParams }: MyActivitiesPag
       <h1 className="text-xl font-semibold">{t.myActivitiesTitle}</h1>
       <MyActivitiesTabs active="activities" dict={t} />
 
-      <ActivityFilters filters={filters} dict={t} />
+      <ActivityFilters filters={filters} typeOptions={typeOptions} dict={t} />
 
       <MyActivityTable
         rows={result.items.map((assignment) => ({
@@ -68,6 +72,7 @@ export default async function MyActivitiesPage({ searchParams }: MyActivitiesPag
           type: assignment.activity.type,
           status: assignment.status,
           scheduledDate: assignment.scheduledDate.toISOString(),
+          executionRecorded: assignment.executionRecordedAt !== null,
         }))}
         dict={t}
         emptyLabel={anyFilter ? t.noActivitiesMatch : t.noActivities}

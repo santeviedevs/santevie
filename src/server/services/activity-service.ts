@@ -8,26 +8,38 @@ import type {
   CreateAssignmentInput,
   ReassignAssignmentInput,
   UpdateActivityInput,
+  UpdateAssignmentExecutionInput,
 } from "@/lib/schemas/activity";
 import {
   type ActivityAssignmentQuery,
   type ActivityAssignmentRow,
   type ActivityQuery,
   type ActivityRow,
+  type AssignmentCompletionContext,
+  type AssignmentExecutionRow,
   countActivities,
   countAssignments,
   createActivityRow,
   createAssignmentRow,
+  type Db,
   findActivePlannedAssignment,
   findActivityById,
   findAssignmentById,
+  findAssignmentCompletionContext,
+  findAssignmentExecutionById,
   listActivities,
   listAssignments,
+  replaceActivityParticipants,
+  replaceActivityProducts,
+  replaceAssignmentParticipantResults,
+  replaceAssignmentProductResults,
   runInTransaction,
   searchActivities,
   updateActivityRow,
+  updateAssignmentExecutionRow,
   updateAssignmentStatusRow,
 } from "@/server/repositories/activity-repository";
+import { createFollowUpRow } from "@/server/repositories/follow-up-repository";
 import {
   findAllUsersInScope,
   findUserById,
@@ -95,13 +107,25 @@ export type AssignmentSummary = {
   user: { id: string; name: string };
 };
 
+export type ActivityTypeSummary = { id: string; code: string; name: string };
+
 export type ActivitySummary = {
   id: string;
   name: string;
-  type: string;
+  type: ActivityTypeSummary;
   notes: string | null;
   center: { id: string; name: string; code: string } | null;
   territory: { id: string; code: string } | null;
+  location: string | null;
+  departmentName: string | null;
+  speaker: { id: string; name: string } | null;
+  requirementCategory: { id: string; code: string; name: string } | null;
+  prescriberCount: number | null;
+  expectedParticipants: number | null;
+  foodExpense: string | null;
+  transportExpense: string | null;
+  products: { productId: string; availability: string | null }[];
+  participantContactIds: string[];
   assignments: AssignmentSummary[];
   createdBy: string | null;
   createdByName: string | null;
@@ -112,11 +136,12 @@ export type ActivityAssignmentSummary = {
   id: string;
   status: string;
   scheduledDate: Date;
+  executionRecordedAt: Date | null;
   user: { id: string; name: string };
   activity: {
     id: string;
     name: string;
-    type: string;
+    type: ActivityTypeSummary;
     notes: string | null;
     center: { id: string; name: string; code: string } | null;
     territory: { id: string; code: string } | null;
@@ -140,6 +165,16 @@ function toSummary(row: ActivityRow, createdByName: string | null = null): Activ
     notes: row.notes,
     center: row.center,
     territory: row.territory,
+    location: row.location,
+    departmentName: row.departmentName,
+    speaker: row.speaker,
+    requirementCategory: row.requirementCategory,
+    prescriberCount: row.prescriberCount,
+    expectedParticipants: row.expectedParticipants,
+    foodExpense: row.foodExpense?.toString() ?? null,
+    transportExpense: row.transportExpense?.toString() ?? null,
+    products: row.products.map((p) => ({ productId: p.product.id, availability: p.availability })),
+    participantContactIds: row.participants.map((p) => p.contact.id),
     assignments: row.assignments.map(toAssignmentSummary),
     createdBy: row.createdBy,
     createdByName,
@@ -152,6 +187,7 @@ function toActivityAssignmentSummary(row: ActivityAssignmentRow): ActivityAssign
     id: row.id,
     status: row.status,
     scheduledDate: row.scheduledDate,
+    executionRecordedAt: row.executionRecordedAt,
     user: row.user,
     activity: row.activity,
   };
@@ -172,21 +208,43 @@ async function withCreatorNames(rows: ActivityRow[]): Promise<ActivitySummary[]>
 }
 
 // Created unassigned on purpose — only the Assignment screen decides who
-// does it (see createAssignment).
+// does it (see createAssignment). Products/participants are the shared
+// plan for the activity (see the schema comments on Activity/
+// ActivityProduct/ActivityParticipant) — written inside the same
+// transaction as the Activity row so a partial plan never persists.
 export async function createActivity(
   input: CreateActivityInput,
   actorId: string,
 ): Promise<ActivitySummary> {
-  const created = await createActivityRow({
-    name: input.name,
-    type: input.type,
-    notes: input.notes ?? undefined,
-    center: input.centerId ? { connect: { id: input.centerId } } : undefined,
-    territory: input.territoryId ? { connect: { id: input.territoryId } } : undefined,
-    createdBy: actorId,
-    updatedBy: actorId,
+  const created = await runInTransaction(async (tx) => {
+    const row = await createActivityRow(
+      {
+        name: input.name,
+        type: { connect: { id: input.typeId } },
+        notes: input.notes ?? undefined,
+        center: input.centerId ? { connect: { id: input.centerId } } : undefined,
+        territory: input.territoryId ? { connect: { id: input.territoryId } } : undefined,
+        location: input.location ?? undefined,
+        departmentName: input.departmentName ?? undefined,
+        speaker: input.speakerContactId ? { connect: { id: input.speakerContactId } } : undefined,
+        requirementCategory: input.requirementCategoryId
+          ? { connect: { id: input.requirementCategoryId } }
+          : undefined,
+        prescriberCount: input.prescriberCount ?? undefined,
+        expectedParticipants: input.expectedParticipants ?? undefined,
+        foodExpense: input.foodExpense ?? undefined,
+        transportExpense: input.transportExpense ?? undefined,
+        createdBy: actorId,
+        updatedBy: actorId,
+      },
+      tx,
+    );
+    await replaceActivityProducts(row.id, input.products, actorId, tx);
+    await replaceActivityParticipants(row.id, input.participantContactIds, actorId, tx);
+    return row;
   });
-  return toSummary(created);
+  const refreshed = await findActivityById(created.id);
+  return toSummary(refreshed ?? created);
 }
 
 // An unassigned activity has no assignee to scope on, so its creator stands
@@ -233,15 +291,39 @@ export async function updateActivity(
 ): Promise<ActivitySummary> {
   await getActivityForManagement(input.id, session, canAssign);
 
-  const updated = await updateActivityRow(input.id, {
-    name: input.name,
-    type: input.type,
-    notes: input.notes ?? null,
-    center: input.centerId ? { connect: { id: input.centerId } } : { disconnect: true },
-    territory: input.territoryId ? { connect: { id: input.territoryId } } : { disconnect: true },
-    updatedBy: session.user.id,
+  const updated = await runInTransaction(async (tx) => {
+    const row = await updateActivityRow(
+      input.id,
+      {
+        name: input.name,
+        type: { connect: { id: input.typeId } },
+        notes: input.notes ?? null,
+        center: input.centerId ? { connect: { id: input.centerId } } : { disconnect: true },
+        territory: input.territoryId
+          ? { connect: { id: input.territoryId } }
+          : { disconnect: true },
+        location: input.location ?? null,
+        departmentName: input.departmentName ?? null,
+        speaker: input.speakerContactId
+          ? { connect: { id: input.speakerContactId } }
+          : { disconnect: true },
+        requirementCategory: input.requirementCategoryId
+          ? { connect: { id: input.requirementCategoryId } }
+          : { disconnect: true },
+        prescriberCount: input.prescriberCount ?? null,
+        expectedParticipants: input.expectedParticipants ?? null,
+        foodExpense: input.foodExpense ?? null,
+        transportExpense: input.transportExpense ?? null,
+        updatedBy: session.user.id,
+      },
+      tx,
+    );
+    await replaceActivityProducts(input.id, input.products, session.user.id, tx);
+    await replaceActivityParticipants(input.id, input.participantContactIds, session.user.id, tx);
+    return row;
   });
-  return toSummary(updated);
+  const refreshed = await findActivityById(updated.id);
+  return toSummary(refreshed ?? updated);
 }
 
 // Viewable by anyone who manages it, or anyone who personally holds an
@@ -312,7 +394,10 @@ export async function getAssignmentDetail(
   return null;
 }
 
-async function assertAssigneeInScope(userId: string, scope: Scope): Promise<void> {
+// Exported for follow-up-service.ts's reassignFollowUp — same "is this a
+// valid, active, in-scope user to hand work to" check reassignAssignment
+// already uses.
+export async function assertAssigneeInScope(userId: string, scope: Scope): Promise<void> {
   const assignee = await findUserById(userId, scopeUserIds(scope));
   if (!assignee || assignee.status !== "ACTIVE") throw new AssigneeOutsideScopeError();
 }
@@ -384,9 +469,70 @@ export async function cancelAssignment(assignmentId: string, session: ScopeSessi
   await updateAssignmentStatusRow(assignmentId, "CANCELLED", session.user.id);
 }
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+function addDays(date: Date, days: number): Date {
+  return new Date(date.getTime() + days * MS_PER_DAY);
+}
+
+// Trigger 1 of the follow-up chain engine (Marketing Activity.md §3.5): on
+// completion, create whichever auto-follow-up(s) this activity type is
+// configured for. RTM-style types (defaultFollowUpPerParticipant) fan out
+// one follow-up per participant marked present, no chain. Every other
+// configured type gets a single assignment-level follow-up that may itself
+// chain forward (seriesIntervalDays/seriesEndDate copied onto the row, not
+// re-read from the type at each step — see completeFollowUp's
+// advanceFollowUpChain for why). A type with no initialOffsetDays
+// configured gets nothing here; manual follow-up only.
+async function createCompletionFollowUps(
+  context: AssignmentCompletionContext,
+  actorId: string,
+  tx: Db,
+): Promise<void> {
+  const { type } = context.activity;
+  if (type.defaultFollowUpInitialOffsetDays == null) return;
+  const completedAt = new Date();
+
+  if (type.defaultFollowUpPerParticipant) {
+    const present = context.results.filter((result) => result.present);
+    for (const result of present) {
+      await createFollowUpRow(
+        {
+          assignment: { connect: { id: context.id } },
+          participantResult: { connect: { id: result.id } },
+          owner: { connect: { id: context.userId } },
+          dueDate: addDays(completedAt, type.defaultFollowUpInitialOffsetDays),
+          createdBy: actorId,
+          updatedBy: actorId,
+        },
+        tx,
+      );
+    }
+    return;
+  }
+
+  await createFollowUpRow(
+    {
+      assignment: { connect: { id: context.id } },
+      owner: { connect: { id: context.userId } },
+      dueDate: addDays(completedAt, type.defaultFollowUpInitialOffsetDays),
+      seriesIntervalDays: type.defaultFollowUpRecurrenceIntervalDays ?? undefined,
+      seriesEndDate:
+        type.defaultFollowUpSeriesDurationDays != null
+          ? addDays(completedAt, type.defaultFollowUpSeriesDurationDays)
+          : undefined,
+      createdBy: actorId,
+      updatedBy: actorId,
+    },
+    tx,
+  );
+}
+
 // The assignee's own response — mark their assignment done or cancel it.
 // `canAssign` additionally lets a manager do this on behalf of someone in
-// their scope, same reach as every other per-assignment action.
+// their scope, same reach as every other per-assignment action. Completing
+// (DONE) is wrapped in one transaction together with any auto-follow-up
+// creation: if follow-up creation fails, the assignment must not end up
+// DONE with a missing chain (confirmed requirement, §3.5).
 export async function updateAssignmentStatus(
   assignmentId: string,
   status: "DONE" | "CANCELLED",
@@ -396,8 +542,93 @@ export async function updateAssignmentStatus(
   const assignment = await getAssignmentForAction(assignmentId, session, canAssign);
   if (assignment.status !== "PLANNED") throw new AssignmentNotActionableError();
 
-  const updated = await updateAssignmentStatusRow(assignmentId, status, session.user.id);
+  if (status === "CANCELLED") {
+    const updated = await updateAssignmentStatusRow(assignmentId, status, session.user.id);
+    return toActivityAssignmentSummary(updated);
+  }
+
+  const updated = await runInTransaction(async (tx) => {
+    const row = await updateAssignmentStatusRow(assignmentId, status, session.user.id, tx);
+    const context = await findAssignmentCompletionContext(assignmentId, tx);
+    if (context) await createCompletionFollowUps(context, session.user.id, tx);
+    return row;
+  });
   return toActivityAssignmentSummary(updated);
+}
+
+export type AssignmentExecutionSummary = AssignmentExecutionRow;
+
+// Full execution detail for one assignment — this delegate's own results
+// (see the schema comments on ActivityAssignment / AssignmentParticipantResult
+// / AssignmentProductResult). Same own-assignment-or-canAssign reach as
+// every other per-assignment read.
+export async function getAssignmentExecutionDetail(
+  assignmentId: string,
+  session: ScopeSession,
+  canAssign: boolean,
+): Promise<AssignmentExecutionSummary | null> {
+  const assignment = await getAssignmentForAction(assignmentId, session, canAssign);
+  const row = await findAssignmentExecutionById(assignment.id);
+  return row;
+}
+
+// Writes this delegate's own execution record — present/unplanned
+// participants, per-product results, and whichever type-specific scalar
+// fields apply to this activity's type. Locked once the assignment leaves
+// PLANNED, same "lock the record on submission" rule used elsewhere in this
+// codebase (e.g. S4-03 visit notes).
+export async function updateAssignmentExecution(
+  input: UpdateAssignmentExecutionInput,
+  session: ScopeSession,
+  canAssign: boolean,
+): Promise<AssignmentExecutionSummary> {
+  const assignment = await getAssignmentForAction(input.assignmentId, session, canAssign);
+  if (assignment.status !== "PLANNED") throw new AssignmentNotActionableError();
+
+  const updated = await runInTransaction(async (tx) => {
+    const row = await updateAssignmentExecutionRow(
+      input.assignmentId,
+      {
+        outcomeNotes: input.outcomeNotes ?? null,
+        hcpFeedback: input.hcpFeedback ?? null,
+        beneficiaryFeedback: input.beneficiaryFeedback ?? null,
+        commitments: input.commitments ?? null,
+        pregnantWomenReached: input.pregnantWomenReached ?? null,
+        childrenConsulted: input.childrenConsulted ?? null,
+        actualParticipants: input.actualParticipants ?? null,
+        nightShiftTiming: input.nightShiftTiming ?? null,
+        requirementValue: input.requirementValue ?? null,
+        supportProvidedDescription: input.supportProvidedDescription ?? null,
+        recipient: input.recipientContactId
+          ? { connect: { id: input.recipientContactId } }
+          : { disconnect: true },
+        foodExpense: input.foodExpense ?? null,
+        transportExpense: input.transportExpense ?? null,
+        // Set on every save, not just the first — the signal this tracks
+        // is "has the delegate ever visited execution," which a later
+        // edit still satisfies. Read by the My Activities "Mark done"
+        // guard (see the schema comment on this field).
+        executionRecordedAt: new Date(),
+        updatedBy: session.user.id,
+      },
+      tx,
+    );
+    await replaceAssignmentParticipantResults(
+      input.assignmentId,
+      input.results,
+      session.user.id,
+      tx,
+    );
+    await replaceAssignmentProductResults(
+      input.assignmentId,
+      input.productResults,
+      session.user.id,
+      tx,
+    );
+    return row;
+  });
+  const refreshed = await findAssignmentExecutionById(updated.id);
+  return refreshed ?? updated;
 }
 
 // Scoped per the viewer's hierarchy — same getUserScope/scopeUserIds
@@ -422,7 +653,10 @@ async function viewerVisibility(
   };
 }
 
-export type ActivityListFilters = Pick<ActivityListParams, "q" | "type" | "status" | "from" | "to">;
+export type ActivityListFilters = Pick<
+  ActivityListParams,
+  "q" | "typeId" | "status" | "from" | "to"
+>;
 
 // One page of the viewer's activities (newest date first) — the Activity
 // List, filtered by name, type, assignment status and date range.
@@ -435,7 +669,7 @@ export async function getActivitiesPageForViewer(
   const query: ActivityQuery = {
     ...(await viewerVisibility(session, canAssign)),
     q: filters.q,
-    type: filters.type,
+    typeId: filters.typeId,
     status: filters.status,
     from: filters.from ? new Date(filters.from) : undefined,
     to: filters.to ? new Date(`${filters.to}T23:59:59.999Z`) : undefined,
@@ -473,7 +707,10 @@ export async function getAssignmentsForMonth(
   return rows.map(toActivityAssignmentSummary);
 }
 
-export type MyAssignmentFilters = Pick<ActivityListParams, "q" | "type" | "status" | "from" | "to">;
+export type MyAssignmentFilters = Pick<
+  ActivityListParams,
+  "q" | "typeId" | "status" | "from" | "to"
+>;
 
 // One page of the viewer's own assignments — My Activities: one row per
 // assignment, always scoped to the viewer themselves regardless of role
@@ -486,7 +723,7 @@ export async function getMyAssignmentsPage(
   const query: ActivityAssignmentQuery = {
     scopeUserIds: [session.user.id],
     q: filters.q,
-    type: filters.type,
+    typeId: filters.typeId,
     status: filters.status,
     from: filters.from ? new Date(filters.from) : undefined,
     to: filters.to ? new Date(`${filters.to}T23:59:59.999Z`) : undefined,
@@ -505,7 +742,7 @@ export async function getMyAssignmentsPage(
 
 export type AssignmentListFilters = Pick<
   ActivityAssignmentFilters,
-  "q" | "type" | "status" | "assigneeId" | "from" | "to"
+  "q" | "typeId" | "status" | "assigneeId" | "from" | "to"
 >;
 
 // One page of the viewer's assignments — the Assignment table: one row per
@@ -519,7 +756,7 @@ export async function getAssignmentsPageForViewer(
   const query: ActivityAssignmentQuery = {
     scopeUserIds: scopeUserIds(scope),
     q: filters.q,
-    type: filters.type,
+    typeId: filters.typeId,
     status: filters.status,
     assigneeId: filters.assigneeId,
     from: filters.from ? new Date(filters.from) : undefined,
@@ -566,7 +803,7 @@ export async function getAssigneeFilterLabel(
 export type ActivitySearchResult = {
   id: string;
   name: string;
-  type: string;
+  type: ActivityTypeSummary;
   assignmentCount: number;
 };
 

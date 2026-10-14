@@ -8,6 +8,7 @@ import { DEFAULT_PAGE_SIZE, paginationParamsSchema, totalPages } from "@/lib/pag
 import { activityListParamsSchema } from "@/lib/schemas/activity";
 import { hasPermission } from "@/server/auth/permissions";
 import { requirePermission } from "@/server/auth/require-permission";
+import { listStandardEventActivityTypes } from "@/server/repositories/activity-repository";
 import { getActivitiesPageForViewer } from "@/server/services/activity-service";
 
 import { ActivityFilters } from "./activity-filters";
@@ -43,7 +44,7 @@ export default async function ActivitiesPage({ searchParams }: ActivitiesPagePro
   });
   const filters = activityListParamsSchema.parse({
     q: firstValue(params.q),
-    type: firstValue(params.type),
+    typeId: firstValue(params.typeId),
     status: firstValue(params.status),
     from: firstValue(params.from),
     to: firstValue(params.to),
@@ -51,9 +52,12 @@ export default async function ActivitiesPage({ searchParams }: ActivitiesPagePro
     pageSize: pagination.pageSize,
   });
 
-  const result = await getActivitiesPageForViewer(session, true, pagination, filters);
+  const [result, typeOptions] = await Promise.all([
+    getActivitiesPageForViewer(session, true, pagination, filters),
+    listStandardEventActivityTypes(),
+  ]);
   const anyFilter = Boolean(
-    filters.q || filters.type || filters.status || filters.from || filters.to,
+    filters.q || filters.typeId || filters.status || filters.from || filters.to,
   );
 
   return (
@@ -65,7 +69,7 @@ export default async function ActivitiesPage({ searchParams }: ActivitiesPagePro
 
       <ActivityTabs active="list" canAssign dict={t} />
 
-      <ActivityFilters filters={filters} dict={t} />
+      <ActivityFilters filters={filters} typeOptions={typeOptions} dict={t} />
 
       <ActivityList
         activities={result.items.map((activity) => ({

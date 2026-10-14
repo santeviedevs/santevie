@@ -48,7 +48,7 @@ export default async function MyActivityDetailPage({ params }: MyActivityDetailP
         <dt className="text-muted-foreground">{t.nameLabel}</dt>
         <dd>{activity.name}</dd>
         <dt className="text-muted-foreground">{t.typeLabel}</dt>
-        <dd>{activity.type}</dd>
+        <dd>{activity.type.name}</dd>
         {activity.center ? (
           <>
             <dt className="text-muted-foreground">{t.targetCenter}</dt>

@@ -17,15 +17,6 @@ export const dynamic = "force-dynamic";
 
 type AssignmentDetailPageProps = { params: Promise<{ assignmentId: string }> };
 
-function typeLabel(
-  type: string,
-  dict: { typeCampaign: string; typeEvent: string; typeOther: string },
-): string {
-  if (type === "CAMPAIGN") return dict.typeCampaign;
-  if (type === "EVENT") return dict.typeEvent;
-  return dict.typeOther;
-}
-
 // The Manage page for one assignment, opened from a row of the Assignment
 // table: the activity it belongs to, its assignee and status, and — for a
 // manager, while it's still PLANNED — Reassign and Cancel. Both act on this
@@ -67,7 +58,7 @@ export default async function AssignmentDetailPage({ params }: AssignmentDetailP
               </span>
               <span aria-hidden>·</span>
               <span>
-                {typeLabel(assignment.activity.type, t)} · {formatDate(assignment.scheduledDate)}
+                {assignment.activity.type.name} · {formatDate(assignment.scheduledDate)}
               </span>
             </p>
           </div>

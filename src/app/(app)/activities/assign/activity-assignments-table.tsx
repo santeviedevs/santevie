@@ -23,17 +23,11 @@ export type ActivityAssignmentRow = {
   status: string;
   scheduledDate: string;
   user: { id: string; name: string };
-  activity: { id: string; name: string; type: string };
+  activity: { id: string; name: string; type: { id: string; code: string; name: string } };
 };
 
 function detailHref(assignment: ActivityAssignmentRow): string {
   return `/activities/assign/${assignment.id}`;
-}
-
-function typeLabel(type: string, dict: Dict): string {
-  if (type === "CAMPAIGN") return dict.typeCampaign;
-  if (type === "EVENT") return dict.typeEvent;
-  return dict.typeOther;
 }
 
 // The assignment table: a real table from md up, stacked rows below it, same
@@ -83,7 +77,7 @@ export function ActivityAssignmentsTable({
                     {assignment.activity.name}
                   </Link>
                 </TableCell>
-                <TableCell>{typeLabel(assignment.activity.type, dict)}</TableCell>
+                <TableCell>{assignment.activity.type.name}</TableCell>
                 <TableCell>{assignment.user.name}</TableCell>
                 <TableCell className="whitespace-nowrap">
                   {formatDate(new Date(assignment.scheduledDate))}
@@ -120,7 +114,7 @@ export function ActivityAssignmentsTable({
               </span>
               <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
                 <dt className="text-muted-foreground">{dict.colType}</dt>
-                <dd>{typeLabel(assignment.activity.type, dict)}</dd>
+                <dd>{assignment.activity.type.name}</dd>
                 <dt className="text-muted-foreground">{dict.colAssignedTo}</dt>
                 <dd>{assignment.user.name}</dd>
                 <dt className="text-muted-foreground">{dict.colScheduledDate}</dt>

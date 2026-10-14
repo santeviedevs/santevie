@@ -1,20 +1,29 @@
-"use client";
-
-import { useTransition } from "react";
-import { toast } from "sonner";
+import { ChevronRight } from "lucide-react";
+import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/format-date";
 import type { Dictionary } from "@/lib/i18n/dictionary";
-
-import { type ActivityFormState, completeFollowUpAction } from "./activities/actions";
 
 type FollowUp = {
   id: string;
   dueDate: Date;
-  activity: { type: string; center: { name: string } | null; territory: { code: string } | null };
+  participant: { id: string; name: string } | null;
+  activity: {
+    name: string;
+    location: string | null;
+    type: { id: string; code: string; name: string };
+    center: { name: string } | null;
+    territory: { code: string } | null;
+  };
 };
+
+// Same "where" fallback chain as activities/follow-ups/follow-up-table.tsx
+// — RTM, CME and Nurse Conference use a free-text venue instead of a
+// center/territory, and Necessity-Driven has neither.
+function whereLabel(activity: FollowUp["activity"]): string | null {
+  return activity.center?.name ?? activity.territory?.code ?? activity.location ?? null;
+}
 
 // The due-date comparison a follow-up is shown against: calendar day only,
 // same convention as lib/week.ts (a calendar date at UTC midnight,
@@ -32,8 +41,12 @@ function dueDateStatus(dueDate: Date, today: Date): "overdue" | "dueToday" | "up
 }
 
 // Home's Follow-ups: compact rows with subtle dividers, no individual
-// cards — the Add/Assign Routes row pattern. Mark Done reuses the same
-// server action and ownership checks as the full My Follow-Ups widget.
+// cards — the Add/Assign Routes row pattern. "Mark done" opens the
+// follow-up's own detail/completion screen (same as the full My Follow-Ups
+// widget) rather than completing in place, since completion now captures
+// structured outcome data (prescription progress, business value, product
+// availability — see completeFollowUpSchema) that a one-click action here
+// has no way to collect.
 export function HomeFollowUpsList({
   pending,
   today,
@@ -43,17 +56,6 @@ export function HomeFollowUpsList({
   today: Date;
   dict: Dictionary["activitiesPage"];
 }) {
-  const [isPending, startTransition] = useTransition();
-
-  function complete(id: string) {
-    startTransition(async () => {
-      const formData = new FormData();
-      formData.set("id", id);
-      const result: ActivityFormState = await completeFollowUpAction({ error: null }, formData);
-      if (!result.error) toast.success(dict.followUpCompleted);
-    });
-  }
-
   if (pending.length === 0) {
     return <p className="text-sm text-muted-foreground">{dict.noFollowUps}</p>;
   }
@@ -63,27 +65,38 @@ export function HomeFollowUpsList({
       {pending.map((followUp) => {
         const status = dueDateStatus(followUp.dueDate, today);
         return (
-          <li key={followUp.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
-            <div className="flex flex-wrap items-center gap-2">
-              {status === "overdue" ? (
-                <Badge variant="destructive">{dict.overdue}</Badge>
-              ) : status === "dueToday" ? (
-                <Badge variant="secondary">{dict.dueToday}</Badge>
-              ) : null}
-              <span className="text-sm">
-                {followUp.activity.center?.name ?? followUp.activity.territory?.code ?? "—"} —{" "}
-                {formatDate(followUp.dueDate)}
-              </span>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={isPending}
-              onClick={() => complete(followUp.id)}
+          <li key={followUp.id}>
+            <Link
+              href={`/activities/follow-ups/${followUp.id}`}
+              className="flex flex-wrap items-center justify-between gap-2 py-3 hover:bg-muted/50"
             >
-              {dict.markDone}
-            </Button>
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  {status === "overdue" ? (
+                    <Badge variant="destructive">{dict.overdue}</Badge>
+                  ) : status === "dueToday" ? (
+                    <Badge variant="secondary">{dict.dueToday}</Badge>
+                  ) : null}
+                  <span className="text-sm font-medium">{followUp.activity.name}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {followUp.activity.type.name}
+                  </span>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {[
+                    whereLabel(followUp.activity),
+                    followUp.participant?.name,
+                    formatDate(followUp.dueDate),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
+              </div>
+              <span className="flex shrink-0 items-center gap-1 text-sm text-muted-foreground">
+                {dict.markDone}
+                <ChevronRight className="size-4" aria-hidden />
+              </span>
+            </Link>
           </li>
         );
       })}

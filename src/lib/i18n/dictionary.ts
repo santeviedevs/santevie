@@ -582,6 +582,19 @@ export type Dictionary = {
     targetLabel: string;
     targetCenter: string;
     targetTerritory: string;
+    territoryFieldLabel: string;
+    centerFieldLabel: string;
+    locationLabel: string;
+    departmentLabel: string;
+    speakerLabel: string;
+    speakerNone: string;
+    foodExpenseLabel: string;
+    transportExpenseLabel: string;
+    productsLabel: string;
+    productsPlaceholder: string;
+    participantsLabel: string;
+    participantsPlaceholder: string;
+    noOptionsAvailable: string;
     notesLabel: string;
     save: string;
     saving: string;
@@ -590,7 +603,27 @@ export type Dictionary = {
     overdue: string;
     markDone: string;
     followUpCompleted: string;
-    teamOverdue: string;
+    followUpDetailTitle: string;
+    backToFollowUps: string;
+    backToTeamFollowUps: string;
+    outcomeLabel: string;
+    productAvailableLabel: string;
+    completeFollowUpAction: string;
+    reassignFollowUpHeading: string;
+    newOwnerLabel: string;
+    followUpReassigned: string;
+    reassignmentHistoryHeading: string;
+    noReassignments: string;
+    ownerLabel: string;
+    participantLabel: string;
+    dueDateLabel: string;
+    followUpStatusPending: string;
+    followUpStatusDone: string;
+    filterOverdueOnly: string;
+    noFollowUpsMatch: string;
+    colWhere: string;
+    colOwner: string;
+    teamFollowUps: string;
     dueDateColumn: string;
     targetColumn: string;
     today: string;
@@ -623,6 +656,9 @@ export type Dictionary = {
     statusDone: string;
     statusCancelled: string;
     markActivityDone: string;
+    markDoneConfirmTitle: string;
+    markDoneConfirmDescription: string;
+    executionNotRecordedHint: string;
     markActivityCancelled: string;
     activityUpdated: string;
     // My Activities sub-nav
@@ -668,6 +704,35 @@ export type Dictionary = {
     assignmentCancelled: string;
     assignmentReassigned: string;
     noActionsHint: string;
+    recordResultsAction: string;
+    recordResultsTitle: string;
+    outcomeNotesLabel: string;
+    hcpFeedbackLabel: string;
+    beneficiaryFeedbackLabel: string;
+    commitmentsLabel: string;
+    prescriberCountLabel: string;
+    pregnantWomenReachedLabel: string;
+    childrenConsultedLabel: string;
+    expectedParticipantsLabel: string;
+    actualParticipantsLabel: string;
+    nightShiftTimingLabel: string;
+    requirementCategoryLabel: string;
+    requirementValueLabel: string;
+    supportProvidedLabel: string;
+    recipientLabel: string;
+    recipientNone: string;
+    participantResultsHeading: string;
+    presentLabel: string;
+    perPersonFeedbackLabel: string;
+    prescriptionsGeneratedLabel: string;
+    productResultsHeading: string;
+    businessValueGeneratedLabel: string;
+    samplesProvidedLabel: string;
+    availabilityLabel: string;
+    saveResults: string;
+    savingResults: string;
+    resultsSaved: string;
+    executionLockedHint: string;
   };
   // The Calendar screen: a month-grid view of the viewer's own holidays,
   // weekly-offs and leave status, plus a Holidays tab (the same
@@ -1463,6 +1528,19 @@ const en: Dictionary = {
     targetLabel: "Applies to",
     targetCenter: "A center",
     targetTerritory: "A territory",
+    territoryFieldLabel: "Territory",
+    centerFieldLabel: "Centre",
+    locationLabel: "Location",
+    departmentLabel: "Department",
+    speakerLabel: "Speaker",
+    speakerNone: "None",
+    foodExpenseLabel: "Food expense",
+    transportExpenseLabel: "Transport expense",
+    productsLabel: "Products",
+    productsPlaceholder: "Search products…",
+    participantsLabel: "Invited participants",
+    participantsPlaceholder: "Search contacts…",
+    noOptionsAvailable: "None available.",
     notesLabel: "Notes",
     save: "Save",
     saving: "Saving...",
@@ -1471,7 +1549,27 @@ const en: Dictionary = {
     overdue: "Overdue",
     markDone: "Mark done",
     followUpCompleted: "Follow-up completed",
-    teamOverdue: "Team Overdue Follow-Ups",
+    followUpDetailTitle: "Follow-up",
+    backToFollowUps: "Back to follow-ups",
+    backToTeamFollowUps: "Back to team follow-ups",
+    outcomeLabel: "Outcome",
+    productAvailableLabel: "Product available",
+    completeFollowUpAction: "Mark done",
+    reassignFollowUpHeading: "Reassign",
+    newOwnerLabel: "New owner",
+    followUpReassigned: "Follow-up reassigned",
+    reassignmentHistoryHeading: "Reassignment history",
+    noReassignments: "No reassignments yet.",
+    ownerLabel: "Owner",
+    participantLabel: "Participant",
+    dueDateLabel: "Due date",
+    followUpStatusPending: "Pending",
+    followUpStatusDone: "Done",
+    filterOverdueOnly: "Overdue only",
+    noFollowUpsMatch: "No follow-ups match these filters.",
+    colWhere: "Location",
+    colOwner: "Owner",
+    teamFollowUps: "Team Follow-Ups",
     dueDateColumn: "Due date",
     targetColumn: "Center / Territory",
     today: "Today",
@@ -1504,6 +1602,10 @@ const en: Dictionary = {
     statusDone: "Done",
     statusCancelled: "Cancelled",
     markActivityDone: "Mark done",
+    markDoneConfirmTitle: "Mark this activity done?",
+    markDoneConfirmDescription:
+      "This finalizes the assignment and, for some activity types, automatically schedules a follow-up. This can't be undone from here.",
+    executionNotRecordedHint: "Record results before marking this activity done.",
     markActivityCancelled: "Cancel",
     activityUpdated: "Activity updated",
     subTabActivities: "Activities",
@@ -1545,6 +1647,35 @@ const en: Dictionary = {
     assignmentCancelled: "Assignment cancelled",
     assignmentReassigned: "Assignment reassigned",
     noActionsHint: "This assignment is no longer planned, so it can't be changed.",
+    recordResultsAction: "Record results",
+    recordResultsTitle: "Record your results",
+    outcomeNotesLabel: "General feedback",
+    hcpFeedbackLabel: "Feedback from HCPs",
+    beneficiaryFeedbackLabel: "Feedback from beneficiaries",
+    commitmentsLabel: "Commitments",
+    prescriberCountLabel: "Number of prescribers",
+    pregnantWomenReachedLabel: "Pregnant women reached",
+    childrenConsultedLabel: "Children consulted",
+    expectedParticipantsLabel: "Expected participants",
+    actualParticipantsLabel: "Actual participants",
+    nightShiftTimingLabel: "Night-shift timing",
+    requirementCategoryLabel: "Requirement category",
+    requirementValueLabel: "Quantity / value",
+    supportProvidedLabel: "Support provided",
+    recipientLabel: "Recipient",
+    recipientNone: "None",
+    participantResultsHeading: "Participants",
+    presentLabel: "Present",
+    perPersonFeedbackLabel: "Feedback",
+    prescriptionsGeneratedLabel: "Prescriptions generated",
+    productResultsHeading: "Products",
+    businessValueGeneratedLabel: "Business value generated",
+    samplesProvidedLabel: "Samples provided",
+    availabilityLabel: "Availability",
+    saveResults: "Save results",
+    savingResults: "Saving…",
+    resultsSaved: "Results saved",
+    executionLockedHint: "This assignment is no longer planned, so results can't be changed.",
   },
   calendarPage: {
     tabCalendar: "Calendar",
@@ -2318,6 +2449,19 @@ const fr: Dictionary = {
     targetLabel: "S'applique à",
     targetCenter: "Un centre",
     targetTerritory: "Un territoire",
+    territoryFieldLabel: "Territoire",
+    centerFieldLabel: "Centre",
+    locationLabel: "Lieu",
+    departmentLabel: "Département",
+    speakerLabel: "Intervenant",
+    speakerNone: "Aucun",
+    foodExpenseLabel: "Frais de restauration",
+    transportExpenseLabel: "Frais de transport",
+    productsLabel: "Produits",
+    productsPlaceholder: "Rechercher des produits…",
+    participantsLabel: "Participants invités",
+    participantsPlaceholder: "Rechercher des contacts…",
+    noOptionsAvailable: "Aucune option disponible.",
     notesLabel: "Notes",
     save: "Enregistrer",
     saving: "Enregistrement...",
@@ -2326,7 +2470,27 @@ const fr: Dictionary = {
     overdue: "En retard",
     markDone: "Marquer comme fait",
     followUpCompleted: "Suivi terminé",
-    teamOverdue: "Suivis en retard de l'équipe",
+    followUpDetailTitle: "Suivi",
+    backToFollowUps: "Retour aux suivis",
+    backToTeamFollowUps: "Retour aux suivis de l'équipe",
+    outcomeLabel: "Résultat",
+    productAvailableLabel: "Produit disponible",
+    completeFollowUpAction: "Marquer comme fait",
+    reassignFollowUpHeading: "Réaffecter",
+    newOwnerLabel: "Nouveau responsable",
+    followUpReassigned: "Suivi réaffecté",
+    reassignmentHistoryHeading: "Historique des réaffectations",
+    noReassignments: "Aucune réaffectation pour le moment.",
+    ownerLabel: "Responsable",
+    participantLabel: "Participant",
+    dueDateLabel: "Échéance",
+    followUpStatusPending: "En attente",
+    followUpStatusDone: "Terminé",
+    filterOverdueOnly: "En retard uniquement",
+    noFollowUpsMatch: "Aucun suivi ne correspond à ces filtres.",
+    colWhere: "Lieu",
+    colOwner: "Responsable",
+    teamFollowUps: "Suivis de l'équipe",
     dueDateColumn: "Échéance",
     targetColumn: "Centre / Territoire",
     today: "Aujourd'hui",
@@ -2359,6 +2523,11 @@ const fr: Dictionary = {
     statusDone: "Terminée",
     statusCancelled: "Annulée",
     markActivityDone: "Marquer comme faite",
+    markDoneConfirmTitle: "Marquer cette activité comme faite ?",
+    markDoneConfirmDescription:
+      "Cela finalise l'affectation et, pour certains types d'activité, planifie automatiquement un suivi. Cette action ne peut pas être annulée depuis cet écran.",
+    executionNotRecordedHint:
+      "Enregistrez les résultats avant de marquer cette activité comme faite.",
     markActivityCancelled: "Annuler",
     activityUpdated: "Activité mise à jour",
     subTabActivities: "Activités",
@@ -2400,6 +2569,36 @@ const fr: Dictionary = {
     assignmentCancelled: "Affectation annulée",
     assignmentReassigned: "Affectation réaffectée",
     noActionsHint: "Cette affectation n'est plus planifiée, elle ne peut plus être modifiée.",
+    recordResultsAction: "Enregistrer les résultats",
+    recordResultsTitle: "Enregistrer vos résultats",
+    outcomeNotesLabel: "Retour général",
+    hcpFeedbackLabel: "Retour des professionnels de santé",
+    beneficiaryFeedbackLabel: "Retour des bénéficiaires",
+    commitmentsLabel: "Engagements",
+    prescriberCountLabel: "Nombre de prescripteurs",
+    pregnantWomenReachedLabel: "Femmes enceintes touchées",
+    childrenConsultedLabel: "Enfants consultés",
+    expectedParticipantsLabel: "Participants attendus",
+    actualParticipantsLabel: "Participants réels",
+    nightShiftTimingLabel: "Horaire de garde de nuit",
+    requirementCategoryLabel: "Catégorie de besoin",
+    requirementValueLabel: "Quantité / valeur",
+    supportProvidedLabel: "Soutien apporté",
+    recipientLabel: "Bénéficiaire",
+    recipientNone: "Aucun",
+    participantResultsHeading: "Participants",
+    presentLabel: "Présent",
+    perPersonFeedbackLabel: "Retour",
+    prescriptionsGeneratedLabel: "Prescriptions générées",
+    productResultsHeading: "Produits",
+    businessValueGeneratedLabel: "Valeur commerciale générée",
+    samplesProvidedLabel: "Échantillons fournis",
+    availabilityLabel: "Disponibilité",
+    saveResults: "Enregistrer les résultats",
+    savingResults: "Enregistrement…",
+    resultsSaved: "Résultats enregistrés",
+    executionLockedHint:
+      "Cette affectation n'est plus planifiée, les résultats ne peuvent plus être modifiés.",
   },
   calendarPage: {
     tabCalendar: "Calendrier",
