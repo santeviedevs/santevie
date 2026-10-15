@@ -9,6 +9,7 @@ import {
   Map,
   MapPin,
   Package,
+  PackageOpen,
   Route,
   Users,
 } from "lucide-react";
@@ -40,6 +41,9 @@ type NavKey =
   | "activities"
   | "myActivities"
   | "followUps"
+  | "emballageGroup"
+  | "emballage"
+  | "emballageReport"
   | "installGuide";
 
 export type NavChildDef = {
@@ -165,6 +169,14 @@ export const NAV_ITEM_DEFS: NavItemDef[] = [
       { href: "/activities", key: "activities", permission: "activities:assign" },
       { href: "/activities/my", key: "myActivities", permission: "activities:respond-own" },
       { href: "/activities/follow-ups", key: "followUps", permission: "activities:respond-own" },
+    ],
+  },
+  {
+    key: "emballageGroup",
+    icon: PackageOpen,
+    children: [
+      { href: "/emballage", key: "emballage", permission: "emballage:record-own" },
+      { href: "/emballage/report", key: "emballageReport", permission: "emballage:view-team" },
     ],
   },
 ];

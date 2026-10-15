@@ -39,6 +39,10 @@ export const PERMISSIONS = [
   "activities:assign",
   "activities:respond-own",
   "activities:view-team",
+  "emballage:record-own",
+  "emballage:view-team",
+  "emballage:correct-locked",
+  "emballage:finalize-report",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -75,6 +79,10 @@ export const ROLE_PERMISSIONS: Record<RoleName, readonly Permission[]> = {
     "activities:assign",
     "activities:respond-own",
     "activities:view-team",
+    "emballage:record-own",
+    "emballage:view-team",
+    "emballage:correct-locked",
+    "emballage:finalize-report",
   ],
   SUPERVISOR: [
     "orders:view-team",
@@ -92,6 +100,8 @@ export const ROLE_PERMISSIONS: Record<RoleName, readonly Permission[]> = {
     "visits:respond-own",
     "activities:respond-own",
     "activities:view-team",
+    "emballage:record-own",
+    "emballage:view-team",
   ],
   DELEGATE: [
     "orders:view-own",
@@ -103,6 +113,7 @@ export const ROLE_PERMISSIONS: Record<RoleName, readonly Permission[]> = {
     "attendance:check-out",
     "visits:respond-own",
     "activities:respond-own",
+    "emballage:record-own",
   ],
 };
 
