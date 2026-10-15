@@ -33,6 +33,13 @@ export const hospitalDetailsSchema = z.object({
 });
 export type HospitalDetailsInput = z.infer<typeof hospitalDetailsSchema>;
 
+// Pharmacy-specific fields, only meaningful when the selected CenterType
+// code is PHARMACY.
+export const pharmacyDetailsSchema = z.object({
+  currentDivision: z.string().trim().max(120).nullish(),
+});
+export type PharmacyDetailsInput = z.infer<typeof pharmacyDetailsSchema>;
+
 export const createCenterSchema = z.object({
   code,
   name,
@@ -47,6 +54,7 @@ export const createCenterSchema = z.object({
   // path) it maps to, so one optional field is enough.
   territoryId: id.nullish(),
   hospital: hospitalDetailsSchema.optional(),
+  pharmacy: pharmacyDetailsSchema.optional(),
 });
 export type CreateCenterInput = z.infer<typeof createCenterSchema>;
 

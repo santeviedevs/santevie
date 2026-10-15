@@ -32,6 +32,7 @@ const {
 
 const CLINIC_TYPE = { id: "type-clinic", code: "CLINIC", name: "Clinic" };
 const HOSPITAL_TYPE = { id: "type-hospital", code: "HOSPITAL", name: "Hospital" };
+const PHARMACY_TYPE = { id: "type-pharmacy", code: "PHARMACY", name: "Pharmacy" };
 const CHEMIST_TYPE = { id: "type-chemist", code: "CHEMIST", name: "Chemist" };
 
 const baseCenterRow = (overrides: Record<string, unknown> = {}) => ({
@@ -46,12 +47,13 @@ const baseCenterRow = (overrides: Record<string, unknown> = {}) => ({
   type: CHEMIST_TYPE,
   territory: null,
   hospital: null,
+  pharmacy: null,
   ...overrides,
 });
 
 beforeEach(() => {
   vi.clearAllMocks();
-  listCenterTypes.mockResolvedValue([CLINIC_TYPE, HOSPITAL_TYPE, CHEMIST_TYPE]);
+  listCenterTypes.mockResolvedValue([CLINIC_TYPE, HOSPITAL_TYPE, PHARMACY_TYPE, CHEMIST_TYPE]);
   findTerritoryById.mockResolvedValue({ id: "territory-1", status: "ACTIVE" });
   createCenterWithExtension.mockResolvedValue(baseCenterRow());
   updateCenterWithExtension.mockResolvedValue(baseCenterRow());
@@ -104,6 +106,43 @@ describe("createCenter", () => {
         "actor-1",
       ),
     ).rejects.toThrow(CenterTypeMismatchError);
+  });
+
+  it("rejects a Pharmacy type submitted without pharmacy details", async () => {
+    await expect(
+      createCenter({ code: "CL-0004", name: "Pharm", typeId: PHARMACY_TYPE.id }, "actor-1"),
+    ).rejects.toThrow(CenterTypeMismatchError);
+  });
+
+  it("rejects pharmacy details submitted under a non-Pharmacy type", async () => {
+    await expect(
+      createCenter(
+        {
+          code: "CL-0004",
+          name: "Clinic",
+          typeId: CLINIC_TYPE.id,
+          pharmacy: { currentDivision: "GENCARE" },
+        },
+        "actor-1",
+      ),
+    ).rejects.toThrow(CenterTypeMismatchError);
+  });
+
+  it("creates a Pharmacy center with its currentDivision", async () => {
+    await createCenter(
+      {
+        code: "CL-0004",
+        name: "Pharm",
+        typeId: PHARMACY_TYPE.id,
+        pharmacy: { currentDivision: "GENCARE" },
+      },
+      "actor-1",
+    );
+    expect(createCenterWithExtension).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pharmacy: expect.objectContaining({ currentDivision: "GENCARE" }),
+      }),
+    );
   });
 
   it("maps a unique constraint violation to DuplicateCenterCodeError", async () => {

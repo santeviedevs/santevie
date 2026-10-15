@@ -429,6 +429,7 @@ model Center {
   // extension rather than fields on Center itself so other center types
   // carry no unused columns.
   hospital Hospital?
+  pharmacy Pharmacy?
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -457,6 +458,27 @@ model Hospital {
   updatedAt DateTime @updatedAt
 
   @@map("hospitals")
+}
+
+// One-to-one extension of Center for the PHARMACY type.
+model Pharmacy {
+  id String @id @default(cuid())
+
+  centerId String @unique
+  center   Center @relation(fields: [centerId], references: [id])
+
+  // The sales/distributor channel currently managing this account (e.g.
+  // GENCARE, HOSPICARE, NOVACARE) -- not a geography signal, just which
+  // distributor brand serves it. Free text, same treatment as
+  // Hospital.hospitalCategory, since the source data isn't a fixed taxonomy.
+  currentDivision String?
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("pharmacies")
 }
 
 // Lookup table, same pattern as CenterType — the price list has no

@@ -29,8 +29,8 @@ export class InactiveTerritoryError extends Error {
   }
 }
 
-// A request claiming `hospital` fields under a type that isn't HOSPITAL —
-// never trusted just because the form's discriminant said so.
+// A request claiming `hospital`/`pharmacy` fields under a type that doesn't
+// match — never trusted just because the form's discriminant said so.
 export class CenterTypeMismatchError extends Error {
   constructor() {
     super("The submitted details do not match the selected center type.");
@@ -81,6 +81,7 @@ export type CenterSummary = {
     quartier: { id: string; name: string } | null;
   } | null;
   hospital: { id: string; hospitalCategory: string | null } | null;
+  pharmacy: { id: string; currentDivision: string | null } | null;
 };
 
 function toSummary(center: CenterWithRelations): CenterSummary {
@@ -101,6 +102,9 @@ function toSummary(center: CenterWithRelations): CenterSummary {
     territory: center.territory,
     hospital: center.hospital
       ? { id: center.hospital.id, hospitalCategory: center.hospital.hospitalCategory }
+      : null,
+    pharmacy: center.pharmacy
+      ? { id: center.pharmacy.id, currentDivision: center.pharmacy.currentDivision }
       : null,
   };
 }
@@ -136,10 +140,12 @@ async function resolveTypeCode(typeId: string): Promise<string> {
 
 function assertExtensionMatchesType(
   typeCode: string,
-  input: Pick<CreateCenterInput, "hospital">,
+  input: Pick<CreateCenterInput, "hospital" | "pharmacy">,
 ): void {
   if (typeCode === "HOSPITAL" && !input.hospital) throw new CenterTypeMismatchError();
   if (typeCode !== "HOSPITAL" && input.hospital) throw new CenterTypeMismatchError();
+  if (typeCode === "PHARMACY" && !input.pharmacy) throw new CenterTypeMismatchError();
+  if (typeCode !== "PHARMACY" && input.pharmacy) throw new CenterTypeMismatchError();
 }
 
 export async function createCenter(
@@ -170,6 +176,13 @@ export async function createCenter(
       hospital: input.hospital
         ? {
             hospitalCategory: input.hospital.hospitalCategory ?? null,
+            createdBy: actorId,
+            updatedBy: actorId,
+          }
+        : undefined,
+      pharmacy: input.pharmacy
+        ? {
+            currentDivision: input.pharmacy.currentDivision ?? null,
             createdBy: actorId,
             updatedBy: actorId,
           }
@@ -210,6 +223,9 @@ export async function updateCenter(
       },
       hospital: input.hospital
         ? { hospitalCategory: input.hospital.hospitalCategory ?? null, updatedBy: actorId }
+        : undefined,
+      pharmacy: input.pharmacy
+        ? { currentDivision: input.pharmacy.currentDivision ?? null, updatedBy: actorId }
         : undefined,
     });
   } catch (error) {

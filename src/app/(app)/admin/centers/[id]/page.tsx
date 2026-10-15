@@ -104,6 +104,18 @@ export default async function CenterDetailPage({ params }: CenterDetailPageProps
           </div>
         </section>
       ) : null}
+
+      {center.pharmacy ? (
+        <section className="flex flex-col gap-4 rounded-md border border-border p-4">
+          <h2 className="text-sm font-medium">{formDict.pharmacySectionLabel}</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <Field
+              label={formDict.currentDivision}
+              value={center.pharmacy.currentDivision ?? notProvided}
+            />
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
