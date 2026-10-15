@@ -19,9 +19,11 @@ const mobile = z
   .regex(/^[0-9+()\-\s]+$/, "Mobile number may only contain digits, spaces, +, - and ()");
 
 // One Contact<->Center link. `centerId` is the Center (the Center model).
+// `specializationId` is the department the contact practices in *at this
+// center* — the same contact can have a different one at another center.
 export const contactCenterSchema = z.object({
   centerId: id("Select a center"),
-  roleAtCenterId: id("Select a role at this center"),
+  specializationId: id("Specialization / department is required"),
 });
 export type ContactCenterInput = z.infer<typeof contactCenterSchema>;
 
@@ -47,7 +49,6 @@ export const createContactSchema = z.object({
   contactTypeId: id("Contact type is required"),
   gender: z.enum(GENDERS).nullish(),
   mobile: mobile.nullish(),
-  specializationId: id("Specialization / department is required"),
   territoryId: id("Territory is required"),
   centers,
 });
@@ -68,7 +69,7 @@ export const setContactStatusSchema = z.object({
 
 // Create-or-select comboboxes: typing a value that doesn't exist yet
 // creates it as a configurable lookup row.
-export const LOOKUP_KINDS = ["contactType", "specialization", "centerRole"] as const;
+export const LOOKUP_KINDS = ["contactType", "specialization"] as const;
 export type LookupKind = (typeof LOOKUP_KINDS)[number];
 
 export const createLookupSchema = z.object({

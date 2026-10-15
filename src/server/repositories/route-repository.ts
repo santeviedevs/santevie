@@ -19,13 +19,7 @@ const routeInclude = {
       contacts: {
         include: {
           contact: {
-            select: {
-              id: true,
-              name: true,
-              code: true,
-              status: true,
-              specialization: { select: { name: true } },
-            },
+            select: { id: true, name: true, code: true, status: true },
           },
         },
         orderBy: { contact: { name: "asc" } },

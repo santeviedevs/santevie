@@ -258,9 +258,8 @@ export type RouteItemContactSummary = {
   contactId: string;
   name: string;
   code: string;
-  // The Contact's role at this Center (from the Contact–Center link) and
-  // their specialization — null when there's no link any more / none set.
-  roleName: string | null;
+  // The Contact's specialization at this Center (from the Contact–Center
+  // link) — null when there's no link any more.
   specialization: string | null;
   // PENDING/COMPLETED/CANCELLED as actually stored; MISSED is computed.
   status: "PENDING" | "COMPLETED" | "CANCELLED" | "MISSED";
@@ -384,8 +383,8 @@ async function toGroupSummaries(
     ...new Set(allItems.flatMap((item) => item.contacts.map((row) => row.contactId))),
   ];
   const links = contactIds.length > 0 ? await findCenterContactLinks(centerIds, contactIds) : [];
-  const roleByPair = new Map(
-    links.map((link) => [`${link.centerId}:${link.contactId}`, link.roleAtCenter.name]),
+  const specializationByPair = new Map(
+    links.map((link) => [`${link.centerId}:${link.contactId}`, link.specialization.name]),
   );
 
   return routes.map((route) => ({
@@ -420,10 +419,9 @@ async function toGroupSummaries(
         contactId: row.contactId,
         name: row.contact.name,
         code: row.contact.code,
-        roleName: roleByPair.get(`${item.center.id}:${row.contactId}`) ?? null,
-        specialization: row.contact.specialization?.name ?? null,
+        specialization: specializationByPair.get(`${item.center.id}:${row.contactId}`) ?? null,
         status: itemDisplayStatus(row.status, route.endDate, now),
-        issue: !roleByPair.has(`${item.center.id}:${row.contactId}`)
+        issue: !specializationByPair.has(`${item.center.id}:${row.contactId}`)
           ? ("NOT_ASSOCIATED" as const)
           : row.contact.status === "INACTIVE"
             ? ("INACTIVE" as const)
@@ -1118,7 +1116,6 @@ export type ContactSearchResult = {
   id: string;
   name: string;
   code: string;
-  roleName: string;
   specialization: string | null;
 };
 
@@ -1144,7 +1141,6 @@ export async function searchContactsForRouteCenter(
     id: row.contact.id,
     name: row.contact.name,
     code: row.contact.code,
-    roleName: row.roleAtCenter.name,
-    specialization: row.contact.specialization?.name ?? null,
+    specialization: row.specialization.name,
   }));
 }

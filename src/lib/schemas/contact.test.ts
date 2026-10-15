@@ -10,9 +10,8 @@ import {
 const valid = {
   name: "Dr Test",
   contactTypeId: "pt-1",
-  specializationId: "sp-1",
   territoryId: "ter-1",
-  centers: [{ centerId: "c-1", roleAtCenterId: "r-1" }],
+  centers: [{ centerId: "c-1", specializationId: "sp-1" }],
 };
 
 describe("createContactSchema", () => {
@@ -20,15 +19,12 @@ describe("createContactSchema", () => {
     expect(createContactSchema.safeParse(valid).success).toBe(true);
   });
 
-  it.each(["name", "contactTypeId", "specializationId", "territoryId"] as const)(
-    "requires %s",
-    (field) => {
-      expect(createContactSchema.safeParse({ ...valid, [field]: "" }).success).toBe(false);
-      const missing: Record<string, unknown> = { ...valid };
-      delete missing[field];
-      expect(createContactSchema.safeParse(missing).success).toBe(false);
-    },
-  );
+  it.each(["name", "contactTypeId", "territoryId"] as const)("requires %s", (field) => {
+    expect(createContactSchema.safeParse({ ...valid, [field]: "" }).success).toBe(false);
+    const missing: Record<string, unknown> = { ...valid };
+    delete missing[field];
+    expect(createContactSchema.safeParse(missing).success).toBe(false);
+  });
 
   it("discards a client-supplied code — codes are backend-generated", () => {
     const parsed = createContactSchema.parse({ ...valid, code: "CON-99999" });
@@ -39,8 +35,8 @@ describe("createContactSchema", () => {
     const twice = createContactSchema.safeParse({
       ...valid,
       centers: [
-        { centerId: "c-1", roleAtCenterId: "r-1" },
-        { centerId: "c-1", roleAtCenterId: "r-2" },
+        { centerId: "c-1", specializationId: "sp-1" },
+        { centerId: "c-1", specializationId: "sp-2" },
       ],
     });
     expect(twice.success).toBe(false);
@@ -48,18 +44,18 @@ describe("createContactSchema", () => {
     const distinct = createContactSchema.safeParse({
       ...valid,
       centers: [
-        { centerId: "c-1", roleAtCenterId: "r-1" },
-        { centerId: "c-2", roleAtCenterId: "r-2" },
+        { centerId: "c-1", specializationId: "sp-1" },
+        { centerId: "c-2", specializationId: "sp-2" },
       ],
     });
     expect(distinct.success).toBe(true);
   });
 
-  it("requires a role for every association", () => {
+  it("requires a specialization for every association", () => {
     expect(
       createContactSchema.safeParse({
         ...valid,
-        centers: [{ centerId: "c-1", roleAtCenterId: "" }],
+        centers: [{ centerId: "c-1", specializationId: "" }],
       }).success,
     ).toBe(false);
   });
@@ -91,8 +87,8 @@ describe("updateContactSchema", () => {
 });
 
 describe("createLookupSchema", () => {
-  it("accepts the three lookup kinds and rejects others", () => {
-    for (const kind of ["contactType", "specialization", "centerRole"]) {
+  it("accepts the two lookup kinds and rejects others", () => {
+    for (const kind of ["contactType", "specialization"]) {
       expect(createLookupSchema.safeParse({ kind, name: "X" }).success).toBe(true);
     }
     expect(createLookupSchema.safeParse({ kind: "hospital", name: "X" }).success).toBe(false);

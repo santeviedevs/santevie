@@ -40,7 +40,6 @@ type ContactFormProps = {
   options: {
     contactTypes: Lookup[];
     specializations: Lookup[];
-    centerRoles: Lookup[];
     territories: TerritoryPickerOption[];
     centers: CenterOption[];
   };
@@ -64,7 +63,6 @@ export function ContactForm({
   const [isPending, startTransition] = useTransition();
   const [formError, setFormError] = useState<string | null>(null);
   const [contactTypes, setContactTypes] = useState(() => toOptions(options.contactTypes));
-  const [specializations, setSpecializations] = useState(() => toOptions(options.specializations));
 
   const schema = mode === "create" ? createContactSchema : updateContactSchema;
   const {
@@ -79,7 +77,6 @@ export function ContactForm({
   });
 
   const contactTypeId = useWatch({ control, name: "contactTypeId" });
-  const specializationId = useWatch({ control, name: "specializationId" });
   const territoryId = useWatch({ control, name: "territoryId" });
   const gender = useWatch({ control, name: "gender" });
   const centers = useWatch({ control, name: "centers" }) ?? [];
@@ -94,7 +91,6 @@ export function ContactForm({
       formData.set("contactTypeId", values.contactTypeId);
       if (values.gender) formData.set("gender", values.gender);
       if (values.mobile) formData.set("mobile", values.mobile);
-      formData.set("specializationId", values.specializationId);
       formData.set("territoryId", values.territoryId);
       formData.set("centers", JSON.stringify(values.centers));
       if (mode === "edit" && "status" in values && values.status) {
@@ -213,36 +209,6 @@ export function ContactForm({
       </section>
 
       <section className="flex flex-col gap-4 rounded-md border border-border p-4">
-        <h2 className="text-sm font-medium">{dict.professionalSection}</h2>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="specializationId">
-            {dict.specialization} <span className="text-destructive">*</span>
-          </Label>
-          <CreatableCombobox
-            id="specializationId"
-            placeholder={dict.selectOrAddSpecialization}
-            options={specializations}
-            value={specializationId || null}
-            onChange={(next) => setValue("specializationId", next ?? "", { shouldValidate: true })}
-            onCreate={async (name) => {
-              const created = await createLookupOption("specialization", name);
-              if (!created) return null;
-              setSpecializations((prev) =>
-                prev.some((s) => s.id === created.id) ? prev : [...prev, created],
-              );
-              return created;
-            }}
-            addLabel={dict.addNew}
-            noMatchesLabel={dict.noMatches}
-            disabled={isPending}
-          />
-          {errors.specializationId ? (
-            <p className="text-sm text-destructive">{errors.specializationId.message}</p>
-          ) : null}
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-4 rounded-md border border-border p-4">
         <h2 className="text-sm font-medium">{dict.territorySection}</h2>
         <div className="flex flex-col gap-1">
           <TerritoryPicker
@@ -269,7 +235,7 @@ export function ContactForm({
         </div>
         <CenterAssociationEditor
           centers={options.centers}
-          roles={toOptions(options.centerRoles)}
+          specializations={toOptions(options.specializations)}
           value={centers}
           onChange={(next) => setValue("centers", next, { shouldDirty: true })}
           dict={dict}

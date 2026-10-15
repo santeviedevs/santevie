@@ -20,18 +20,17 @@ const territorySelect = {
 // themselves — a _count avoids loading (and N+1-ing) every association.
 const listInclude = {
   contactType: true,
-  specialization: true,
   territory: territorySelect,
+  centers: { select: { specialization: { select: { name: true } } } },
   _count: { select: { centers: true } },
 } satisfies Prisma.ContactInclude;
 
 const detailInclude = {
   contactType: true,
-  specialization: true,
   territory: territorySelect,
   centers: {
     include: {
-      roleAtCenter: true,
+      specialization: true,
       center: { select: { id: true, code: true, name: true, status: true, type: true } },
     },
     orderBy: { center: { name: "asc" } },
@@ -46,14 +45,19 @@ export type ContactDetailRow = Prisma.ContactGetPayload<{ include: typeof detail
 // no scope/hierarchy filter here (see server/scope.ts, which is for
 // user-attributable rows).
 function buildWhere(filters: ContactFilters): Prisma.ContactWhereInput {
+  // specializationId and centerTypeId both filter through `centers`, so they
+  // share one `some` clause -- two separate `centers:` keys in the same
+  // object would silently drop one of them.
+  const centersFilter: Prisma.ContactCenterWhereInput = {
+    ...(filters.specializationId ? { specializationId: filters.specializationId } : {}),
+    ...(filters.centerTypeId ? { center: { typeId: filters.centerTypeId } } : {}),
+  };
+
   return {
     ...(filters.contactTypeId ? { contactTypeId: filters.contactTypeId } : {}),
-    ...(filters.specializationId ? { specializationId: filters.specializationId } : {}),
+    ...(Object.keys(centersFilter).length ? { centers: { some: centersFilter } } : {}),
     ...(filters.territoryId ? { territoryId: filters.territoryId } : {}),
     ...(filters.status ? { status: filters.status } : {}),
-    ...(filters.centerTypeId
-      ? { centers: { some: { center: { typeId: filters.centerTypeId } } } }
-      : {}),
     ...(filters.q
       ? {
           OR: [
@@ -88,14 +92,14 @@ export function findContactById(id: string): Promise<ContactDetailRow | null> {
 export function findContactCenterLinks(contactId: string) {
   return prisma.contactCenter.findMany({
     where: { contactId },
-    select: { centerId: true, roleAtCenterId: true },
+    select: { centerId: true },
   });
 }
 
 export function findContactReferenceIds(contactId: string) {
   return prisma.contact.findUnique({
     where: { id: contactId },
-    select: { contactTypeId: true, specializationId: true, territoryId: true },
+    select: { contactTypeId: true, territoryId: true },
   });
 }
 
@@ -126,23 +130,12 @@ export function listSpecializations() {
   });
 }
 
-export function listCenterRoles() {
-  return prisma.contactCenterRole.findMany({
-    select: { id: true, code: true, name: true },
-    orderBy: { name: "asc" },
-  });
-}
-
 export function findContactTypeById(id: string) {
   return prisma.contactType.findUnique({ where: { id }, select: { id: true } });
 }
 
-export function findSpecializationById(id: string) {
-  return prisma.specialization.findUnique({ where: { id }, select: { id: true } });
-}
-
-export function findCenterRolesByIds(ids: string[]) {
-  return prisma.contactCenterRole.findMany({
+export function findSpecializationsByIds(ids: string[]) {
+  return prisma.specialization.findMany({
     where: { id: { in: ids } },
     select: { id: true },
   });
@@ -169,8 +162,6 @@ export function findLookupByCode(kind: LookupKind, code: string): Promise<Lookup
       return prisma.contactType.findUnique({ where, select });
     case "specialization":
       return prisma.specialization.findUnique({ where, select });
-    case "centerRole":
-      return prisma.contactCenterRole.findUnique({ where, select });
   }
 }
 
@@ -181,8 +172,6 @@ export function createLookup(kind: LookupKind, data: LookupData): Promise<Lookup
       return prisma.contactType.create({ data, select });
     case "specialization":
       return prisma.specialization.create({ data, select });
-    case "centerRole":
-      return prisma.contactCenterRole.create({ data, select });
   }
 }
 
@@ -195,14 +184,16 @@ export async function nextContactCodeNumber(): Promise<number> {
 
 // --- Writes ---
 
-export type ContactCenterData = { centerId: string; roleAtCenterId: string };
+export type ContactCenterData = {
+  centerId: string;
+  specializationId: string;
+};
 
 type ContactWriteData = {
   name: string;
   gender: "MALE" | "FEMALE" | "OTHER" | null;
   mobile: string | null;
   contactTypeId: string;
-  specializationId: string;
   territoryId: string;
 };
 
@@ -241,7 +232,10 @@ export function updateContactWithCenters(
     for (const center of centers) {
       await tx.contactCenter.upsert({
         where: { contactId_centerId: { contactId: id, centerId: center.centerId } },
-        update: { roleAtCenterId: center.roleAtCenterId, updatedBy: actorId },
+        update: {
+          specializationId: center.specializationId,
+          updatedBy: actorId,
+        },
         create: { contactId: id, ...center, createdBy: actorId, updatedBy: actorId },
       });
     }
@@ -283,10 +277,8 @@ export function searchContactsForCenter(params: { centerId: string; q: string; l
       },
     },
     select: {
-      contact: {
-        select: { id: true, name: true, code: true, specialization: { select: { name: true } } },
-      },
-      roleAtCenter: { select: { name: true } },
+      contact: { select: { id: true, name: true, code: true } },
+      specialization: { select: { name: true } },
     },
     orderBy: { contact: { name: "asc" } },
     take: limit,
@@ -304,7 +296,7 @@ export function findCenterContactLinks(centerIds: string[], contactIds: string[]
       centerId: true,
       contactId: true,
       contact: { select: { status: true } },
-      roleAtCenter: { select: { name: true } },
+      specialization: { select: { name: true } },
     },
   });
 }

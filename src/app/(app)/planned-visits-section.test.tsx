@@ -68,7 +68,6 @@ function route(overrides: Partial<RouteGroupSummary> = {}): RouteGroupSummary {
             contactId: "p1",
             name: "Dr Bravo",
             code: "CON-1",
-            roleName: null,
             specialization: null,
             status: "PENDING",
             issue: null,

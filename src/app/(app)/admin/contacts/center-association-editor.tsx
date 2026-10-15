@@ -17,39 +17,42 @@ import type { CenterOption, ContactCenterInput } from "@/lib/schemas/contact";
 
 import { createLookupOption } from "./create-lookup-option";
 
-// The Contact <-> Center association editor: pick a Center, pick the role the
-// Contact holds at *that* Center, add the row. A Center can only appear once
-// (mirrors the database's unique(contactId, centerId)); the server re-checks.
+// The Contact <-> Center association editor: pick a Center, pick the
+// specialization the Contact holds at *that* Center, add the row. A Center
+// can only appear once (mirrors the database's unique(contactId, centerId));
+// the server re-checks. Specialization is per-row, not global, because the
+// same contact can practice a different department at each center.
 export function CenterAssociationEditor({
   centers,
-  roles: initialRoles,
+  specializations: initialSpecializations,
   value,
   onChange,
   dict,
   disabled,
 }: {
   centers: CenterOption[];
-  roles: CreatableOption[];
+  specializations: CreatableOption[];
   value: ContactCenterInput[];
   onChange: (next: ContactCenterInput[]) => void;
   dict: Dictionary["contacts"];
   disabled?: boolean;
 }) {
-  const [roles, setRoles] = useState(initialRoles);
+  const [specializations, setSpecializations] = useState(initialSpecializations);
   const [centerId, setCenterId] = useState<string | null>(null);
-  const [roleId, setRoleId] = useState<string | null>(null);
+  const [specializationId, setSpecializationId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const centerById = new Map(centers.map((c) => [c.id, c]));
-  const roleName = (id: string) => roles.find((r) => r.id === id)?.label ?? "";
+  const specializationName = (id: string) =>
+    specializations.find((s) => s.id === id)?.label ?? "";
   const centerOptions: CreatableOption[] = centers.map((c) => ({
     id: c.id,
     label: `${c.name} (${c.code})`,
   }));
 
   function handleAdd() {
-    if (!centerId || !roleId) {
-      setError(dict.centerAndRoleRequired);
+    if (!centerId || !specializationId) {
+      setError(dict.centerAndSpecializationRequired);
       return;
     }
     if (value.some((row) => row.centerId === centerId)) {
@@ -57,9 +60,9 @@ export function CenterAssociationEditor({
       return;
     }
     setError(null);
-    onChange([...value, { centerId: centerId, roleAtCenterId: roleId }]);
+    onChange([...value, { centerId: centerId, specializationId: specializationId }]);
     setCenterId(null);
-    setRoleId(null);
+    setSpecializationId(null);
   }
 
   return (
@@ -81,21 +84,19 @@ export function CenterAssociationEditor({
         </div>
         <div className="min-w-0 flex-1">
           <CreatableCombobox
-            id="center-role-picker"
-            placeholder={dict.selectOrAddRole}
-            options={roles}
-            value={roleId}
+            id="center-specialization-picker"
+            placeholder={dict.selectOrAddSpecialization}
+            options={specializations}
+            value={specializationId}
             onChange={(next) => {
-              setRoleId(next);
+              setSpecializationId(next);
               setError(null);
             }}
             onCreate={async (name) => {
-              const created = await createLookupOption("centerRole", name);
+              const created = await createLookupOption("specialization", name);
               if (!created) return null;
-              setRoles((prev) =>
-                prev.some((r) => r.id === created.id)
-                  ? prev
-                  : [...prev, { id: created.id, label: created.label }],
+              setSpecializations((prev) =>
+                prev.some((s) => s.id === created.id) ? prev : [...prev, created],
               );
               return created;
             }}
@@ -116,7 +117,7 @@ export function CenterAssociationEditor({
             <TableRow>
               <TableHead>{dict.center}</TableHead>
               <TableHead>{dict.centerType}</TableHead>
-              <TableHead>{dict.roleAtCenter}</TableHead>
+              <TableHead>{dict.specialization}</TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>
@@ -127,7 +128,7 @@ export function CenterAssociationEditor({
                 <TableRow key={row.centerId}>
                   <TableCell>{center ? `${center.name} (${center.code})` : row.centerId}</TableCell>
                   <TableCell>{center?.typeName ?? "—"}</TableCell>
-                  <TableCell>{roleName(row.roleAtCenterId)}</TableCell>
+                  <TableCell>{specializationName(row.specializationId)}</TableCell>
                   <TableCell className="text-right">
                     <Button
                       type="button"

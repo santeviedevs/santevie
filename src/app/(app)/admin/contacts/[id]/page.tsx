@@ -89,13 +89,6 @@ export default async function ContactDetailPage({ params }: ContactDetailPagePro
       </section>
 
       <section className="flex flex-col gap-4 rounded-md border border-border p-4">
-        <h2 className="text-sm font-medium">{t.professionalSection}</h2>
-        <div className="grid grid-cols-2 gap-4">
-          <Field label={t.specialization} value={contact.specialization.name} />
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-4 rounded-md border border-border p-4">
         <h2 className="text-sm font-medium">{t.territorySection}</h2>
         <Field label={t.territory} value={contact.territory.label} />
       </section>
@@ -110,7 +103,7 @@ export default async function ContactDetailPage({ params }: ContactDetailPagePro
             <TableRow>
               <TableHead>{t.center}</TableHead>
               <TableHead>{t.centerType}</TableHead>
-              <TableHead>{t.roleAtCenter}</TableHead>
+              <TableHead>{t.specialization}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -120,7 +113,7 @@ export default async function ContactDetailPage({ params }: ContactDetailPagePro
                   {center.name} ({center.code})
                 </TableCell>
                 <TableCell>{center.typeName}</TableCell>
-                <TableCell>{center.roleName}</TableCell>
+                <TableCell>{center.specializationName}</TableCell>
               </TableRow>
             ))}
             {contact.centers.length === 0 ? (
