@@ -201,6 +201,9 @@ model User {
   followUpReassignedFrom    FollowUpReassignment[]    @relation("FollowUpReassignPrevOwner")
   followUpReassignedTo      FollowUpReassignment[]    @relation("FollowUpReassignNewOwner")
   followUpReassignmentsMade FollowUpReassignment[]    @relation("FollowUpReassignActor")
+  emballageCollections      EmballageCollection[]
+  emballageCorrectionsMade  EmballageCorrection[]
+  emballageReportsFinalized EmballageReportRun[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -415,11 +418,12 @@ model Center {
   territoryId String?
   territory   Territory? @relation(fields: [territoryId], references: [id])
 
-  visits     Visit[]
-  orders     Order[]
-  routeItems RouteItem[]
-  activities Activity[]
-  contacts   ContactCenter[]
+  visits               Visit[]
+  orders               Order[]
+  routeItems           RouteItem[]
+  activities           Activity[]
+  contacts             ContactCenter[]
+  emballageCollections EmballageCollection[]
 
   // Set only for HOSPITAL-type centers. Kept as an optional one-to-one
   // extension rather than fields on Center itself so other center types
@@ -498,6 +502,7 @@ model Product {
   priceHistory             ProductPriceHistory[]
   activityProducts         ActivityProduct[]
   assignmentProductResults AssignmentProductResult[]
+  emballageCollections     EmballageCollection[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -1598,4 +1603,90 @@ model ContactCenter {
   @@unique([contactId, centerId])
   @@index([centerId])
   @@map("contact_centers")
+}
+
+// --- Emballage / Notice (Story C): a simple repeatable collection log, no
+// assignment/status/follow-up machinery at all, unlike the standard-event
+// activities above. Same centre can be logged multiple times across
+// different visits — each collection is its own row, never merged.
+
+// `quantity` always holds the *current* (corrected) value — every report
+// and export reads this column directly, with no "use the corrected one"
+// branching anywhere else. `correctionCount`/`locked` exist so the UI can
+// show a "corrected" indicator and gate who may correct a given row without
+// a join to EmballageCorrection/EmballageReportRun on every list render.
+model EmballageCollection {
+  id        String   @id @default(cuid())
+  centerId  String
+  center    Center   @relation(fields: [centerId], references: [id])
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  visitDate DateTime
+  quantity  Decimal  @db.Decimal(12, 2)
+  remarks   String?
+
+  // Incremented on every correction; purely a display signal (`>0` means
+  // "has been corrected"), never read for authorization or totals.
+  correctionCount Int @default(0)
+
+  // Set true in bulk when an EmballageReportRun finalizes the calendar
+  // month this row's visitDate falls in. Once true, correcting it needs
+  // emballage:correct-locked instead of the normal emballage:record-own —
+  // see EmballageReportRun.
+  locked Boolean @default(false)
+
+  corrections EmballageCorrection[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@index([centerId, productId])
+  @@index([userId])
+  @@index([visitDate])
+  @@map("emballage_collections")
+}
+
+// Append-only audit trail for EmballageCollection.quantity corrections —
+// the row itself is updated in place (no negative offset rows), and one of
+// these is written alongside it in the same transaction so the original
+// value, who corrected it and why stay visible as history. Same pattern as
+// FollowUpReassignment.
+model EmballageCorrection {
+  id           String   @id @default(cuid())
+  collectionId String
+  collection   EmballageCollection @relation(fields: [collectionId], references: [id])
+
+  previousQuantity Decimal @db.Decimal(12, 2)
+  newQuantity      Decimal @db.Decimal(12, 2)
+  reason           String?
+
+  correctedBy     String
+  correctedByUser User     @relation(fields: [correctedBy], references: [id])
+  correctedAt     DateTime @default(now())
+
+  @@index([collectionId])
+  @@map("emballage_corrections")
+}
+
+// One row per calendar month a manager finalizes the EOM
+// centre-wise/product-wise reconciliation report. Finalizing bulk-sets
+// EmballageCollection.locked = true for every row with a visitDate in that
+// month, in one transaction — after that, only emballage:correct-locked can
+// still correct them, not the ordinary emballage:record-own grant every
+// delegate holds.
+model EmballageReportRun {
+  id          String   @id @default(cuid())
+  periodMonth Int
+  periodYear  Int
+
+  finalizedBy     String
+  finalizedByUser User     @relation(fields: [finalizedBy], references: [id])
+  finalizedAt     DateTime @default(now())
+
+  @@unique([periodMonth, periodYear])
+  @@map("emballage_report_runs")
 }

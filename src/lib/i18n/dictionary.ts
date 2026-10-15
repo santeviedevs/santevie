@@ -39,6 +39,9 @@ export type Dictionary = {
     activities: string;
     myActivities: string;
     followUps: string;
+    emballageGroup: string;
+    emballage: string;
+    emballageReport: string;
   };
   header: {
     signOut: string;
@@ -562,6 +565,58 @@ export type Dictionary = {
     plannedVisitsHelp: string;
     colPeriod: string;
   };
+  // Story C: Emballage / Notice — a simple repeatable collection log (no
+  // assignment/status/follow-up machinery), a controlled-correction flow,
+  // and a manager-facing EOM centre-wise x product-wise reconciliation
+  // report with a finalize/lock step.
+  emballagePage: {
+    myCollections: string;
+    teamReport: string;
+    logNew: string;
+    centerLabel: string;
+    productLabel: string;
+    visitDateLabel: string;
+    quantityLabel: string;
+    remarksLabel: string;
+    save: string;
+    saving: string;
+    collectionLogged: string;
+    colCenter: string;
+    colProduct: string;
+    colDate: string;
+    colQuantity: string;
+    colUser: string;
+    noCollections: string;
+    correctedBadge: string;
+    lockedBadge: string;
+    correctAction: string;
+    correctionReasonLabel: string;
+    correctionSaved: string;
+    correctionHistory: string;
+    correctionHistoryEmpty: string;
+    previousQuantityLabel: string;
+    newQuantityLabel: string;
+    correctedByLabel: string;
+    correctedAtLabel: string;
+    reportMonthLabel: string;
+    reportYearLabel: string;
+    reportCenterFilterLabel: string;
+    anyCenter: string;
+    reportProductFilterLabel: string;
+    anyProduct: string;
+    clearFilters: string;
+    generateReport: string;
+    colTotalQuantity: string;
+    colCollectionCount: string;
+    noReportData: string;
+    exportExcel: string;
+    finalizeReport: string;
+    finalizeConfirmTitle: string;
+    finalizeConfirmBody: string;
+    finalizeConfirmAction: string;
+    reportFinalized: string;
+    cancel: string;
+  };
   // S3-07's marketing activity planning and follow-ups — one screen
   // combining the pending/overdue widget, the create form, and the month
   // calendar; plus a flat my-follow-ups list and a supervisor team view.
@@ -1048,6 +1103,9 @@ const en: Dictionary = {
     activities: "Activities",
     myActivities: "My Activities",
     followUps: "Follow-Ups",
+    emballageGroup: "Emballage",
+    emballage: "My Collections",
+    emballageReport: "EOM Report",
   },
   header: {
     signOut: "Sign out",
@@ -1511,6 +1569,55 @@ const en: Dictionary = {
     plannedVisitsHelp: "Your upcoming visits for this week and next week.",
     colPeriod: "Period",
   },
+  emballagePage: {
+    myCollections: "My Collections",
+    teamReport: "EOM Report",
+    logNew: "Log a collection",
+    centerLabel: "Centre",
+    productLabel: "Product",
+    visitDateLabel: "Date",
+    quantityLabel: "Quantity",
+    remarksLabel: "Remarks",
+    save: "Save",
+    saving: "Saving…",
+    collectionLogged: "Collection logged",
+    colCenter: "Centre",
+    colProduct: "Product",
+    colDate: "Date",
+    colQuantity: "Quantity",
+    colUser: "Delegate",
+    noCollections: "No collections logged yet.",
+    correctedBadge: "Corrected",
+    lockedBadge: "Locked",
+    correctAction: "Correct",
+    correctionReasonLabel: "Reason (optional)",
+    correctionSaved: "Correction saved",
+    correctionHistory: "Correction history",
+    correctionHistoryEmpty: "No corrections recorded.",
+    previousQuantityLabel: "Previous quantity",
+    newQuantityLabel: "New quantity",
+    correctedByLabel: "Corrected by",
+    correctedAtLabel: "Corrected at",
+    reportMonthLabel: "Month",
+    reportYearLabel: "Year",
+    reportCenterFilterLabel: "Centre",
+    anyCenter: "All centres",
+    reportProductFilterLabel: "Product",
+    anyProduct: "All products",
+    clearFilters: "Clear filters",
+    generateReport: "Generate report",
+    colTotalQuantity: "Total quantity",
+    colCollectionCount: "Collections",
+    noReportData: "No collections recorded for this period.",
+    exportExcel: "Export to Excel",
+    finalizeReport: "Finalize this month's report",
+    finalizeConfirmTitle: "Finalize EOM report?",
+    finalizeConfirmBody:
+      "This locks every collection recorded this month. After finalizing, only a manager can correct one of these records.",
+    finalizeConfirmAction: "Finalize",
+    reportFinalized: "Report finalized — this month's records are now locked.",
+    cancel: "Cancel",
+  },
   activitiesPage: {
     title: "Marketing Activities",
     myFollowUps: "My Follow-Ups",
@@ -1966,6 +2073,9 @@ const fr: Dictionary = {
     activities: "Activités",
     myActivities: "Mes activités",
     followUps: "Suivis",
+    emballageGroup: "Emballage",
+    emballage: "Mes collectes",
+    emballageReport: "Rapport de fin de mois",
   },
   header: {
     signOut: "Se déconnecter",
@@ -2431,6 +2541,56 @@ const fr: Dictionary = {
     plannedVisitsHeading: "Visites planifiées",
     plannedVisitsHelp: "Vos visites à venir pour cette semaine et la semaine prochaine.",
     colPeriod: "Période",
+  },
+  emballagePage: {
+    myCollections: "Mes collectes",
+    teamReport: "Rapport de fin de mois",
+    logNew: "Enregistrer une collecte",
+    centerLabel: "Centre",
+    productLabel: "Produit",
+    visitDateLabel: "Date",
+    quantityLabel: "Quantité",
+    remarksLabel: "Remarques",
+    save: "Enregistrer",
+    saving: "Enregistrement…",
+    collectionLogged: "Collecte enregistrée",
+    colCenter: "Centre",
+    colProduct: "Produit",
+    colDate: "Date",
+    colQuantity: "Quantité",
+    colUser: "Délégué",
+    noCollections: "Aucune collecte enregistrée pour le moment.",
+    correctedBadge: "Corrigée",
+    lockedBadge: "Verrouillée",
+    correctAction: "Corriger",
+    correctionReasonLabel: "Motif (facultatif)",
+    correctionSaved: "Correction enregistrée",
+    correctionHistory: "Historique des corrections",
+    correctionHistoryEmpty: "Aucune correction enregistrée.",
+    previousQuantityLabel: "Quantité précédente",
+    newQuantityLabel: "Nouvelle quantité",
+    correctedByLabel: "Corrigée par",
+    correctedAtLabel: "Corrigée le",
+    reportMonthLabel: "Mois",
+    reportYearLabel: "Année",
+    reportCenterFilterLabel: "Centre",
+    anyCenter: "Tous les centres",
+    reportProductFilterLabel: "Produit",
+    anyProduct: "Tous les produits",
+    clearFilters: "Effacer les filtres",
+    generateReport: "Générer le rapport",
+    colTotalQuantity: "Quantité totale",
+    colCollectionCount: "Collectes",
+    noReportData: "Aucune collecte enregistrée pour cette période.",
+    exportExcel: "Exporter vers Excel",
+    finalizeReport: "Finaliser le rapport de ce mois",
+    finalizeConfirmTitle: "Finaliser le rapport de fin de mois ?",
+    finalizeConfirmBody:
+      "Cette action verrouille toutes les collectes enregistrées ce mois-ci. Après finalisation, seul un manager pourra corriger l'un de ces enregistrements.",
+    finalizeConfirmAction: "Finaliser",
+    reportFinalized:
+      "Rapport finalisé — les enregistrements de ce mois sont désormais verrouillés.",
+    cancel: "Annuler",
   },
   activitiesPage: {
     title: "Activités marketing",
