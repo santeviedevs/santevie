@@ -74,7 +74,6 @@ function readCommon(formData: FormData) {
     contactTypeId: formData.get("contactTypeId"),
     gender: readText(formData, "gender"),
     mobile: readText(formData, "mobile"),
-    specializationId: formData.get("specializationId"),
     territoryId: formData.get("territoryId"),
     centers: readCenters(formData),
   };

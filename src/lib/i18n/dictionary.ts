@@ -921,7 +921,6 @@ export type Dictionary = {
     newTitle: string;
     editTitle: string;
     basicSection: string;
-    professionalSection: string;
     territorySection: string;
     centersSection: string;
     codeNote: string;
@@ -940,15 +939,13 @@ export type Dictionary = {
     addCenter: string;
     center: string;
     centerType: string;
-    roleAtCenter: string;
     selectCenter: string;
-    selectOrAddRole: string;
     addNew: string;
     add: string;
     remove: string;
     noCenters: string;
     centerAlreadyAdded: string;
-    centerAndRoleRequired: string;
+    centerAndSpecializationRequired: string;
     noMatches: string;
     statusSwitchLabel: string;
     activeDescription: string;
@@ -1904,7 +1901,6 @@ const en: Dictionary = {
     newTitle: "Add Contact",
     editTitle: "Edit contact",
     basicSection: "Basic information",
-    professionalSection: "Professional information",
     territorySection: "Territory",
     centersSection: "Associated centers",
     codeNote: "The contact code is generated automatically.",
@@ -1923,15 +1919,13 @@ const en: Dictionary = {
     addCenter: "Add center",
     center: "Center",
     centerType: "Center type",
-    roleAtCenter: "Role at center",
     selectCenter: "Select a center",
-    selectOrAddRole: "Select or add role",
     addNew: "Add",
     add: "Add",
     remove: "Remove",
     noCenters: "No centers associated yet.",
     centerAlreadyAdded: "This center is already associated with the contact.",
-    centerAndRoleRequired: "Select a center and a role at that center.",
+    centerAndSpecializationRequired: "Select a center and a specialization at that center.",
     noMatches: "No matches",
     statusSwitchLabel: "Active",
     activeDescription: "Contact is active.",
@@ -1947,7 +1941,7 @@ const en: Dictionary = {
     notProvided: "Not provided",
     codeLabel: "Code",
     centerRelationNote:
-      "A contact can belong to several centers, with a different role at each one.",
+      "A contact can belong to several centers, with a different specialization at each one.",
   },
   productsPage: {
     title: "Products",
@@ -2881,7 +2875,6 @@ const fr: Dictionary = {
     newTitle: "Ajouter un contact",
     editTitle: "Modifier le contact",
     basicSection: "Informations de base",
-    professionalSection: "Informations professionnelles",
     territorySection: "Territoire",
     centersSection: "Centres associés",
     codeNote: "Le code du contact est généré automatiquement.",
@@ -2900,15 +2893,13 @@ const fr: Dictionary = {
     addCenter: "Ajouter un centre",
     center: "Centre",
     centerType: "Type de centre",
-    roleAtCenter: "Rôle au centre",
     selectCenter: "Sélectionner un centre",
-    selectOrAddRole: "Sélectionner ou ajouter un rôle",
     addNew: "Ajouter",
     add: "Ajouter",
     remove: "Retirer",
     noCenters: "Aucun centre associé pour l'instant.",
     centerAlreadyAdded: "Ce centre est déjà associé au contact.",
-    centerAndRoleRequired: "Sélectionnez un centre et un rôle dans ce centre.",
+    centerAndSpecializationRequired: "Sélectionnez un centre et une spécialisation dans ce centre.",
     noMatches: "Aucun résultat",
     statusSwitchLabel: "Actif",
     activeDescription: "Le contact est actif.",
@@ -2924,7 +2915,7 @@ const fr: Dictionary = {
     notProvided: "Non renseigné",
     codeLabel: "Code",
     centerRelationNote:
-      "Un contact peut appartenir à plusieurs centres, avec un rôle différent dans chacun.",
+      "Un contact peut appartenir à plusieurs centres, avec une spécialisation différente dans chacun.",
   },
   productsPage: {
     title: "Produits",

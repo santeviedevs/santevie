@@ -144,7 +144,12 @@ function sel(...centerIds: string[]) {
 }
 
 function link(centerId: string, contactId: string, status: "ACTIVE" | "INACTIVE" = "ACTIVE") {
-  return { centerId, contactId, contact: { status }, roleAtCenter: { name: "Doctor" } };
+  return {
+    centerId,
+    contactId,
+    contact: { status },
+    specialization: { name: "Cardiology" },
+  };
 }
 
 function contactRow(overrides: Record<string, unknown> = {}) {
@@ -1417,13 +1422,8 @@ describe("searchContactsForRouteCenter", () => {
     });
     searchContactsForCenter.mockResolvedValue([
       {
-        contact: {
-          id: "c1",
-          name: "Dr One",
-          code: "CON-00001",
-          specialization: { name: "Cardiology" },
-        },
-        roleAtCenter: { name: "Doctor" },
+        contact: { id: "c1", name: "Dr One", code: "CON-00001" },
+        specialization: { name: "Cardiology" },
       },
     ]);
 
@@ -1443,7 +1443,6 @@ describe("searchContactsForRouteCenter", () => {
         id: "c1",
         name: "Dr One",
         code: "CON-00001",
-        roleName: "Doctor",
         specialization: "Cardiology",
       },
     ]);
@@ -1975,7 +1974,7 @@ describe("route summaries — center location and contact details", () => {
     expect(summary!.items[0]!.center.territoryPath).toBe("");
   });
 
-  it("gives each saved contact its role at the center and its specialization", async () => {
+  it("gives each saved contact its specialization at the center", async () => {
     findEditableRoutes.mockResolvedValue([
       route({
         items: [
@@ -1999,18 +1998,17 @@ describe("route summaries — center location and contact details", () => {
 
     const [summary] = await getRoutesForContent("creator-1", "SUPERVISOR");
     expect(summary!.items[0]!.contacts[0]).toMatchObject({
-      roleName: "Doctor",
       specialization: "Cardiology",
     });
   });
 
-  it("has no role for a contact whose link was removed (it is flagged instead)", async () => {
+  it("has no specialization for a contact whose link was removed (it is flagged instead)", async () => {
     findEditableRoutes.mockResolvedValue([route({ items: [item({ contacts: [contactRow()] })] })]);
     findCenterContactLinks.mockResolvedValue([]);
 
     const [summary] = await getRoutesForContent("creator-1", "SUPERVISOR");
     expect(summary!.items[0]!.contacts[0]).toMatchObject({
-      roleName: null,
+      specialization: null,
       issue: "NOT_ASSOCIATED",
     });
   });

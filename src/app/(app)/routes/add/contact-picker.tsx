@@ -13,7 +13,6 @@ export type SelectedContact = {
   contactId: string;
   name: string;
   code: string;
-  roleName: string | null;
   specialization: string | null;
   // Set when the saved Contact<->Center link is gone (or the Contact went
   // inactive). Never dropped silently: the user removes it, and Save stays
@@ -27,7 +26,6 @@ export type LockedContact = {
   contactId: string;
   name: string;
   code: string;
-  roleName: string | null;
   specialization: string | null;
   status: "COMPLETED" | "CANCELLED";
   issue: RouteContactIssue | null;
@@ -37,15 +35,10 @@ export type ContactResult = {
   id: string;
   name: string;
   code: string;
-  roleName: string;
   specialization: string | null;
 };
 
 const DEBOUNCE_MS = 300;
-
-function detailLine(roleName: string | null, specialization: string | null): string {
-  return [roleName, specialization].filter(Boolean).join(" · ");
-}
 
 function issueText(issue: RouteContactIssue, dict: Dictionary["routesPage"]): string {
   return issue === "NOT_ASSOCIATED" ? dict.noLongerAssociated : dict.contactInactive;
@@ -129,7 +122,7 @@ export function ContactPicker({
                 {contact.name} <span className="text-muted-foreground">({contact.code})</span>
               </span>
               <span className="text-xs text-muted-foreground">
-                {detailLine(contact.roleName, contact.specialization)}
+                {contact.specialization ?? ""}
                 {contact.issue ? ` · ${issueText(contact.issue, dict)}` : ""}
               </span>
             </div>
@@ -155,7 +148,7 @@ export function ContactPicker({
                   <span className="font-normal text-muted-foreground">({contact.code})</span>
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  {detailLine(contact.roleName, contact.specialization)}
+                  {contact.specialization ?? ""}
                 </span>
                 {contact.issue ? (
                   <span className="text-xs text-destructive">{issueText(contact.issue, dict)}</span>
@@ -183,7 +176,7 @@ export function ContactPicker({
                   <span className="font-normal text-muted-foreground">({contact.code})</span>
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  {detailLine(contact.roleName, contact.specialization)}
+                  {contact.specialization ?? ""}
                 </span>
               </span>
             </label>

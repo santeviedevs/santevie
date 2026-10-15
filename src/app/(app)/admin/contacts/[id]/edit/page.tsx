@@ -37,12 +37,11 @@ export default async function EditContactPage({ params }: EditContactPageProps) 
           contactTypeId: contact.contactType.id,
           gender: contact.gender,
           mobile: contact.mobile,
-          specializationId: contact.specialization.id,
           territoryId: contact.territory.id,
           status: contact.status,
           centers: contact.centers.map((c) => ({
             centerId: c.centerId,
-            roleAtCenterId: c.roleAtCenterId,
+            specializationId: c.specializationId,
           })),
         }}
       />

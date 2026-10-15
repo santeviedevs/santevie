@@ -1504,28 +1504,11 @@ model ContactType {
   @@map("contact_types")
 }
 
-// Professional specialization / department — separate from ContactType and
-// from ContactCenterRole. Seeded from the client's source data (see
-// prisma/seed.ts); admins can add more from the Contacts form.
+// Professional specialization / department — separate from ContactType.
+// Seeded from the client's source data (see prisma/seed.ts); admins can add
+// more from the Contacts form. Also doubles as the role a Contact holds at
+// one specific Center (ContactCenterRole was dropped as redundant with it).
 model Specialization {
-  id   String @id @default(cuid())
-  code String @unique
-  name String
-
-  contacts Contact[]
-
-  createdBy String?
-  createdAt DateTime @default(now())
-  updatedBy String?
-  updatedAt DateTime @updatedAt
-
-  @@map("specializations")
-}
-
-// The role a Contact holds at one specific Center — a property of the
-// Contact<->Center relationship (ContactCenter), never of the Contact itself.
-// Values are not business-confirmed; admins create them as needed.
-model ContactCenterRole {
   id   String @id @default(cuid())
   code String @unique
   name String
@@ -1537,7 +1520,7 @@ model ContactCenterRole {
   updatedBy String?
   updatedAt DateTime @updatedAt
 
-  @@map("contact_center_roles")
+  @@map("specializations")
 }
 
 // `code` is backend-generated (CON-00001, from the contact_code_seq
@@ -1554,9 +1537,6 @@ model Contact {
 
   contactTypeId String
   contactType   ContactType @relation(fields: [contactTypeId], references: [id])
-
-  specializationId String
-  specialization   Specialization @relation(fields: [specializationId], references: [id])
 
   territoryId String
   territory   Territory @relation(fields: [territoryId], references: [id])
@@ -1575,14 +1555,15 @@ model Contact {
   updatedAt DateTime @updatedAt
 
   @@index([contactTypeId, status])
-  @@index([specializationId, status])
   @@index([territoryId, status])
   @@index([name])
   @@map("contacts")
 }
 
 // Many-to-many join between Contact and Center (the Center model), carrying
-// the per-association role.
+// the per-association specialization. specializationId lives here, not on
+// Contact, because the same person can hold a different specialization at
+// each Center (e.g. Généraliste at one hospital, Pédiatre at another).
 model ContactCenter {
   id String @id @default(cuid())
 
@@ -1592,8 +1573,8 @@ model ContactCenter {
   centerId String
   center   Center @relation(fields: [centerId], references: [id])
 
-  roleAtCenterId String
-  roleAtCenter   ContactCenterRole @relation(fields: [roleAtCenterId], references: [id])
+  specializationId String
+  specialization   Specialization @relation(fields: [specializationId], references: [id])
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -1602,6 +1583,7 @@ model ContactCenter {
 
   @@unique([contactId, centerId])
   @@index([centerId])
+  @@index([specializationId])
   @@map("contact_centers")
 }
 

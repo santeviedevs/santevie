@@ -181,7 +181,6 @@ describe("Route details page", () => {
                 contactId: "p",
                 name: "N",
                 code: "C",
-                roleName: null,
                 specialization: null,
                 status: "COMPLETED",
                 issue: null,

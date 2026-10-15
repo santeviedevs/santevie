@@ -62,7 +62,6 @@ const contact = (n: number, issue: "NOT_ASSOCIATED" | null = null) => ({
   contactId: `p${n}`,
   name: `Person ${n}`,
   code: `CON-${n}`,
-  roleName: "Doctor",
   specialization: "Surgeon",
   issue,
 });
@@ -205,7 +204,6 @@ describe("route editor — centers", () => {
               contactId: "p9",
               name: "Dr. Done",
               code: "X",
-              roleName: null,
               specialization: null,
               status: "COMPLETED",
               issue: null,

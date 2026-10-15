@@ -17,7 +17,6 @@ import {
   countContacts,
   createContactWithCenters,
   createLookup,
-  findCenterRolesByIds,
   findCentersByIds,
   findContactById,
   findContactCenterLinks,
@@ -25,8 +24,7 @@ import {
   findContacts,
   findContactTypeById,
   findLookupByCode,
-  findSpecializationById,
-  listCenterRoles,
+  findSpecializationsByIds,
   listContactTypes,
   listSpecializations,
   type LookupRow,
@@ -44,8 +42,8 @@ export class ContactNotFoundError extends Error {
   }
 }
 
-// A reference (type, specialization, territory, center, role) that doesn't
-// exist at all — never trust an id just because the form offered it.
+// A reference (type, specialization, territory, center) that doesn't exist
+// at all — never trust an id just because the form offered it.
 export class InvalidContactReferenceError extends Error {
   constructor(what: string) {
     super(`The selected ${what} does not exist.`);
@@ -127,9 +125,9 @@ export type ContactSummary = {
   mobile: string | null;
   status: "ACTIVE" | "INACTIVE";
   contactType: { id: string; code: string; name: string };
-  specialization: { id: string; code: string; name: string };
   territory: { id: string; code: string; label: string };
   centerCount: number;
+  specializations: string[];
 };
 
 export type ContactCenterView = {
@@ -138,8 +136,8 @@ export type ContactCenterView = {
   name: string;
   typeName: string;
   centerStatus: "ACTIVE" | "INACTIVE";
-  roleAtCenterId: string;
-  roleName: string;
+  specializationId: string;
+  specializationName: string;
 };
 
 export type ContactDetail = ContactSummary & {
@@ -156,17 +154,13 @@ function toSummary(row: ContactListRow): ContactSummary {
     mobile: row.mobile,
     status: row.status,
     contactType: { id: row.contactType.id, code: row.contactType.code, name: row.contactType.name },
-    specialization: {
-      id: row.specialization.id,
-      code: row.specialization.code,
-      name: row.specialization.name,
-    },
     territory: {
       id: row.territory.id,
       code: row.territory.code,
       label: territoryLabel(row.territory),
     },
     centerCount: row._count.centers,
+    specializations: [...new Set(row.centers.map((c) => c.specialization.name))],
   };
 }
 
@@ -180,8 +174,8 @@ function toDetail(row: ContactDetailRow): ContactDetail {
       name: link.center.name,
       typeName: link.center.type.name,
       centerStatus: link.center.status,
-      roleAtCenterId: link.roleAtCenter.id,
-      roleName: link.roleAtCenter.name,
+      specializationId: link.specialization.id,
+      specializationName: link.specialization.name,
     })),
   };
 }
@@ -201,7 +195,6 @@ export async function getContact(id: string): Promise<ContactDetail | null> {
 export type ContactFormOptions = {
   contactTypes: LookupRow[];
   specializations: LookupRow[];
-  centerRoles: LookupRow[];
   territories: { id: string; code: string; label: string }[];
   centers: CenterOption[];
 };
@@ -210,11 +203,10 @@ export type ContactFormOptions = {
 // Centers may have been deactivated since, and the form still has to be able
 // to display what the Contact currently holds.
 export async function getContactFormOptions(current?: ContactDetail): Promise<ContactFormOptions> {
-  const [contactTypes, specializations, centerRoles, territories, activeCenters, centerTypes] =
+  const [contactTypes, specializations, territories, activeCenters, centerTypes] =
     await Promise.all([
       listContactTypes(),
       listSpecializations(),
-      listCenterRoles(),
       listActiveTerritoryOptions(),
       listActiveCentersForSelection(),
       listCenterTypes(),
@@ -243,7 +235,7 @@ export async function getContactFormOptions(current?: ContactDetail): Promise<Co
     territoryOptions.push(current.territory);
   }
 
-  return { contactTypes, specializations, centerRoles, territories: territoryOptions, centers };
+  return { contactTypes, specializations, territories: territoryOptions, centers };
 }
 
 export async function getContactFilterOptions() {
@@ -291,23 +283,17 @@ export async function createLookupValue(
 
 // --- Writes ---
 
-type References = Pick<
-  CreateContactInput,
-  "contactTypeId" | "specializationId" | "territoryId" | "centers"
->;
+type References = Pick<CreateContactInput, "contactTypeId" | "territoryId" | "centers">;
 
 async function assertReferences(
   input: References,
   current: {
     territoryId?: string;
-    centers: { centerId: string; roleAtCenterId: string }[];
+    centers: { centerId: string }[];
   },
 ): Promise<void> {
   if (!(await findContactTypeById(input.contactTypeId))) {
     throw new InvalidContactReferenceError("contact type");
-  }
-  if (!(await findSpecializationById(input.specializationId))) {
-    throw new InvalidContactReferenceError("specialization");
   }
 
   const territory = await findTerritoryById(input.territoryId);
@@ -323,13 +309,15 @@ async function assertReferences(
   }
 
   const centerIds = input.centers.map((c) => c.centerId);
-  const roleIds = [...new Set(input.centers.map((c) => c.roleAtCenterId))];
-  const [centers, roles] = await Promise.all([
+  const specializationIds = [...new Set(input.centers.map((c) => c.specializationId))];
+  const [centers, specializations] = await Promise.all([
     centerIds.length ? findCentersByIds(centerIds) : Promise.resolve([]),
-    roleIds.length ? findCenterRolesByIds(roleIds) : Promise.resolve([]),
+    specializationIds.length ? findSpecializationsByIds(specializationIds) : Promise.resolve([]),
   ]);
   if (centers.length !== centerIds.length) throw new InvalidContactReferenceError("center");
-  if (roles.length !== roleIds.length) throw new InvalidContactReferenceError("role at center");
+  if (specializations.length !== specializationIds.length) {
+    throw new InvalidContactReferenceError("specialization");
+  }
 
   const alreadyLinked = new Set(current.centers.map((c) => c.centerId));
   for (const center of centers) {
@@ -350,7 +338,6 @@ export async function createContact(
     gender: input.gender ?? null,
     mobile: input.mobile ?? null,
     contactTypeId: input.contactTypeId,
-    specializationId: input.specializationId,
     territoryId: input.territoryId,
   };
 
@@ -387,7 +374,6 @@ export async function updateContact(
       gender: input.gender ?? null,
       mobile: input.mobile ?? null,
       contactTypeId: input.contactTypeId,
-      specializationId: input.specializationId,
       territoryId: input.territoryId,
       ...(input.status ? { status: input.status } : {}),
     },

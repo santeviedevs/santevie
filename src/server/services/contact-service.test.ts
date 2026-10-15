@@ -10,9 +10,8 @@ const updateContactWithCenters = vi.fn();
 const setContactStatusRow = vi.fn();
 const nextContactCodeNumber = vi.fn();
 const findContactTypeById = vi.fn();
-const findSpecializationById = vi.fn();
+const findSpecializationsByIds = vi.fn();
 const findCentersByIds = vi.fn();
-const findCenterRolesByIds = vi.fn();
 const findLookupByCode = vi.fn();
 const createLookup = vi.fn();
 
@@ -27,14 +26,12 @@ vi.mock("@/server/repositories/contact-repository", () => ({
   setContactStatus: setContactStatusRow,
   nextContactCodeNumber,
   findContactTypeById,
-  findSpecializationById,
+  findSpecializationsByIds,
   findCentersByIds,
-  findCenterRolesByIds,
   findLookupByCode,
   createLookup,
   listContactTypes: vi.fn(),
   listSpecializations: vi.fn(),
-  listCenterRoles: vi.fn(),
 }));
 
 vi.mock("@/server/repositories/center-repository", () => ({
@@ -79,7 +76,6 @@ const detailRow = (overrides: Record<string, unknown> = {}) => ({
   mobile: null,
   status: "ACTIVE",
   contactType: { id: "pt-1", code: "MEDECIN", name: "MÉDECIN" },
-  specialization: { id: "sp-1", code: "CARDIO", name: "Cardiology" },
   territory: territoryRow,
   centers: [
     {
@@ -90,7 +86,7 @@ const detailRow = (overrides: Record<string, unknown> = {}) => ({
         status: "ACTIVE",
         type: { id: "ct-1", code: "HOSPITAL", name: "Hospital" },
       },
-      roleAtCenter: { id: "r-1", code: "DOCTOR", name: "Doctor" },
+      specialization: { id: "sp-1", code: "CARDIO", name: "Cardiology" },
     },
   ],
   _count: { centers: 1 },
@@ -100,18 +96,16 @@ const detailRow = (overrides: Record<string, unknown> = {}) => ({
 const baseInput = {
   name: "Dr Test",
   contactTypeId: "pt-1",
-  specializationId: "sp-1",
   territoryId: "ter-1",
-  centers: [{ centerId: "c-1", roleAtCenterId: "r-1" }],
+  centers: [{ centerId: "c-1", specializationId: "sp-1" }],
 };
 
 beforeEach(() => {
   vi.clearAllMocks();
   findContactTypeById.mockResolvedValue({ id: "pt-1" });
-  findSpecializationById.mockResolvedValue({ id: "sp-1" });
+  findSpecializationsByIds.mockResolvedValue([{ id: "sp-1" }]);
   findTerritoryById.mockResolvedValue(territoryRow);
   findCentersByIds.mockResolvedValue([{ id: "c-1", status: "ACTIVE" }]);
-  findCenterRolesByIds.mockResolvedValue([{ id: "r-1" }]);
   nextContactCodeNumber.mockResolvedValue(1);
   createContactWithCenters.mockResolvedValue(detailRow());
   updateContactWithCenters.mockResolvedValue(detailRow());
@@ -138,7 +132,10 @@ describe("createContact", () => {
     );
     expect(result.code).toBe("CON-00042");
     expect(result.territory.label).toBe("Province A › Ville B");
-    expect(result.centers[0]).toMatchObject({ roleName: "Doctor", typeName: "Hospital" });
+    expect(result.centers[0]).toMatchObject({
+      specializationName: "Cardiology",
+      typeName: "Hospital",
+    });
   });
 
   it("retries with the next sequence value when the code collides", async () => {
@@ -159,8 +156,8 @@ describe("createContact", () => {
         {
           ...baseInput,
           centers: [
-            { centerId: "c-1", roleAtCenterId: "r-1" },
-            { centerId: "c-1", roleAtCenterId: "r-2" },
+            { centerId: "c-1", specializationId: "sp-1" },
+            { centerId: "c-1", specializationId: "sp-1" },
           ],
         },
         "actor-1",
@@ -169,15 +166,15 @@ describe("createContact", () => {
     expect(createContactWithCenters).not.toHaveBeenCalled();
   });
 
-  it("allows one Contact at several Centers with a different role each", async () => {
+  it("allows one Contact at several Centers with a different specialization each", async () => {
     findCentersByIds.mockResolvedValue([
       { id: "c-1", status: "ACTIVE" },
       { id: "c-2", status: "ACTIVE" },
     ]);
-    findCenterRolesByIds.mockResolvedValue([{ id: "r-1" }, { id: "r-2" }]);
+    findSpecializationsByIds.mockResolvedValue([{ id: "sp-1" }, { id: "sp-2" }]);
     const centers = [
-      { centerId: "c-1", roleAtCenterId: "r-1" },
-      { centerId: "c-2", roleAtCenterId: "r-2" },
+      { centerId: "c-1", specializationId: "sp-1" },
+      { centerId: "c-2", specializationId: "sp-2" },
     ];
 
     await createContact({ ...baseInput, centers }, "actor-1");
@@ -206,12 +203,6 @@ describe("createContact", () => {
     );
 
     findContactTypeById.mockResolvedValue({ id: "pt-1" });
-    findSpecializationById.mockResolvedValue(null);
-    await expect(createContact(baseInput, "a")).rejects.toBeInstanceOf(
-      InvalidContactReferenceError,
-    );
-
-    findSpecializationById.mockResolvedValue({ id: "sp-1" });
     findTerritoryById.mockResolvedValue(null);
     await expect(createContact(baseInput, "a")).rejects.toBeInstanceOf(
       InvalidContactReferenceError,
@@ -224,7 +215,7 @@ describe("createContact", () => {
     );
 
     findCentersByIds.mockResolvedValue([{ id: "c-1", status: "ACTIVE" }]);
-    findCenterRolesByIds.mockResolvedValue([]);
+    findSpecializationsByIds.mockResolvedValue([]);
     await expect(createContact(baseInput, "a")).rejects.toBeInstanceOf(
       InvalidContactReferenceError,
     );
@@ -237,10 +228,9 @@ describe("updateContact", () => {
   beforeEach(() => {
     findContactReferenceIds.mockResolvedValue({
       contactTypeId: "pt-1",
-      specializationId: "sp-1",
       territoryId: "ter-1",
     });
-    findContactCenterLinks.mockResolvedValue([{ centerId: "c-1", roleAtCenterId: "r-1" }]);
+    findContactCenterLinks.mockResolvedValue([{ centerId: "c-1" }]);
   });
 
   it("never sends a code, so it stays immutable", async () => {
@@ -251,9 +241,9 @@ describe("updateContact", () => {
     expect(nextContactCodeNumber).not.toHaveBeenCalled();
   });
 
-  it("passes the replaced association set, including changed roles", async () => {
-    findCenterRolesByIds.mockResolvedValue([{ id: "r-9" }]);
-    const centers = [{ centerId: "c-1", roleAtCenterId: "r-9" }];
+  it("passes the replaced association set, including changed specializations", async () => {
+    findSpecializationsByIds.mockResolvedValue([{ id: "sp-9" }]);
+    const centers = [{ centerId: "c-1", specializationId: "sp-9" }];
 
     await updateContact({ ...updateInput, centers }, "actor-1");
 
@@ -275,14 +265,13 @@ describe("updateContact", () => {
       { id: "c-1", status: "ACTIVE" },
       { id: "c-2", status: "INACTIVE" },
     ]);
-    findCenterRolesByIds.mockResolvedValue([{ id: "r-1" }]);
     await expect(
       updateContact(
         {
           ...updateInput,
           centers: [
-            { centerId: "c-1", roleAtCenterId: "r-1" },
-            { centerId: "c-2", roleAtCenterId: "r-1" },
+            { centerId: "c-1", specializationId: "sp-1" },
+            { centerId: "c-2", specializationId: "sp-1" },
           ],
         },
         "actor-1",
@@ -296,7 +285,6 @@ describe("updateContact", () => {
 
     findContactReferenceIds.mockResolvedValue({
       contactTypeId: "pt-1",
-      specializationId: "sp-1",
       territoryId: "other-territory",
     });
     await expect(updateContact(updateInput, "actor-1")).rejects.toBeInstanceOf(
@@ -384,7 +372,7 @@ describe("lookups", () => {
 
   it("rejects a name with no letters or digits", async () => {
     await expect(
-      createLookupValue({ kind: "centerRole", name: "---" }, "a"),
+      createLookupValue({ kind: "specialization", name: "---" }, "a"),
     ).rejects.toBeInstanceOf(InvalidLookupNameError);
   });
 });

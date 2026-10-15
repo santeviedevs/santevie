@@ -338,7 +338,6 @@ export function RouteDraftEditor({
                                   contactId: contact.id,
                                   name: contact.name,
                                   code: contact.code,
-                                  roleName: contact.roleName,
                                   specialization: contact.specialization,
                                   issue: null,
                                 },

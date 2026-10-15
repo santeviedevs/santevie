@@ -96,7 +96,7 @@ export default async function ContactsPage({ searchParams }: ContactsPageProps) 
                 <TableCell>{contact.code}</TableCell>
                 <TableCell>{contact.name}</TableCell>
                 <TableCell>{contact.contactType.name}</TableCell>
-                <TableCell>{contact.specialization.name}</TableCell>
+                <TableCell>{contact.specializations.join(", ") || "—"}</TableCell>
                 <TableCell>{contact.mobile ?? "—"}</TableCell>
                 <TableCell>{contact.territory.label}</TableCell>
                 <TableCell>

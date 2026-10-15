@@ -18,7 +18,6 @@ function result(id: string, name: string, extra: Record<string, unknown> = {}) {
     id,
     name,
     code: `CON-${id}`,
-    roleName: "Doctor",
     specialization: "Cardiology",
     ...extra,
   };
@@ -52,7 +51,6 @@ const picked = (
   contactId: id,
   name,
   code: `CON-${id}`,
-  roleName: "Doctor",
   specialization: "Surgeon",
   issue: null,
   ...extra,
@@ -74,13 +72,13 @@ describe("ContactPicker", () => {
     );
   });
 
-  it("lists matching contacts as checkbox rows with name, code, role and specialization", async () => {
+  it("lists matching contacts as checkbox rows with name, code and specialization", async () => {
     respondWith([result("1", "Dr. Harsh Kumar")]);
     setup();
 
     expect(await screen.findByText("Dr. Harsh Kumar")).toBeInTheDocument();
     expect(screen.getByText("(CON-1)")).toBeInTheDocument();
-    expect(screen.getByText("Doctor · Cardiology")).toBeInTheDocument();
+    expect(screen.getByText("Cardiology")).toBeInTheDocument();
     expect(screen.getByRole("checkbox")).not.toBeChecked();
   });
 
@@ -102,7 +100,7 @@ describe("ContactPicker", () => {
 
     const row = (await screen.findByText("Dr. Harsh Kumar")).closest("li") as HTMLElement;
     expect(within(row).getByText("Selected")).toBeInTheDocument();
-    expect(within(row).getByText("Doctor · Surgeon")).toBeInTheDocument();
+    expect(within(row).getByText("Surgeon")).toBeInTheDocument();
     const box = within(row).getByRole("checkbox");
     expect(box).toBeChecked();
 
@@ -134,7 +132,6 @@ describe("ContactPicker", () => {
       contactId: "9",
       name: "Dr. Done",
       code: "CON-9",
-      roleName: "Doctor",
       specialization: null,
       status: "COMPLETED",
       issue: null,
