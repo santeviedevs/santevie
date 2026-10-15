@@ -43,8 +43,7 @@ export function CenterAssociationEditor({
   const [error, setError] = useState<string | null>(null);
 
   const centerById = new Map(centers.map((c) => [c.id, c]));
-  const specializationName = (id: string) =>
-    specializations.find((s) => s.id === id)?.label ?? "";
+  const specializationName = (id: string) => specializations.find((s) => s.id === id)?.label ?? "";
   const centerOptions: CreatableOption[] = centers.map((c) => ({
     id: c.id,
     label: `${c.name} (${c.code})`,
