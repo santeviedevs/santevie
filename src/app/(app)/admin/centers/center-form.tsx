@@ -93,6 +93,9 @@ export function CenterForm({ mode, options, defaultValues, dict, territoryDict }
       if (typeCode === "HOSPITAL" && values.hospital?.hospitalCategory) {
         formData.set("hospitalCategory", values.hospital.hospitalCategory);
       }
+      if (typeCode === "PHARMACY" && values.pharmacy?.currentDivision) {
+        formData.set("currentDivision", values.pharmacy.currentDivision);
+      }
       if (mode === "edit" && "status" in values && values.status) {
         formData.set("status", values.status);
       }
@@ -169,6 +172,20 @@ export function CenterForm({ mode, options, defaultValues, dict, territoryDict }
               id="hospitalCategory"
               disabled={isPending}
               {...register("hospital.hospitalCategory")}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {typeCode === "PHARMACY" ? (
+        <div className="flex flex-col gap-4 rounded-md border border-border p-3">
+          <Label>{dict.pharmacySectionLabel}</Label>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="currentDivision">{dict.currentDivision}</Label>
+            <Input
+              id="currentDivision"
+              disabled={isPending}
+              {...register("pharmacy.currentDivision")}
             />
           </div>
         </div>

@@ -23,6 +23,7 @@ export const CENTER_IMPORT_COLUMNS = [
   "longitude",
   "territory",
   "hospitalCategory",
+  "currentDivision",
 ] as const;
 
 type ResolvedCenterInput = {
@@ -36,6 +37,7 @@ type ResolvedCenterInput = {
   longitude: number | null;
   territoryId: string | null;
   hospital: { hospitalCategory: string | null } | null;
+  pharmacy: { currentDivision: string | null } | null;
 };
 
 function toNumberOrNull(value: string): number | null {
@@ -99,10 +101,12 @@ async function resolveRow(
   );
 
   const isHospital = resolvedTypeCode === "HOSPITAL";
+  const isPharmacy = resolvedTypeCode === "PHARMACY";
 
-  // hospitalCategory is ignored for non-Hospital rows rather than rejected,
-  // same as the manual form never asks for it.
+  // hospitalCategory/currentDivision are ignored for rows of the other
+  // type rather than rejected, same as the manual form never asks for them.
   const hospital = isHospital ? { hospitalCategory: toStringOrNull(row.hospitalCategory) } : null;
+  const pharmacy = isPharmacy ? { currentDivision: toStringOrNull(row.currentDivision) } : null;
 
   const latitude = toNumberOrNull(row.latitude ?? "");
   const longitude = toNumberOrNull(row.longitude ?? "");
@@ -120,6 +124,7 @@ async function resolveRow(
     longitude,
     territoryId,
     hospital: hospital ?? undefined,
+    pharmacy: pharmacy ?? undefined,
   };
   const schema = existing ? updateCenterSchema : createCenterSchema;
   const parsed = schema.safeParse(existing ? { ...candidate, id: existing.id } : candidate);
@@ -142,6 +147,7 @@ async function resolveRow(
     longitude,
     territoryId,
     hospital,
+    pharmacy,
   };
   return existing
     ? { row: rowNumber, action: "update", id: existing.id, data }
@@ -192,6 +198,7 @@ export async function commitCenterImport(
           longitude: outcome.data.longitude,
           territoryId: outcome.data.territoryId,
           hospital: outcome.data.hospital ?? undefined,
+          pharmacy: outcome.data.pharmacy ?? undefined,
         },
         actorId,
       );
@@ -210,6 +217,7 @@ export async function commitCenterImport(
           longitude: outcome.data.longitude,
           territoryId: outcome.data.territoryId,
           hospital: outcome.data.hospital ?? undefined,
+          pharmacy: outcome.data.pharmacy ?? undefined,
         },
         actorId,
       );

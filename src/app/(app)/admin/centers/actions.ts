@@ -69,6 +69,10 @@ function readCommon(formData: FormData) {
       typeCode === "HOSPITAL"
         ? { hospitalCategory: readText(formData, "hospitalCategory") }
         : undefined,
+    pharmacy:
+      typeCode === "PHARMACY"
+        ? { currentDivision: readText(formData, "currentDivision") }
+        : undefined,
   };
 }
 

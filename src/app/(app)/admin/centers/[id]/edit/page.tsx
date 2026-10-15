@@ -49,6 +49,9 @@ export default async function EditCenterPage({ params }: EditCenterPageProps) {
           hospital: center.hospital
             ? { hospitalCategory: center.hospital.hospitalCategory }
             : undefined,
+          pharmacy: center.pharmacy
+            ? { currentDivision: center.pharmacy.currentDivision }
+            : undefined,
         }}
       />
     </div>

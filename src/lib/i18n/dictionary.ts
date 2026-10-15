@@ -858,6 +858,8 @@ export type Dictionary = {
     noHospitalsMatch: string;
     hospitalSectionLabel: string;
     hospitalCategory: string;
+    pharmacySectionLabel: string;
+    currentDivision: string;
     activate: string;
     activeDescription: string;
     inactiveDescription: string;
@@ -1845,6 +1847,8 @@ const en: Dictionary = {
     noHospitalsMatch: "No hospitals match your search.",
     hospitalSectionLabel: "Hospital details",
     hospitalCategory: "Hospital category",
+    pharmacySectionLabel: "Pharmacy details",
+    currentDivision: "Current division",
     activate: "Activate",
     activeDescription: "Selectable for new visits and orders.",
     inactiveDescription: "Deactivated — hidden from new visit/order selection, kept in history.",
@@ -2818,6 +2822,8 @@ const fr: Dictionary = {
     noHospitalsMatch: "Aucun hôpital ne correspond à votre recherche.",
     hospitalSectionLabel: "Détails de l'hôpital",
     hospitalCategory: "Catégorie d'hôpital",
+    pharmacySectionLabel: "Détails de la pharmacie",
+    currentDivision: "Division actuelle",
     activate: "Activer",
     activeDescription: "Sélectionnable pour de nouvelles visites et commandes.",
     inactiveDescription:

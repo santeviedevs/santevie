@@ -18,6 +18,7 @@ const listInclude = {
     },
   },
   hospital: true,
+  pharmacy: true,
 } satisfies Prisma.CenterInclude;
 
 export type CenterWithRelations = Prisma.CenterGetPayload<{ include: typeof listInclude }>;
@@ -107,27 +108,30 @@ export function listCenterTypes() {
 }
 
 type CenterCreateData = {
-  center: Omit<Prisma.CenterCreateInput, "hospital">;
+  center: Omit<Prisma.CenterCreateInput, "hospital" | "pharmacy">;
   hospital?: Omit<Prisma.HospitalCreateWithoutCenterInput, never>;
+  pharmacy?: Omit<Prisma.PharmacyCreateWithoutCenterInput, never>;
 };
 
-// A Center and its Hospital extension are written in one transaction
-// — a failure partway through must never leave a Center row with no
-// extension row (or vice versa), since the extension is what makes the
-// Center usable as the type it claims to be.
+// A Center and its extension (Hospital/Pharmacy) are written in one
+// transaction — a failure partway through must never leave a Center row
+// with no extension row (or vice versa), since the extension is what makes
+// the Center usable as the type it claims to be.
 export function createCenterWithExtension(data: CenterCreateData): Promise<CenterWithRelations> {
   return prisma.center.create({
     data: {
       ...data.center,
       ...(data.hospital ? { hospital: { create: data.hospital } } : {}),
+      ...(data.pharmacy ? { pharmacy: { create: data.pharmacy } } : {}),
     },
     include: listInclude,
   });
 }
 
 type CenterUpdateData = {
-  center: Omit<Prisma.CenterUpdateInput, "hospital">;
+  center: Omit<Prisma.CenterUpdateInput, "hospital" | "pharmacy">;
   hospital?: Omit<Prisma.HospitalUpdateWithoutCenterInput, never>;
+  pharmacy?: Omit<Prisma.PharmacyUpdateWithoutCenterInput, never>;
 };
 
 // `upsert`, not `update` — a plain `update` throws P2025 whenever the
@@ -159,6 +163,20 @@ export function updateCenterWithExtension(
                   createdBy: data.hospital.updatedBy,
                 } as Prisma.HospitalCreateWithoutCenterInput,
                 update: data.hospital,
+              },
+            },
+          }
+        : {}),
+      ...(data.pharmacy
+        ? {
+            pharmacy: {
+              // Same cast rationale as the hospital branch above.
+              upsert: {
+                create: {
+                  ...data.pharmacy,
+                  createdBy: data.pharmacy.updatedBy,
+                } as Prisma.PharmacyCreateWithoutCenterInput,
+                update: data.pharmacy,
               },
             },
           }
