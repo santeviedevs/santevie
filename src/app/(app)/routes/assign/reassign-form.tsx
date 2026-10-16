@@ -9,27 +9,26 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 
-import { assignRouteAction, reassignRouteAction, type RouteFormState } from "../actions";
+import { reassignRouteAction, type RouteFormState } from "../actions";
 import type { Assignee } from "./assign-form";
 import { DateRangeFields } from "./date-range-fields";
 
 // The Reassign Route section of the Manage page: who, and for which dates.
-// An assigned route is reassigned in place (same route, same code, same
-// items — see reassignRoute); a route nobody holds yet is assigned instead
-// (the page is also reachable directly for those). Offered only while there
-// is something pending and, for reassignment, nothing completed; the server
-// refuses it otherwise regardless of what this screen shows, and re-checks
-// the assignee, dates, territory and conflicts on every submit.
+// Cancels this one assignment and creates a new one for the chosen
+// assignee — the route, its code and its items are untouched; any other
+// concurrent assignee on the same route is untouched too. Offered only
+// while there is something pending and nothing completed on this
+// assignment; the server refuses it otherwise regardless of what this
+// screen shows, and re-checks the assignee, dates, territory and conflicts
+// on every submit.
 export function ReassignForm({
-  routeId,
-  isAssigned,
+  assignmentId,
   minDate,
   initialStartDate,
   initialEndDate,
   dict,
 }: {
-  routeId: string;
-  isAssigned: boolean;
+  assignmentId: string;
   minDate: string;
   initialStartDate: string;
   initialEndDate: string;
@@ -57,17 +56,16 @@ export function ReassignForm({
     }
     startTransition(async () => {
       const formData = new FormData();
-      formData.set("routeId", routeId);
+      formData.set("assignmentId", assignmentId);
       formData.set("targetUserId", assignee.id);
       formData.set("startDate", startDate);
       formData.set("endDate", endDate);
-      const action = isAssigned ? reassignRouteAction : assignRouteAction;
-      const result: RouteFormState = await action({ error: null }, formData);
+      const result: RouteFormState = await reassignRouteAction({ error: null }, formData);
       if (result.error) {
         setError(result.error);
         return;
       }
-      toast.success(isAssigned ? dict.routeReassigned : dict.routeAssigned);
+      toast.success(dict.routeReassigned);
       router.push("/routes/assign");
     });
   }
@@ -76,11 +74,9 @@ export function ReassignForm({
     <section className="flex flex-col gap-4" aria-labelledby="reassign-heading">
       <div className="flex flex-col gap-1">
         <h2 id="reassign-heading" className="text-lg font-semibold">
-          {isAssigned ? dict.reassignRouteHeading : dict.assignRouteHeading}
+          {dict.reassignRouteHeading}
         </h2>
-        <p className="text-sm text-muted-foreground">
-          {isAssigned ? dict.reassignRouteHelp : dict.assignRouteHelp}
-        </p>
+        <p className="text-sm text-muted-foreground">{dict.reassignRouteHelp}</p>
       </div>
 
       <div className="flex min-w-0 flex-col gap-1.5">
@@ -123,7 +119,7 @@ export function ReassignForm({
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       <Button type="button" size="lg" className="w-full" disabled={isPending} onClick={submit}>
-        {isAssigned ? dict.reassignAction : dict.assignAction}
+        {dict.reassignAction}
       </Button>
     </section>
   );

@@ -65,23 +65,30 @@ export const reorderRouteItemsSchema = z.object({
 });
 export type ReorderRouteItemsInput = z.infer<typeof reorderRouteItemsSchema>;
 
+// Every item/contact action now names which assignment it's acting under —
+// a stop is shared plan content, but its completion is tracked per
+// assignee, so "complete this stop" needs to say for whom.
 export const completeRouteItemSchema = z.object({
   routeItemId: id,
+  routeAssignmentId: id,
 });
 export type CompleteRouteItemInput = z.infer<typeof completeRouteItemSchema>;
 
 export const cancelRouteItemSchema = z.object({
   routeItemId: id,
+  routeAssignmentId: id,
 });
 export type CancelRouteItemInput = z.infer<typeof cancelRouteItemSchema>;
 
 export const completeRouteItemContactSchema = z.object({
   routeItemContactId: id,
+  routeAssignmentId: id,
 });
 export type CompleteRouteItemContactInput = z.infer<typeof completeRouteItemContactSchema>;
 
 export const cancelRouteItemContactSchema = z.object({
   routeItemContactId: id,
+  routeAssignmentId: id,
 });
 export type CancelRouteItemContactInput = z.infer<typeof cancelRouteItemContactSchema>;
 
@@ -111,10 +118,12 @@ export const contactSearchQuerySchema = z.object({
 });
 export type ContactSearchQuery = z.infer<typeof contactSearchQuerySchema>;
 
-// Assigning (or reassigning) a route: who, and for which date range. The
-// range is flexible — any start..end, end not before start. "Start not
-// before today" needs the clock, so the service checks it; the schema only
-// checks the shape.
+// Assigning a route: who, and for which date range. A route can carry
+// several concurrently ACTIVE assignments, so this always creates a new one
+// rather than overwriting an existing holder — concurrent assignment to a
+// different user is the point, not an edge case. The range is flexible —
+// any start..end, end not before start. "Start not before today" needs the
+// clock, so the service checks it; the schema only checks the shape.
 export const assignRouteSchema = z
   .object({
     routeId: id,
@@ -128,8 +137,25 @@ export const assignRouteSchema = z
   });
 export type AssignRouteInput = z.infer<typeof assignRouteSchema>;
 
+// Reassigning targets one specific assignment (a route can have several
+// concurrent ones, so "reassign the route" is no longer well-defined on its
+// own) — cancels that assignment and creates a new one for the new
+// assignee, same cancel-and-recreate pattern as ActivityAssignment.
+export const reassignRouteSchema = z
+  .object({
+    assignmentId: id,
+    targetUserId: id,
+    startDate: z.iso.date(),
+    endDate: z.iso.date(),
+  })
+  .refine((input) => input.endDate >= input.startDate, {
+    message: "The end date can't be before the start date.",
+    path: ["endDate"],
+  });
+export type ReassignRouteInput = z.infer<typeof reassignRouteSchema>;
+
 export const cancelRouteAssignmentSchema = z.object({
-  routeId: id,
+  assignmentId: id,
 });
 export type CancelRouteAssignmentInput = z.infer<typeof cancelRouteAssignmentSchema>;
 

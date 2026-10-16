@@ -16,11 +16,13 @@ import type { RouteGroupSummary } from "@/server/services/route-service";
 
 import { ROUTE_STATUS_VARIANT, statusLabel } from "../route-status";
 
-// Where a row leads: the route's Manage page — the existing detail view, where
-// every permitted assignment action (reassign, cancel) lives and is guarded
-// again on the server. There are no per-row buttons.
+// Where a row leads: this one assignment's Manage page — where every
+// permitted action on it (reassign, cancel) lives and is guarded again on
+// the server. A route with several concurrent assignees produces several
+// rows here, each leading to its own assignment's page. There are no
+// per-row buttons.
 function detailHref(route: RouteGroupSummary): string {
-  return `/routes/assign/${route.id}`;
+  return `/routes/assign/${route.assignmentId}`;
 }
 
 function summary(route: RouteGroupSummary, dict: Dictionary["routesPage"]): string {
@@ -66,7 +68,7 @@ export function RoutesTable({
           </TableHeader>
           <TableBody>
             {routes.map((route) => (
-              <ClickableTableRow key={route.id} href={detailHref(route)}>
+              <ClickableTableRow key={route.assignmentId} href={detailHref(route)}>
                 <TableCell className="font-medium">
                   <Link
                     href={detailHref(route)}
@@ -91,7 +93,7 @@ export function RoutesTable({
 
       <ul className="flex flex-col gap-2 md:hidden">
         {routes.map((route) => (
-          <li key={route.id}>
+          <li key={route.assignmentId}>
             <Link
               href={detailHref(route)}
               className="flex flex-col gap-2 rounded-md border border-border p-3 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"

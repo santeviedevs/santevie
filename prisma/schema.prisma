@@ -194,7 +194,6 @@ model User {
   leaves                    Leave[]
   ownedAttendanceRules      AttendanceRule[]          @relation("AttendanceRuleOwner")
   targetedAttendanceRules   AttendanceRule[]          @relation("AttendanceRuleTarget")
-  routes                    Route[]
   routeAssignments          RouteAssignment[]
   activityAssignments       ActivityAssignment[]
   ownedFollowUps            FollowUp[]                @relation("FollowUpOwner")
@@ -940,27 +939,19 @@ model TerritoryWorkingDay {
 // and locked once it begins (see isRouteEditable); visit *execution* is
 // tracked per item/contact status, not per day.
 //
-// A route starts unassigned (userId, startDate and endDate all null) — built
-// on the "Plan Routes" screen with no visitor or dates attached at all. It
-// gets all three at once via the "Assign Routes" screen: the assignee is
-// responsible for the route for the whole startDate..endDate range (a
-// flexible range, not a fixed week; both are calendar dates stored at UTC
-// midnight, interpreted in Africa/Kinshasa). Reassigning updates this same
-// row in place — same id, same code — and every assign / reassign / cancel
-// is appended to RouteAssignment, so who held the route and for which dates
-// is never lost.
+// A route's stop list (items) is shared plan content — who it's assigned to
+// is tracked entirely through RouteAssignment, not on this row. A route can
+// have zero, one or several concurrently ACTIVE assignments (e.g. the same
+// route covered by two delegates on overlapping dates); each assignee's own
+// progress through the stops is tracked independently via
+// RouteItemExecution / RouteItemContactExecution, keyed to their specific
+// RouteAssignment.
 //
 // `code` (RT-00001) is the human-readable identifier, from route_code_seq
 // (created in the migration), immutable once written.
 model Route {
   id   String @id @default(cuid())
   code String @unique
-
-  userId String?
-  user   User?   @relation(fields: [userId], references: [id])
-
-  startDate DateTime?
-  endDate   DateTime?
 
   items       RouteItem[]
   assignments RouteAssignment[]
@@ -970,47 +961,54 @@ model Route {
   updatedBy String?
   updatedAt DateTime @updatedAt
 
-  @@index([userId, startDate])
   @@map("routes")
 }
 
-enum RouteAssignmentAction {
-  ASSIGNED
-  REASSIGNED
+enum RouteAssignmentStatus {
+  ACTIVE
   CANCELLED
 }
 
-// Append-only history of a route's assignment: one row per assign,
-// reassign or cancel, recording the assignee and range *as of that event*
-// (the previous holder and dates are simply the row before it). Database
-// record only for now — no screen reads it yet.
+// One assignee's hold on a route for a date range — the live source of
+// truth for "who is covering this route," not just history. Several rows
+// for the same routeId can be ACTIVE at once (concurrent assignment).
+// Reassigning cancels this row and creates a new one for the new assignee —
+// same cancel-and-recreate pattern as ActivityAssignment reassignment — so
+// every past holder and range stays on the record rather than being
+// overwritten. Cancelling just flips status to CANCELLED in place.
 model RouteAssignment {
   id String @id @default(cuid())
 
   routeId String
   route   Route  @relation(fields: [routeId], references: [id])
 
-  action RouteAssignmentAction
-
   userId String
   user   User   @relation(fields: [userId], references: [id])
 
+  status RouteAssignmentStatus @default(ACTIVE)
+
   startDate DateTime?
   endDate   DateTime?
+
+  itemExecutions    RouteItemExecution[]
+  contactExecutions RouteItemContactExecution[]
 
   createdBy String?
   createdAt DateTime @default(now())
   updatedBy String?
   updatedAt DateTime @updatedAt
 
-  @@index([routeId, createdAt])
-  @@index([userId])
+  @@index([routeId, status])
+  @@index([userId, status])
+  @@index([userId, startDate])
   @@map("route_assignments")
 }
 
 // `sequence` is the delegate's chosen visit order for the day — assigned
 // on add (next available slot) and rewritten wholesale on reorder, never
-// treated as a stable identity of its own.
+// treated as a stable identity of its own. This row is shared plan content
+// (the stop list itself); per-assignee completion lives in
+// RouteItemExecution, not here.
 model RouteItem {
   id String @id @default(cuid())
 
@@ -1020,10 +1018,10 @@ model RouteItem {
   centerId String
   center   Center @relation(fields: [centerId], references: [id])
 
-  contacts RouteItemContact[]
+  contacts   RouteItemContact[]
+  executions RouteItemExecution[]
 
   sequence Int
-  status   RouteItemStatus @default(PENDING)
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -1042,11 +1040,8 @@ model RouteItem {
 // The Contact<->Center link itself still lives only in ContactCenter — this
 // row records "who the visitor is meant to see at this stop" and is
 // validated against ContactCenter on every write, never trusted from the
-// client. `status` is stored per Contact (MISSED is computed at read time,
-// like RouteItem); for a Center that has Contacts, RouteItem.status is
-// derived from these (see deriveCenterStatus in route-service.ts). Rows are
-// never deleted once COMPLETED/CANCELLED, even if the ContactCenter link is
-// later removed — that is history.
+// client. Shared plan content, same as RouteItem — per-assignee completion
+// lives in RouteItemContactExecution, not here.
 model RouteItemContact {
   id String @id @default(cuid())
 
@@ -1056,7 +1051,7 @@ model RouteItemContact {
   contactId String
   contact   Contact @relation(fields: [contactId], references: [id])
 
-  status RouteItemStatus @default(PENDING)
+  executions RouteItemContactExecution[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -1066,6 +1061,58 @@ model RouteItemContact {
   @@unique([routeItemId, contactId])
   @@index([contactId])
   @@map("route_item_contacts")
+}
+
+// One assignee's completion state for one stop. `status` is stored per
+// assignment (MISSED is computed at read time, like the old RouteItem.status
+// was); for a Center that has Contacts, RouteItemExecution.status is
+// derived from RouteItemContactExecution the same way RouteItem.status used
+// to derive from RouteItemContact (see deriveCenterStatus in
+// route-service.ts). Rows are never deleted once COMPLETED/CANCELLED, even
+// if the underlying plan content changes later — that is history.
+model RouteItemExecution {
+  id String @id @default(cuid())
+
+  routeItemId String
+  routeItem   RouteItem @relation(fields: [routeItemId], references: [id])
+
+  routeAssignmentId String
+  routeAssignment   RouteAssignment @relation(fields: [routeAssignmentId], references: [id])
+
+  status RouteItemStatus @default(PENDING)
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([routeItemId, routeAssignmentId])
+  @@index([routeAssignmentId])
+  @@map("route_item_executions")
+}
+
+// One assignee's completion state for one contact within a stop — the
+// per-assignment counterpart to RouteItemContact, same relationship
+// RouteItemExecution has to RouteItem.
+model RouteItemContactExecution {
+  id String @id @default(cuid())
+
+  routeItemContactId String
+  routeItemContact   RouteItemContact @relation(fields: [routeItemContactId], references: [id])
+
+  routeAssignmentId String
+  routeAssignment   RouteAssignment @relation(fields: [routeAssignmentId], references: [id])
+
+  status RouteItemStatus @default(PENDING)
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([routeItemContactId, routeAssignmentId])
+  @@index([routeAssignmentId])
+  @@map("route_item_contact_executions")
 }
 
 // --- Marketing activity planning and follow-ups (S3-07, extended by the
@@ -1660,7 +1707,7 @@ model EmballageCollection {
 // value, who corrected it and why stay visible as history. Same pattern as
 // FollowUpReassignment.
 model EmballageCorrection {
-  id           String   @id @default(cuid())
+  id           String              @id @default(cuid())
   collectionId String
   collection   EmballageCollection @relation(fields: [collectionId], references: [id])
 
@@ -1683,7 +1730,7 @@ model EmballageCorrection {
 // still correct them, not the ordinary emballage:record-own grant every
 // delegate holds.
 model EmballageReportRun {
-  id          String   @id @default(cuid())
+  id          String @id @default(cuid())
   periodMonth Int
   periodYear  Int
 

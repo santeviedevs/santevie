@@ -23,7 +23,7 @@ beforeEach(() => {
 
 describe("CancelAssignmentButton", () => {
   it("is a red outlined 'Cancel Current Assignment' button with an icon", () => {
-    render(<CancelAssignmentButton routeId="r1" dict={dict} />);
+    render(<CancelAssignmentButton assignmentId="a1" dict={dict} />);
     const button = screen.getByRole("button", { name: "Cancel Current Assignment" });
 
     expect(button.className).toContain("text-destructive");
@@ -32,7 +32,7 @@ describe("CancelAssignmentButton", () => {
   });
 
   it("asks for confirmation first — clicking the button cancels nothing", async () => {
-    render(<CancelAssignmentButton routeId="r1" dict={dict} />);
+    render(<CancelAssignmentButton assignmentId="a1" dict={dict} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel Current Assignment" }));
 
@@ -42,7 +42,7 @@ describe("CancelAssignmentButton", () => {
   });
 
   it("explains it cancels the assignment, not the route, and keeps completed work and history", async () => {
-    render(<CancelAssignmentButton routeId="r1" dict={dict} />);
+    render(<CancelAssignmentButton assignmentId="a1" dict={dict} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel Current Assignment" }));
 
@@ -53,7 +53,7 @@ describe("CancelAssignmentButton", () => {
   });
 
   it("closes without cancelling when the user keeps the assignment", async () => {
-    render(<CancelAssignmentButton routeId="r1" dict={dict} />);
+    render(<CancelAssignmentButton assignmentId="a1" dict={dict} />);
     fireEvent.click(screen.getByRole("button", { name: "Cancel Current Assignment" }));
 
     fireEvent.click(await screen.findByRole("button", { name: "Keep assignment" }));
@@ -64,21 +64,21 @@ describe("CancelAssignmentButton", () => {
   });
 
   it("on confirmation runs the existing cancel action for this route, then returns to the table", async () => {
-    render(<CancelAssignmentButton routeId="r1" dict={dict} />);
+    render(<CancelAssignmentButton assignmentId="a1" dict={dict} />);
     fireEvent.click(screen.getByRole("button", { name: "Cancel Current Assignment" }));
 
     fireEvent.click(await screen.findByRole("button", { name: "Cancel assignment" }));
 
     await waitFor(() => expect(cancelRouteAssignmentAction).toHaveBeenCalledTimes(1));
     const formData = cancelRouteAssignmentAction.mock.calls[0]![1] as FormData;
-    expect(formData.get("routeId")).toBe("r1");
+    expect(formData.get("assignmentId")).toBe("a1");
     await waitFor(() => expect(push).toHaveBeenCalledWith("/routes/assign"));
     expect(toast.success).toHaveBeenCalledWith("Assignment cancelled");
   });
 
   it("shows the server's refusal and stays on the page", async () => {
     cancelRouteAssignmentAction.mockResolvedValue({ error: "You can only act on your own route." });
-    render(<CancelAssignmentButton routeId="r1" dict={dict} />);
+    render(<CancelAssignmentButton assignmentId="a1" dict={dict} />);
     fireEvent.click(screen.getByRole("button", { name: "Cancel Current Assignment" }));
 
     fireEvent.click(await screen.findByRole("button", { name: "Cancel assignment" }));

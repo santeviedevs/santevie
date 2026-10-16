@@ -7,7 +7,7 @@ import { formatDateRange } from "@/lib/format-date";
 import { getServerDictionary } from "@/lib/i18n/server";
 import { todayInKinshasa } from "@/lib/week";
 import { requirePermission } from "@/server/auth/require-permission";
-import { getRouteForManagement } from "@/server/services/route-service";
+import { getAssignmentForManagement } from "@/server/services/route-service";
 
 import { CancelAssignmentButton } from "../cancel-assignment-button";
 import { ReassignForm } from "../reassign-form";
@@ -15,24 +15,30 @@ import { RouteContents } from "../route-contents";
 
 export const dynamic = "force-dynamic";
 
-type AssignDetailPageProps = { params: Promise<{ routeId: string }> };
+type AssignDetailPageProps = { params: Promise<{ assignmentId: string }> };
 
-// The Manage page for one route, opened from a row of the Assign Routes
-// table: its Centers and Contacts, and the actions on its assignment —
-// reassign (a form below) and Cancel Current Assignment (top right). Loads
-// just this route through the same authorization every action on it uses, so
-// "not found" here means "not reachable", never "exists but hidden". Which
-// actions are offered mirrors the rules the server enforces on each write.
+// The Manage page for one assignment, opened from a row of the Assign
+// Routes table: its route's Centers and Contacts (as this assignment sees
+// them), and the actions on this one assignment — reassign (a form below)
+// and Cancel Current Assignment (top right). A route with several
+// concurrent assignees has a separate Manage page per assignment; cancel
+// and reassign here never touch any other assignee's own progress. Loads
+// just this assignment through the same authorization every action on it
+// uses, so "not found" here means "not reachable", never "exists but
+// hidden".
 export default async function AssignDetailPage({ params }: AssignDetailPageProps) {
   const session = await requirePermission("routes:assign-team");
   const dict = await getServerDictionary();
   const t = dict.routesPage;
-  const { routeId } = await params;
+  const { assignmentId } = await params;
 
-  const route = await getRouteForManagement(routeId, session.user.id, session.user.roleName);
+  const route = await getAssignmentForManagement(
+    assignmentId,
+    session.user.id,
+    session.user.roleName,
+  );
   if (!route) notFound();
 
-  const isAssigned = route.userId !== null;
   const hasCompleted = route.items.some(
     (item) =>
       item.status === "COMPLETED" ||
@@ -43,7 +49,7 @@ export default async function AssignDetailPage({ params }: AssignDetailPageProps
   );
   // Reassignment is blocked once anything is completed; with nothing pending
   // there is nothing left to assign. (Server-enforced either way.)
-  const canReassign = hasPending && !(isAssigned && hasCompleted);
+  const canReassign = hasPending && !hasCompleted;
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -75,7 +81,7 @@ export default async function AssignDetailPage({ params }: AssignDetailPageProps
             </p>
           </div>
 
-          {isAssigned && hasPending ? <CancelAssignmentButton routeId={route.id} dict={t} /> : null}
+          {hasPending ? <CancelAssignmentButton assignmentId={assignmentId} dict={t} /> : null}
         </div>
       </header>
 
@@ -87,14 +93,13 @@ export default async function AssignDetailPage({ params }: AssignDetailPageProps
 
       {canReassign ? (
         <ReassignForm
-          routeId={route.id}
-          isAssigned={isAssigned}
+          assignmentId={assignmentId}
           minDate={todayInKinshasa().toISOString().slice(0, 10)}
           initialStartDate={route.startDate ? route.startDate.toISOString().slice(0, 10) : ""}
           initialEndDate={route.endDate ? route.endDate.toISOString().slice(0, 10) : ""}
           dict={t}
         />
-      ) : isAssigned && hasCompleted ? (
+      ) : hasCompleted ? (
         <p className="text-sm text-muted-foreground">{t.hasCompletedHint}</p>
       ) : null}
     </div>

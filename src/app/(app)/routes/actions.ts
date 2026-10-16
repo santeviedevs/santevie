@@ -9,6 +9,7 @@ import {
   cancelRouteItemSchema,
   completeRouteItemContactSchema,
   completeRouteItemSchema,
+  reassignRouteSchema,
   reorderRouteItemsSchema,
   saveRouteContentSchema,
 } from "@/lib/schemas/route";
@@ -20,6 +21,8 @@ import {
 } from "@/server/auth/require-permission";
 import {
   AssigneeNotAssignableError,
+  AssignmentNotActiveError,
+  AssignmentNotFoundError,
   assignRoute,
   cancelRouteAssignment,
   cancelRouteItem,
@@ -38,12 +41,11 @@ import {
   InvalidDateRangeError,
   reassignRoute,
   reorderRouteItems,
-  RouteAlreadyAssignedError,
+  RouteAlreadyAssignedToUserError,
   RouteEditCutoffError,
   RouteHasCompletedItemsError,
   RouteHasNothingToAssignError,
   RouteItemHasCompletedContactsError,
-  RouteNotAssignedError,
   RouteNotAuthorizedError,
   RouteNotOwnedError,
   RouteStartInPastError,
@@ -106,8 +108,9 @@ function mapRouteError(error: unknown): string {
     error instanceof RouteItemHasCompletedContactsError ||
     error instanceof ContactStatusConflictError ||
     error instanceof AssigneeNotAssignableError ||
-    error instanceof RouteAlreadyAssignedError ||
-    error instanceof RouteNotAssignedError ||
+    error instanceof RouteAlreadyAssignedToUserError ||
+    error instanceof AssignmentNotFoundError ||
+    error instanceof AssignmentNotActiveError ||
     error instanceof RouteHasNothingToAssignError ||
     error instanceof InvalidDateRangeError ||
     error instanceof RouteStartInPastError
@@ -205,13 +208,20 @@ export async function completeRouteItemAction(
   const session = await requireRoutesRespondOwn();
   if (!session) return { error: null, sessionExpired: true };
 
-  const parsed = completeRouteItemSchema.safeParse({ routeItemId: formData.get("routeItemId") });
+  const parsed = completeRouteItemSchema.safeParse({
+    routeItemId: formData.get("routeItemId"),
+    routeAssignmentId: formData.get("routeAssignmentId"),
+  });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check the highlighted fields." };
   }
 
   try {
-    await completeRouteItem(parsed.data.routeItemId, session.user.id);
+    await completeRouteItem(
+      parsed.data.routeItemId,
+      parsed.data.routeAssignmentId,
+      session.user.id,
+    );
   } catch (error) {
     return { error: mapRouteError(error) };
   }
@@ -227,13 +237,21 @@ export async function cancelRouteItemAction(
   const session = await requireRoutesRespondOrAssign();
   if (!session) return { error: null, sessionExpired: true };
 
-  const parsed = cancelRouteItemSchema.safeParse({ routeItemId: formData.get("routeItemId") });
+  const parsed = cancelRouteItemSchema.safeParse({
+    routeItemId: formData.get("routeItemId"),
+    routeAssignmentId: formData.get("routeAssignmentId"),
+  });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check the highlighted fields." };
   }
 
   try {
-    await cancelRouteItem(parsed.data.routeItemId, session.user.id, session.user.roleName);
+    await cancelRouteItem(
+      parsed.data.routeItemId,
+      parsed.data.routeAssignmentId,
+      session.user.id,
+      session.user.roleName,
+    );
   } catch (error) {
     return { error: mapRouteError(error) };
   }
@@ -242,9 +260,10 @@ export async function cancelRouteItemAction(
   return { error: null };
 }
 
-// The Assign Routes form's `+ Add`: a first-time assignment only. A route
-// that already has an assignee is refused (RouteAlreadyAssignedError) —
-// changing an existing assignment is the explicit reassignRouteAction.
+// The Assign Routes form's `+ Add`: creates a new concurrent assignment —
+// a route with an existing assignee is still offered; assigning it to a
+// second person is expected, not refused. Changing an existing assignment
+// is the separate reassignRouteAction.
 export async function assignRouteAction(
   _prevState: RouteFormState,
   formData: FormData,
@@ -289,8 +308,8 @@ export async function reassignRouteAction(
   const session = await requireRoutesAssignTeam();
   if (!session) return { error: null, sessionExpired: true };
 
-  const parsed = assignRouteSchema.safeParse({
-    routeId: formData.get("routeId"),
+  const parsed = reassignRouteSchema.safeParse({
+    assignmentId: formData.get("assignmentId"),
     targetUserId: formData.get("targetUserId"),
     startDate: formData.get("startDate"),
     endDate: formData.get("endDate"),
@@ -301,7 +320,7 @@ export async function reassignRouteAction(
 
   try {
     await reassignRoute(
-      parsed.data.routeId,
+      parsed.data.assignmentId,
       parsed.data.targetUserId,
       parseDateOnly(parsed.data.startDate),
       parseDateOnly(parsed.data.endDate),
@@ -323,13 +342,15 @@ export async function cancelRouteAssignmentAction(
   const session = await requireRoutesAssignTeam();
   if (!session) return { error: null, sessionExpired: true };
 
-  const parsed = cancelRouteAssignmentSchema.safeParse({ routeId: formData.get("routeId") });
+  const parsed = cancelRouteAssignmentSchema.safeParse({
+    assignmentId: formData.get("assignmentId"),
+  });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check the highlighted fields." };
   }
 
   try {
-    await cancelRouteAssignment(parsed.data.routeId, session.user.id, session.user.roleName);
+    await cancelRouteAssignment(parsed.data.assignmentId, session.user.id, session.user.roleName);
   } catch (error) {
     return { error: mapRouteError(error) };
   }
@@ -347,13 +368,18 @@ export async function completeRouteItemContactAction(
 
   const parsed = completeRouteItemContactSchema.safeParse({
     routeItemContactId: formData.get("routeItemContactId"),
+    routeAssignmentId: formData.get("routeAssignmentId"),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check the highlighted fields." };
   }
 
   try {
-    await completeRouteItemContact(parsed.data.routeItemContactId, session.user.id);
+    await completeRouteItemContact(
+      parsed.data.routeItemContactId,
+      parsed.data.routeAssignmentId,
+      session.user.id,
+    );
   } catch (error) {
     return { error: mapRouteError(error) };
   }
@@ -371,6 +397,7 @@ export async function cancelRouteItemContactAction(
 
   const parsed = cancelRouteItemContactSchema.safeParse({
     routeItemContactId: formData.get("routeItemContactId"),
+    routeAssignmentId: formData.get("routeAssignmentId"),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check the highlighted fields." };
@@ -379,6 +406,7 @@ export async function cancelRouteItemContactAction(
   try {
     await cancelRouteItemContact(
       parsed.data.routeItemContactId,
+      parsed.data.routeAssignmentId,
       session.user.id,
       session.user.roleName,
     );

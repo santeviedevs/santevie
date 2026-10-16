@@ -12,8 +12,8 @@ vi.mock("next/navigation", () => ({ notFound }));
 const requirePermission = vi.fn();
 vi.mock("@/server/auth/require-permission", () => ({ requirePermission }));
 
-const getRouteForManagement = vi.fn();
-vi.mock("@/server/services/route-service", () => ({ getRouteForManagement }));
+const getAssignmentForManagement = vi.fn();
+vi.mock("@/server/services/route-service", () => ({ getAssignmentForManagement }));
 
 vi.mock("@/lib/i18n/server", () => ({
   getServerDictionary: vi.fn(async () => getDictionary("en")),
@@ -44,6 +44,7 @@ const byName = (name: string) => (el: El) => typeof el.type === "function" && el
 function route(overrides: Partial<RouteGroupSummary> = {}): RouteGroupSummary {
   return {
     id: "r1",
+    assignmentId: "a1",
     code: "RT-00013",
     userId: "d1",
     visitorName: "Delegate User",
@@ -74,8 +75,8 @@ function route(overrides: Partial<RouteGroupSummary> = {}): RouteGroupSummary {
 }
 
 async function render(r: RouteGroupSummary | null) {
-  getRouteForManagement.mockResolvedValue(r);
-  return Page({ params: Promise.resolve({ routeId: "r1" }) });
+  getAssignmentForManagement.mockResolvedValue(r);
+  return Page({ params: Promise.resolve({ assignmentId: "a1" }) });
 }
 
 const text = (node: unknown): string =>
@@ -92,15 +93,15 @@ beforeEach(() => {
   requirePermission.mockResolvedValue({ user: { id: "sup-1", roleName: "SUPERVISOR" } });
 });
 
-describe("Route details page", () => {
-  it("requires routes:assign-team and loads the route through the same authorization as every action", async () => {
+describe("Assignment details page", () => {
+  it("requires routes:assign-team and loads the assignment through the same authorization as every action", async () => {
     await render(route());
 
     expect(requirePermission).toHaveBeenCalledWith("routes:assign-team");
-    expect(getRouteForManagement).toHaveBeenCalledWith("r1", "sup-1", "SUPERVISOR");
+    expect(getAssignmentForManagement).toHaveBeenCalledWith("a1", "sup-1", "SUPERVISOR");
   });
 
-  it("is not found for a route the actor can't reach", async () => {
+  it("is not found for an assignment the actor can't reach", async () => {
     await expect(render(null)).rejects.toBeInstanceOf(NotFoundError);
   });
 
@@ -123,19 +124,16 @@ describe("Route details page", () => {
     expect((back!.props!.render as { props: { href: string } }).props.href).toBe("/routes/assign");
   });
 
-  it("offers Cancel Current Assignment in the header while the route is assigned with pending visits", async () => {
+  it("offers Cancel Current Assignment in the header while something is pending", async () => {
     const page = await render(route());
 
     expect(findAll(page, byName("CancelAssignmentButton"))).toHaveLength(1);
-    expect(findAll(page, byName("CancelAssignmentButton"))[0]!.props?.routeId).toBe("r1");
+    expect(findAll(page, byName("CancelAssignmentButton"))[0]!.props?.assignmentId).toBe("a1");
   });
 
-  it("hides cancellation when nothing is pending or the route isn't assigned", async () => {
+  it("hides cancellation when nothing is pending", async () => {
     const done = await render(route({ items: [{ ...route().items[0]!, status: "COMPLETED" }] }));
     expect(findAll(done, byName("CancelAssignmentButton"))).toHaveLength(0);
-
-    const unassigned = await render(route({ userId: null, visitorName: null }));
-    expect(findAll(unassigned, byName("CancelAssignmentButton"))).toHaveLength(0);
   });
 
   it("puts Centers & Contacts above the Reassign Route section, separated by dividers", async () => {
@@ -148,11 +146,11 @@ describe("Route details page", () => {
     expect(order).toEqual(["hr", "RouteContents", "hr", "ReassignForm"]);
   });
 
-  it("offers reassignment for an assigned route with pending visits and nothing completed", async () => {
+  it("offers reassignment for an assignment with pending visits and nothing completed", async () => {
     const page = await render(route());
     const [form] = findAll(page, byName("ReassignForm"));
 
-    expect(form!.props).toMatchObject({ routeId: "r1", isAssigned: true });
+    expect(form!.props).toMatchObject({ assignmentId: "a1" });
   });
 
   it("replaces the form with the completed-work notice once anything is completed", async () => {

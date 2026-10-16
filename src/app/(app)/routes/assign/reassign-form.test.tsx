@@ -6,9 +6,8 @@ import { getDictionary } from "@/lib/i18n/dictionary";
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
-const assignRouteAction = vi.fn();
 const reassignRouteAction = vi.fn();
-vi.mock("../actions", () => ({ assignRouteAction, reassignRouteAction }));
+vi.mock("../actions", () => ({ reassignRouteAction }));
 
 const toast = { success: vi.fn(), error: vi.fn() };
 vi.mock("sonner", () => ({ toast }));
@@ -41,8 +40,7 @@ const dict = getDictionary("en").routesPage;
 function setup(props: Partial<React.ComponentProps<typeof ReassignForm>> = {}) {
   return render(
     <ReassignForm
-      routeId="r1"
-      isAssigned
+      assignmentId="a1"
       minDate="2026-06-15"
       initialStartDate="2026-06-16"
       initialEndDate="2026-06-22"
@@ -58,7 +56,6 @@ const pickAssignee = () =>
 beforeEach(() => {
   vi.clearAllMocks();
   reassignRouteAction.mockResolvedValue({ error: null });
-  assignRouteAction.mockResolvedValue({ error: null });
 });
 
 describe("ReassignForm", () => {
@@ -131,11 +128,10 @@ describe("ReassignForm", () => {
 
     await waitFor(() => expect(reassignRouteAction).toHaveBeenCalledTimes(1));
     const formData = reassignRouteAction.mock.calls[0]![1] as FormData;
-    expect(formData.get("routeId")).toBe("r1");
+    expect(formData.get("assignmentId")).toBe("a1");
     expect(formData.get("targetUserId")).toBe("u2");
     expect(formData.get("startDate")).toBe("2026-06-16");
     expect(formData.get("endDate")).toBe("2026-06-22");
-    expect(assignRouteAction).not.toHaveBeenCalled();
     await waitFor(() => expect(push).toHaveBeenCalledWith("/routes/assign"));
     expect(toast.success).toHaveBeenCalledWith("Route reassigned");
   });
@@ -151,16 +147,5 @@ describe("ReassignForm", () => {
 
     expect(await screen.findByText(/already has completed visits/)).toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();
-  });
-
-  it("assigns instead when the route has no assignee yet", async () => {
-    setup({ isAssigned: false });
-    expect(screen.getByRole("heading", { name: "Assign Route" })).toBeInTheDocument();
-
-    pickAssignee();
-    fireEvent.click(screen.getByRole("button", { name: "Assign" }));
-
-    await waitFor(() => expect(assignRouteAction).toHaveBeenCalledTimes(1));
-    expect(reassignRouteAction).not.toHaveBeenCalled();
   });
 });

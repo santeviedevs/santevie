@@ -3,7 +3,6 @@ import {
   type AssigneeSearchQuery,
   type CenterSearchQuery,
   type ContactSearchQuery,
-  isRouteEditable,
   type RouteContactIssue,
   type RouteFilters,
   type RouteListParams,
@@ -28,34 +27,37 @@ import {
   searchContactsForCenter,
 } from "@/server/repositories/contact-repository";
 import {
-  assignRouteRow,
-  cancelPendingContactlessRouteItems,
-  cancelPendingContactsOnItem,
-  cancelPendingContactsOnRoute,
-  createRouteAssignmentRow,
+  cancelAssignmentRow,
+  createAssignmentRow,
   createRouteItem,
   createRouteItemContacts,
   createRouteRow,
   type Db,
-  deleteNonCompletedRouteItemContacts,
-  deletePendingRouteItemContacts,
+  deleteAllRouteItemContacts,
   deleteRouteItem,
+  deleteRouteItemContacts,
+  findActiveAssignmentsForRoute,
+  findActiveAssignmentsForVisitor,
+  findActiveAssignmentsForVisitorOverlapping,
   findActiveCenterIdsForVisitorInRange,
+  findAssignmentById,
+  findAssignmentsPage,
+  findContactExecutionStatus,
   findEditableRoutesPage,
   findRouteById,
   findRouteItemById,
   findRouteItemContactById,
-  findRoutesForVisitor,
-  findRoutesForVisitorOverlapping,
-  findRoutesPage,
   listContactStatusesForItem,
-  listPendingItemIdsWithContacts,
+  listPendingContactIdsForItem,
+  listPendingExecutionTargetsForAssignment,
+  type RouteAssignmentWithRoute,
+  type RouteItemStatusValue,
   type RouteWithItems,
   runInTransaction,
   searchAssignableRoutes,
-  updateRouteItemContactStatus,
   updateRouteItemSequence,
-  updateRouteItemStatus,
+  upsertContactExecution,
+  upsertItemExecution,
 } from "@/server/repositories/route-repository";
 import { listAssignmentsForUser } from "@/server/repositories/territory-assignment-repository";
 import {
@@ -87,9 +89,9 @@ export class DuplicateCenterOnRouteError extends Error {
 }
 
 // Thrown by content actions (add/remove/reorder) and by cancelling an
-// assignment — the actor must be the route's creator (while unassigned), the
-// visitor themselves (once assigned), or an ADMIN/MANAGER/SUPERVISOR with
-// the visitor in their downstream chain.
+// assignment — the actor must be the route's creator, a holder of an active
+// assignment on it (for item-level actions), or an ADMIN/MANAGER/SUPERVISOR
+// with the relevant assignee in their downstream chain.
 export class RouteNotAuthorizedError extends Error {
   constructor() {
     super("You can only act on your own route, or a route for someone in your downstream team.");
@@ -97,8 +99,8 @@ export class RouteNotAuthorizedError extends Error {
   }
 }
 
-// completeRouteItem specifically — only the visitor themselves, never an
-// assignor, not even ADMIN.
+// completeRouteItem specifically — only the assignment's own holder, never
+// an assignor, not even ADMIN.
 export class RouteNotOwnedError extends Error {
   constructor() {
     super("Only the assigned visitor can mark a visit completed.");
@@ -113,8 +115,9 @@ export class CenterNotFoundError extends Error {
   }
 }
 
-// Whole-route reassign is only offered while every item is still PENDING —
-// once anything's been completed, that history can't move with it.
+// Whole-route reassign is only offered while every item is still PENDING for
+// that assignment — once anything's been completed, that history can't move
+// with it.
 export class RouteHasCompletedItemsError extends Error {
   constructor() {
     super("This route already has completed visits, so it can no longer be reassigned as a whole.");
@@ -178,23 +181,16 @@ export class ContactStatusConflictError extends Error {
   }
 }
 
-export class RouteAlreadyAssignedError extends Error {
+export class RouteAlreadyAssignedToUserError extends Error {
   constructor() {
-    super("This route is already assigned. Use Reassign on its row to change the assignment.");
-    this.name = "RouteAlreadyAssignedError";
-  }
-}
-
-export class RouteNotAssignedError extends Error {
-  constructor() {
-    super("This route isn't assigned yet — assign it instead of reassigning.");
-    this.name = "RouteNotAssignedError";
+    super("This person already has an active assignment on this route.");
+    this.name = "RouteAlreadyAssignedToUserError";
   }
 }
 
 export class RouteHasNothingToAssignError extends Error {
   constructor() {
-    super("This route has no pending visits to assign.");
+    super("This route has no visits to assign.");
     this.name = "RouteHasNothingToAssignError";
   }
 }
@@ -213,6 +209,20 @@ export class RouteStartInPastError extends Error {
   }
 }
 
+export class AssignmentNotFoundError extends Error {
+  constructor() {
+    super("Assignment not found.");
+    this.name = "AssignmentNotFoundError";
+  }
+}
+
+export class AssignmentNotActiveError extends Error {
+  constructor() {
+    super("This assignment is no longer active.");
+    this.name = "AssignmentNotActiveError";
+  }
+}
+
 // The target must exist and be active; reach (self or downstream team) is a
 // separate check that throws RouteNotAuthorizedError.
 export class AssigneeNotAssignableError extends Error {
@@ -224,28 +234,43 @@ export class AssigneeNotAssignableError extends Error {
 
 const ASSIGN_CAPABLE_ROLES = new Set(["ADMIN", "MANAGER", "SUPERVISOR"]);
 
-// The one authorization rule for every content-level and assignment-level
-// action: the route's creator (only meaningful while it's still
-// unassigned), the visitor themselves (once assigned), or anyone with
-// assign-team capability who has the visitor in their downstream chain.
-// ADMIN always passes.
-async function assertCanActOnRoute(
-  route: { userId: string | null; createdBy: string | null },
+// Authorization for content-level actions on a route as a whole (save
+// content, reorder): the route's creator, anyone who holds an active
+// assignment on it, or anyone with assign-team capability who has at least
+// one of its active assignees in their downstream chain. ADMIN always
+// passes.
+async function assertCanActOnRouteContent(
+  route: { createdBy: string | null },
+  activeAssigneeIds: string[],
   actorId: string,
   actorRoleName: string,
 ): Promise<void> {
   if (actorRoleName === "ADMIN") return;
+  if (route.createdBy === actorId) return;
+  if (activeAssigneeIds.includes(actorId)) return;
 
-  if (route.userId === null) {
-    if (route.createdBy === actorId) return;
-    throw new RouteNotAuthorizedError();
-  }
-
-  if (route.userId === actorId) return;
+  if (activeAssigneeIds.length === 0) throw new RouteNotAuthorizedError();
   if (!ASSIGN_CAPABLE_ROLES.has(actorRoleName)) throw new RouteNotAuthorizedError();
 
   const downstream = await getDownstreamUserIds(actorId);
-  if (!downstream.includes(route.userId)) throw new RouteNotAuthorizedError();
+  if (!activeAssigneeIds.some((id) => downstream.includes(id))) throw new RouteNotAuthorizedError();
+}
+
+// Authorization for acting on one specific assignment (complete/cancel item,
+// reassign, cancel assignment): that assignment's own holder, or anyone
+// with assign-team capability who has the holder in their downstream chain.
+// ADMIN always passes.
+async function assertCanActOnAssignment(
+  assignment: { userId: string },
+  actorId: string,
+  actorRoleName: string,
+): Promise<void> {
+  if (actorRoleName === "ADMIN") return;
+  if (assignment.userId === actorId) return;
+  if (!ASSIGN_CAPABLE_ROLES.has(actorRoleName)) throw new RouteNotAuthorizedError();
+
+  const downstream = await getDownstreamUserIds(actorId);
+  if (!downstream.includes(assignment.userId)) throw new RouteNotAuthorizedError();
 }
 
 // Why a selected Contact is flagged on screen: the Contact<->Center link
@@ -261,7 +286,8 @@ export type RouteItemContactSummary = {
   // The Contact's specialization at this Center (from the Contact–Center
   // link) — null when there's no link any more.
   specialization: string | null;
-  // PENDING/COMPLETED/CANCELLED as actually stored; MISSED is computed.
+  // PENDING/COMPLETED/CANCELLED as actually stored for this assignment;
+  // MISSED is computed.
   status: "PENDING" | "COMPLETED" | "CANCELLED" | "MISSED";
   issue: RouteContactIssue | null;
 };
@@ -269,10 +295,6 @@ export type RouteItemContactSummary = {
 export type RouteItemSummary = {
   id: string;
   sequence: number;
-  // PENDING/COMPLETED/CANCELLED as actually stored; MISSED is never
-  // stored — see the RouteItemStatus enum comment in schema.prisma. For a
-  // center that has contacts, the stored status is derived from them (see
-  // deriveCenterStatus).
   status: "PENDING" | "COMPLETED" | "CANCELLED" | "MISSED";
   center: {
     id: string;
@@ -286,8 +308,15 @@ export type RouteItemSummary = {
   contacts: RouteItemContactSummary[];
 };
 
+// One route as seen from one assignment's perspective (or, when
+// assignmentId is null, unassigned — nothing has ever been assigned to this
+// route, so every item is trivially PENDING). A route with several
+// concurrently ACTIVE assignments produces one RouteGroupSummary per
+// assignment, same id/code, different assignmentId/userId/items progress —
+// deliberately: each assignee's own progress is independent.
 export type RouteGroupSummary = {
   id: string;
+  assignmentId: string | null;
   code: string;
   userId: string | null;
   visitorName: string | null;
@@ -301,10 +330,25 @@ export type RouteGroupSummary = {
   items: RouteItemSummary[];
 };
 
-// PENDING past the end of the assigned range reads as MISSED (computed, not
+// A route with no assignment yet is always editable — there's nothing for a
+// cutoff to be relative to. Once an active assignment exists, it's editable
+// while today (Kinshasa) is strictly before the *earliest* active
+// assignment's start date — once anyone has begun working it, content is
+// frozen for everyone.
+function isRouteEditableForAssignments(
+  activeAssignments: ReadonlyArray<{ startDate: Date | null }>,
+  now: Date = new Date(),
+): boolean {
+  const starts = activeAssignments.map((a) => a.startDate).filter((d): d is Date => d !== null);
+  if (starts.length === 0) return true;
+  const earliest = Math.min(...starts.map((d) => d.getTime()));
+  return todayInKinshasa(now).getTime() < earliest;
+}
+
+// PENDING past the end of the assignment reads as MISSED (computed, not
 // stored — the same "computed, not stored" choice as attendance's ABSENT).
 function itemDisplayStatus(
-  status: "PENDING" | "COMPLETED" | "CANCELLED",
+  status: RouteItemStatusValue,
   endDate: Date | null,
   now: Date,
 ): RouteItemSummary["status"] {
@@ -312,28 +356,37 @@ function itemDisplayStatus(
   return endDate.getTime() < todayInKinshasa(now).getTime() ? "MISSED" : "PENDING";
 }
 
-// The route's status as shown on the Assign Routes table and Home. Derived
-// from the assignment and the items' stored statuses; the repository's
-// statusWhere mirrors these rules for server-side filtering.
-//   unassigned                                  -> UNASSIGNED
+// The assignment's status as shown on the Assign Routes table and Home.
+// Derived from the assignment and its items' per-assignment statuses; the
+// repository's assignmentStatusWhere mirrors these rules for server-side
+// filtering.
+//   no assignment                               -> UNASSIGNED
+//   assignment cancelled                        -> CANCELLED
 //   something pending, range already over        -> MISSED
 //   something pending and something completed    -> IN_PROGRESS
 //   something pending                            -> ASSIGNED
 //   nothing pending, something completed         -> COMPLETED
-//   nothing pending, all cancelled               -> CANCELLED
+//   nothing pending, nothing completed           -> CANCELLED
 //   assigned with no items at all                -> ASSIGNED
 export function deriveRouteStatus(
-  route: { userId: string | null; endDate: Date | null },
-  itemStatuses: ReadonlyArray<"PENDING" | "COMPLETED" | "CANCELLED">,
+  assignment: {
+    userId: string | null;
+    status: "ACTIVE" | "CANCELLED" | null;
+    endDate: Date | null;
+  },
+  itemStatuses: ReadonlyArray<RouteItemStatusValue>,
   now: Date = new Date(),
 ): RouteStatus {
-  if (route.userId === null) return "UNASSIGNED";
+  if (assignment.userId === null) return "UNASSIGNED";
+  if (assignment.status === "CANCELLED") return "CANCELLED";
   if (itemStatuses.length === 0) return "ASSIGNED";
 
   const hasPending = itemStatuses.includes("PENDING");
   const hasCompleted = itemStatuses.includes("COMPLETED");
   if (hasPending) {
-    if (route.endDate && route.endDate.getTime() < todayInKinshasa(now).getTime()) return "MISSED";
+    if (assignment.endDate && assignment.endDate.getTime() < todayInKinshasa(now).getTime()) {
+      return "MISSED";
+    }
     return hasCompleted ? "IN_PROGRESS" : "ASSIGNED";
   }
   return hasCompleted ? "COMPLETED" : "CANCELLED";
@@ -346,37 +399,49 @@ export function deriveRouteStatus(
 // CANCELLED. A Center with no Contacts has no derived status (null) — it is
 // managed manually, exactly as before Contacts existed.
 export function deriveCenterStatus(
-  contactStatuses: ReadonlyArray<"PENDING" | "COMPLETED" | "CANCELLED">,
-): "PENDING" | "COMPLETED" | "CANCELLED" | null {
+  contactStatuses: ReadonlyArray<RouteItemStatusValue>,
+): RouteItemStatusValue | null {
   if (contactStatuses.length === 0) return null;
   if (contactStatuses.includes("PENDING")) return "PENDING";
   return contactStatuses.includes("COMPLETED") ? "COMPLETED" : "CANCELLED";
 }
 
-// Re-derives and stores a Center's status from its Contacts. Called inside
-// the same transaction as every Contact change, so a Center can never
-// contradict its Contacts.
-async function syncCenterStatus(routeItemId: string, actorId: string, db: Db): Promise<void> {
-  const derived = deriveCenterStatus(await listContactStatusesForItem(routeItemId, db));
-  if (derived) await updateRouteItemStatus(routeItemId, derived, actorId, db);
+// Re-derives and stores (for one assignment) a Center's status from its
+// Contacts. Called inside the same transaction as every Contact change, so
+// a Center can never contradict its Contacts, for that assignment.
+async function syncCenterStatus(
+  routeItemId: string,
+  routeAssignmentId: string,
+  actorId: string,
+  db: Db,
+): Promise<void> {
+  const derived = deriveCenterStatus(
+    await listContactStatusesForItem(routeItemId, routeAssignmentId, db),
+  );
+  if (derived) await upsertItemExecution(routeItemId, routeAssignmentId, derived, actorId, db);
 }
 
-async function toGroupSummaries(
-  routes: RouteWithItems[],
-  now: Date = new Date(),
-): Promise<RouteGroupSummary[]> {
+// Merges a set of per-assignment execution rows for one item/contact into a
+// single informational status for the content-only lists (Plan Routes / Add
+// Routes), which show a route independent of any one assignee: COMPLETED if
+// any assignment completed it, CANCELLED if every assignment that touched
+// it cancelled it, else PENDING (including "nobody has touched it yet").
+function mergedStatus(
+  executions: ReadonlyArray<{ status: RouteItemStatusValue }>,
+): RouteItemStatusValue {
+  if (executions.length === 0) return "PENDING";
+  if (executions.some((e) => e.status === "COMPLETED")) return "COMPLETED";
+  if (executions.every((e) => e.status === "CANCELLED")) return "CANCELLED";
+  return "PENDING";
+}
+
+async function toContentSummaries(routes: RouteWithItems[]): Promise<RouteGroupSummary[]> {
   const nameIds = [
-    ...new Set(
-      routes
-        .flatMap((route) => [route.userId, route.createdBy])
-        .filter((id): id is string => id !== null),
-    ),
+    ...new Set(routes.map((r) => r.createdBy).filter((id): id is string => id !== null)),
   ];
   const users = nameIds.length > 0 ? await findUsersByIds(nameIds) : [];
   const nameById = new Map(users.map((user) => [user.id, user.name]));
 
-  // One query for every (center, contact) link across every route shown —
-  // never one per center.
   const allItems = routes.flatMap((route) => route.items);
   const centerIds = [...new Set(allItems.map((item) => item.center.id))];
   const contactIds = [
@@ -389,23 +454,20 @@ async function toGroupSummaries(
 
   return routes.map((route) => ({
     id: route.id,
-    userId: route.userId,
-    visitorName: route.userId ? (nameById.get(route.userId) ?? null) : null,
+    assignmentId: null,
+    userId: null,
+    visitorName: null,
     code: route.code,
-    startDate: route.startDate,
-    endDate: route.endDate,
-    status: deriveRouteStatus(
-      route,
-      route.items.map((item) => item.status),
-      now,
-    ),
-    editable: isRouteEditable(route.startDate, now),
+    startDate: null,
+    endDate: null,
+    status: "UNASSIGNED" as const,
+    editable: true,
     createdBy: route.createdBy,
     createdByName: route.createdBy ? (nameById.get(route.createdBy) ?? null) : null,
     items: route.items.map((item) => ({
       id: item.id,
       sequence: item.sequence,
-      status: itemDisplayStatus(item.status, route.endDate, now),
+      status: mergedStatus(item.executions),
       center: {
         id: item.center.id,
         name: item.center.name,
@@ -420,7 +482,7 @@ async function toGroupSummaries(
         name: row.contact.name,
         code: row.contact.code,
         specialization: specializationByPair.get(`${item.center.id}:${row.contactId}`) ?? null,
-        status: itemDisplayStatus(row.status, route.endDate, now),
+        status: mergedStatus(row.executions),
         issue: !specializationByPair.has(`${item.center.id}:${row.contactId}`)
           ? ("NOT_ASSOCIATED" as const)
           : row.contact.status === "INACTIVE"
@@ -429,6 +491,98 @@ async function toGroupSummaries(
       })),
     })),
   }));
+}
+
+async function toAssignmentSummaries(
+  assignments: RouteAssignmentWithRoute[],
+  now: Date = new Date(),
+): Promise<RouteGroupSummary[]> {
+  const nameIds = [
+    ...new Set(
+      assignments
+        .flatMap((a) => [a.userId, a.route.createdBy])
+        .filter((id): id is string => id !== null),
+    ),
+  ];
+  const users = nameIds.length > 0 ? await findUsersByIds(nameIds) : [];
+  const nameById = new Map(users.map((user) => [user.id, user.name]));
+
+  const allItems = assignments.flatMap((a) => a.route.items);
+  const centerIds = [...new Set(allItems.map((item) => item.center.id))];
+  const contactIds = [
+    ...new Set(allItems.flatMap((item) => item.contacts.map((row) => row.contactId))),
+  ];
+  const links = contactIds.length > 0 ? await findCenterContactLinks(centerIds, contactIds) : [];
+  const specializationByPair = new Map(
+    links.map((link) => [`${link.centerId}:${link.contactId}`, link.specialization.name]),
+  );
+
+  return assignments.map((assignment) => {
+    const itemStatusById = new Map(assignment.itemExecutions.map((e) => [e.routeItemId, e.status]));
+    const contactStatusById = new Map(
+      assignment.contactExecutions.map((e) => [e.routeItemContactId, e.status]),
+    );
+    const itemStatuses = assignment.route.items.map((item) =>
+      item.contacts.length > 0
+        ? (deriveCenterStatus(
+            item.contacts.map((row) => contactStatusById.get(row.id) ?? "PENDING"),
+          ) ?? "PENDING")
+        : (itemStatusById.get(item.id) ?? "PENDING"),
+    );
+
+    return {
+      id: assignment.route.id,
+      assignmentId: assignment.id,
+      userId: assignment.userId,
+      visitorName: nameById.get(assignment.userId) ?? null,
+      code: assignment.route.code,
+      startDate: assignment.startDate,
+      endDate: assignment.endDate,
+      status: deriveRouteStatus(assignment, itemStatuses, now),
+      editable: isRouteEditableForAssignments(
+        assignment.status === "ACTIVE" ? [assignment] : [],
+        now,
+      ),
+      createdBy: assignment.route.createdBy,
+      createdByName: assignment.route.createdBy
+        ? (nameById.get(assignment.route.createdBy) ?? null)
+        : null,
+      items: assignment.route.items.map((item) => ({
+        id: item.id,
+        sequence: item.sequence,
+        status: itemDisplayStatus(
+          itemStatusById.get(item.id) ?? "PENDING",
+          assignment.endDate,
+          now,
+        ),
+        center: {
+          id: item.center.id,
+          name: item.center.name,
+          code: item.center.code,
+          territoryId: item.center.territoryId,
+          typeName: item.center.type.name,
+          territoryPath: formatTerritoryPath(item.center.territory),
+        },
+        contacts: item.contacts.map((row) => ({
+          id: row.id,
+          contactId: row.contactId,
+          name: row.contact.name,
+          code: row.contact.code,
+          specialization: specializationByPair.get(`${item.center.id}:${row.contactId}`) ?? null,
+          status: itemDisplayStatus(
+            contactStatusById.get(row.id) ?? "PENDING",
+            assignment.endDate,
+            now,
+          ),
+          issue: !specializationByPair.has(`${item.center.id}:${row.contactId}`)
+            ? ("NOT_ASSOCIATED" as const)
+            : row.contact.status === "INACTIVE"
+              ? ("INACTIVE" as const)
+              : null,
+        })),
+      })),
+    };
+  });
 }
 
 // The visitor's (or creator's, while unassigned) permitted territories —
@@ -446,8 +600,6 @@ export async function getPermittedTerritoryIds(userId: string): Promise<Set<stri
 
 // Whose assigned routes the actor's lists may show: their own and everyone
 // downstream of them (ADMIN: anyone's — undefined means "no restriction").
-// The actor is included so a route they assigned to themselves stays visible
-// to them; assertCanActOnRoute already lets the assignee act on it.
 async function assignedScopeUserIds(
   actorId: string,
   actorRoleName: string,
@@ -456,10 +608,9 @@ async function assignedScopeUserIds(
   return [actorId, ...(await getDownstreamUserIds(actorId))];
 }
 
-// Add Routes list — the actor's own unassigned drafts plus any route already
-// assigned to them or within their downstream chain (ADMIN: all), one page at a time,
-// newest first, narrowed by search, assignee and date range. Same scope as
-// the Assign Routes table.
+// Add Routes list — content-only, every route within the actor's reach
+// regardless of how many (if any) active assignments it carries. Same scope
+// as the Assign Routes table.
 export async function listRoutesForContent(
   params: RouteListParams,
   actorId: string,
@@ -477,17 +628,16 @@ export async function listRoutesForContent(
     ...toSkipTake(params),
   });
   return {
-    items: await toGroupSummaries(routes),
+    items: await toContentSummaries(routes),
     total,
     page: params.page,
     pageSize: params.pageSize,
   };
 }
 
-// Assign Routes table — same reach as Plan Routes (the actor's own unassigned
-// drafts, plus anything assigned within their downstream chain, ADMIN: all),
-// filtered and paginated on the server. The visibility rule lives in the
-// repository's scope clause, so a filter can only ever narrow it.
+// Assign Routes table — one row per assignment (a route with two concurrent
+// assignees appears twice), scoped to the actor's downstream chain (ADMIN:
+// all), filtered and paginated on the server.
 export async function listRoutesForAssignment(
   filters: RouteFilters,
   actorId: string,
@@ -495,7 +645,7 @@ export async function listRoutesForAssignment(
 ): Promise<PagedResult<RouteGroupSummary>> {
   const assignedUserIds = await assignedScopeUserIds(actorId, actorRoleName);
   const now = new Date();
-  const { routes, total } = await findRoutesPage({
+  const { assignments, total } = await findAssignmentsPage({
     scope: { creatorId: actorId, assignedUserIds },
     filters: {
       q: filters.q || undefined,
@@ -508,15 +658,16 @@ export async function listRoutesForAssignment(
     ...toSkipTake(filters),
   });
   return {
-    items: await toGroupSummaries(routes, now),
+    items: await toAssignmentSummaries(assignments, now),
     total,
     page: filters.page,
     pageSize: filters.pageSize,
   };
 }
 
-// One route for its Manage page. Authorized exactly like every other action
-// on a route; "not found" and "not yours" are indistinguishable (null).
+// One route for its content-management page (Plan Routes). Authorized for
+// anyone who can act on its content; "not found" and "not yours" are
+// indistinguishable (null).
 export async function getRouteForManagement(
   routeId: string,
   actorId: string,
@@ -524,21 +675,48 @@ export async function getRouteForManagement(
 ): Promise<RouteGroupSummary | null> {
   const route = await findRouteById(routeId);
   if (!route) return null;
+  const activeAssignments = await findActiveAssignmentsForRoute(routeId);
   try {
-    await assertCanActOnRoute(route, actorId, actorRoleName);
+    await assertCanActOnRouteContent(
+      route,
+      activeAssignments.map((a) => a.userId),
+      actorId,
+      actorRoleName,
+    );
   } catch (error) {
     if (error instanceof RouteNotAuthorizedError) return null;
     throw error;
   }
-  const [summary] = await toGroupSummaries([route]);
+  const [summary] = await toContentSummaries([route]);
   return summary ?? null;
 }
 
-// Visits — every route currently assigned to this visitor, regardless of
-// who created or assigned it.
+// One assignment for its own management page (Assign Routes row detail —
+// reassign/cancel live here, scoped to this one assignment alone).
+export async function getAssignmentForManagement(
+  assignmentId: string,
+  actorId: string,
+  actorRoleName: string,
+): Promise<RouteGroupSummary | null> {
+  const assignment = await findAssignmentById(assignmentId);
+  if (!assignment) return null;
+  try {
+    await assertCanActOnAssignment(assignment, actorId, actorRoleName);
+  } catch (error) {
+    if (error instanceof RouteNotAuthorizedError) return null;
+    throw error;
+  }
+  const [summary] = await toAssignmentSummaries([assignment]);
+  return summary ?? null;
+}
+
+// Visits — every ACTIVE assignment currently held by this visitor,
+// regardless of who created or assigned the underlying route. A visitor
+// holding two concurrent assignments (possibly even on the same route) sees
+// both as separate rows, each with their own progress.
 export async function getMyVisits(visitorId: string): Promise<RouteGroupSummary[]> {
-  const routes = await findRoutesForVisitor(visitorId);
-  return toGroupSummaries(routes);
+  const assignments = await findActiveAssignmentsForVisitor(visitorId);
+  return toAssignmentSummaries(assignments);
 }
 
 export type HomeRoutes = {
@@ -546,22 +724,22 @@ export type HomeRoutes = {
   upcomingWeek: { range: DateRange; routes: RouteGroupSummary[] };
 };
 
-// Home's "My Routes" — only the signed-in user's own assignments, split into
-// This Week and Upcoming Week (Monday–Sunday, Africa/Kinshasa) by *overlap*
-// with each route's assignment range. A route spanning both weeks is one
-// assignment that simply appears in both sections, whole — never split or
-// duplicated. Cancelled routes are left out; completed ones stay while their
-// range overlaps. Uses the same summaries as every other screen, so no
-// status or visibility logic is repeated here.
+// Home's "My Routes" — only the signed-in user's own ACTIVE assignments,
+// split into This Week and Upcoming Week (Monday–Sunday, Africa/Kinshasa) by
+// *overlap* with each assignment's range. An assignment spanning both weeks
+// is one row that simply appears in both sections, whole — never split or
+// duplicated.
 export async function getMyRoutesForHome(
   userId: string,
   now: Date = new Date(),
 ): Promise<HomeRoutes> {
   const { thisWeek, upcomingWeek } = currentAndUpcomingWeeks(now);
-  const rows = await findRoutesForVisitorOverlapping(userId, thisWeek.start, upcomingWeek.end);
-  const active = (await toGroupSummaries(rows, now)).filter(
-    (route) => route.status !== "CANCELLED",
+  const rows = await findActiveAssignmentsForVisitorOverlapping(
+    userId,
+    thisWeek.start,
+    upcomingWeek.end,
   );
+  const active = await toAssignmentSummaries(rows, now);
 
   const inWeek = (week: DateRange) =>
     active.filter(
@@ -584,8 +762,14 @@ export async function reorderRouteItems(
 ): Promise<void> {
   const route = await findRouteById(routeId);
   if (!route) return;
-  await assertCanActOnRoute(route, actorId, actorRoleName);
-  // Deliberately NOT gated by isRouteEditable — sequence-only, not a
+  const activeAssignments = await findActiveAssignmentsForRoute(routeId);
+  await assertCanActOnRouteContent(
+    route,
+    activeAssignments.map((a) => a.userId),
+    actorId,
+    actorRoleName,
+  );
+  // Deliberately NOT gated by the edit cutoff — sequence-only, not a
   // content change; see my-visits-board.tsx / route-visits-board.tsx.
 
   await Promise.all(
@@ -600,11 +784,12 @@ export async function reorderRouteItems(
 // get removed, new ones get created, everyone kept gets resequenced to
 // match, and each kept center's pending contacts are added/removed to
 // match. `routeId: null` covers a brand-new route — created here, in the
-// same call, only once there's actually something to save. COMPLETED and
-// CANCELLED items and contacts are never touched by the diff — only
-// PENDING ones are ever part of the editable set. Every check runs before
-// the first write, and every write runs in one transaction, so a failure
-// can never leave a half-saved route.
+// same call, only once there's actually something to save. An item or
+// contact that anyone has ever acted on (completed or cancelled, for any
+// assignment) is never touched by the diff — only ones nobody has acted on
+// are ever part of the editable set. Every check runs before the first
+// write, and every write runs in one transaction, so a failure can never
+// leave a half-saved route.
 export async function saveRouteContent(
   routeId: string | null,
   selections: RouteSelectionInput[],
@@ -614,12 +799,18 @@ export async function saveRouteContent(
   const route = routeId ? await findRouteById(routeId) : null;
   if (routeId && !route) throw new RouteNotAuthorizedError();
 
+  const activeAssignments = route ? await findActiveAssignmentsForRoute(route.id) : [];
   if (route) {
-    await assertCanActOnRoute(route, actorId, actorRoleName);
-    if (!isRouteEditable(route.startDate)) throw new RouteEditCutoffError();
+    await assertCanActOnRouteContent(
+      route,
+      activeAssignments.map((a) => a.userId),
+      actorId,
+      actorRoleName,
+    );
+    if (!isRouteEditableForAssignments(activeAssignments)) throw new RouteEditCutoffError();
   }
 
-  const territoryOwnerId = route ? (route.userId ?? route.createdBy) : actorId;
+  const territoryOwnerId = activeAssignments[0]?.userId ?? route?.createdBy ?? actorId;
   const permittedTerritoryIds = territoryOwnerId
     ? await getPermittedTerritoryIds(territoryOwnerId)
     : new Set<string>();
@@ -629,13 +820,14 @@ export async function saveRouteContent(
     throw new CenterAlreadyOnRouteError();
   }
 
-  const editableExistingItems = (route?.items ?? []).filter((item) => item.status === "PENDING");
+  const untouched = (item: RouteWithItems["items"][number]) => item.executions.length === 0;
+  const editableExistingItems = (route?.items ?? []).filter(untouched);
   const existingByCenterId = new Map(editableExistingItems.map((item) => [item.center.id, item]));
-  // A center whose item is already COMPLETED/CANCELLED is history on this
-  // route — it can't be re-added (the unique (route, center) constraint
-  // would reject it anyway; this gives a clear message first).
+  // A center any assignment has already acted on is history on this route —
+  // it can't be re-added (the unique (route, center) constraint would
+  // reject it anyway; this gives a clear message first).
   const finalizedCenterIds = new Set(
-    (route?.items ?? []).filter((item) => item.status !== "PENDING").map((item) => item.center.id),
+    (route?.items ?? []).filter((item) => !untouched(item)).map((item) => item.center.id),
   );
   if (centerIdsInOrder.some((id) => finalizedCenterIds.has(id))) {
     throw new CenterAlreadyOnRouteError();
@@ -645,7 +837,11 @@ export async function saveRouteContent(
   const toRemove = editableExistingItems.filter((item) => !keepCenterIds.has(item.center.id));
   const toAddCenterIds = centerIdsInOrder.filter((id) => !existingByCenterId.has(id));
 
-  if (toRemove.some((item) => item.contacts.some((row) => row.status === "COMPLETED"))) {
+  if (
+    toRemove.some((item) =>
+      item.contacts.some((row) => row.executions.some((e) => e.status === "COMPLETED")),
+    )
+  ) {
     throw new RouteItemHasCompletedContactsError();
   }
 
@@ -658,12 +854,16 @@ export async function saveRouteContent(
     }
   }
 
-  if (route?.userId && route.startDate && route.endDate) {
+  // Duplicate-elsewhere check runs per active assignee — a center can't be
+  // added here if it's already active on one of this route's assignees'
+  // other routes in their overlapping range.
+  for (const assignment of activeAssignments) {
+    if (!assignment.startDate || !assignment.endDate) continue;
     const activeElsewhere = await findActiveCenterIdsForVisitorInRange(
-      route.userId,
-      route.startDate,
-      route.endDate,
-      route.id,
+      assignment.userId,
+      assignment.startDate,
+      assignment.endDate,
+      route!.id,
     );
     if (toAddCenterIds.some((id) => activeElsewhere.has(id))) {
       throw new DuplicateCenterOnRouteError();
@@ -671,21 +871,21 @@ export async function saveRouteContent(
   }
 
   // Contacts — plan the per-center diff first, then validate every kept or
-  // new selection against ContactCenter in one query. A contact that
-  // already has a final status on this item can't be selected again.
+  // new selection against ContactCenter in one query. A contact anyone has
+  // already acted on can't be selected again.
   const contactPlans = selections.map((selection) => {
     const existing = existingByCenterId.get(selection.centerId);
     const existingRows = new Map((existing?.contacts ?? []).map((row) => [row.contactId, row]));
     for (const contactId of selection.contactIds) {
       const row = existingRows.get(contactId);
-      if (row && row.status !== "PENDING") throw new ContactAlreadyOnRouteError();
+      if (row && row.executions.length > 0) throw new ContactAlreadyOnRouteError();
     }
     const desired = new Set(selection.contactIds);
     return {
       centerId: selection.centerId,
       existingItemId: existing?.id ?? null,
       toDelete: (existing?.contacts ?? [])
-        .filter((row) => row.status === "PENDING" && !desired.has(row.contactId))
+        .filter((row) => row.executions.length === 0 && !desired.has(row.contactId))
         .map((row) => row.contactId),
       toCreate: selection.contactIds.filter((contactId) => !existingRows.has(contactId)),
       selectedContactIds: selection.contactIds,
@@ -715,7 +915,7 @@ export async function saveRouteContent(
     const resolvedRouteId = route?.id ?? (await createRouteRow(actorId, tx)).id;
 
     for (const item of toRemove) {
-      await deleteNonCompletedRouteItemContacts(item.id, tx);
+      await deleteAllRouteItemContacts(item.id, tx);
       await deleteRouteItem(item.id, tx);
     }
 
@@ -737,93 +937,115 @@ export async function saveRouteContent(
         itemId = created.id;
       }
 
-      if (plan.toDelete.length > 0) await deletePendingRouteItemContacts(itemId, plan.toDelete, tx);
+      if (plan.toDelete.length > 0) await deleteRouteItemContacts(itemId, plan.toDelete, tx);
       if (plan.toCreate.length > 0)
         await createRouteItemContacts(itemId, plan.toCreate, actorId, tx);
-      if (plan.existingItemId && (plan.toDelete.length > 0 || plan.toCreate.length > 0)) {
-        await syncCenterStatus(itemId, actorId, tx);
-      }
     }
 
     return resolvedRouteId;
   });
 }
 
-// Strictly the visitor themselves — no chain exception, not even ADMIN.
-// Deliberately not gated by isRouteEditable: a visit is normally completed
-// on or after its own date, exactly when content editing has locked. A
-// center that has contacts can't be completed directly — it completes when
-// its contacts do.
-export async function completeRouteItem(routeItemId: string, actorId: string): Promise<void> {
+// Strictly the assignment's own holder — no chain exception, not even
+// ADMIN. Deliberately not gated by the edit cutoff: a visit is normally
+// completed on or after its own date, exactly when content editing has
+// locked. A center that has contacts can't be completed directly — it
+// completes when its contacts do.
+export async function completeRouteItem(
+  routeItemId: string,
+  routeAssignmentId: string,
+  actorId: string,
+): Promise<void> {
   const item = await findRouteItemById(routeItemId);
   if (!item) return;
-  if (item.route.userId !== actorId) throw new RouteNotOwnedError();
+  const assignment = await findAssignmentById(routeAssignmentId);
+  if (!assignment || assignment.userId !== actorId) throw new RouteNotOwnedError();
+  if (assignment.status !== "ACTIVE") throw new AssignmentNotActiveError();
   if (item.contacts.length > 0) throw new CenterStatusDerivedError();
 
-  await updateRouteItemStatus(routeItemId, "COMPLETED", actorId);
+  await upsertItemExecution(routeItemId, routeAssignmentId, "COMPLETED", actorId);
 }
 
-// Visitor or anyone with assign-team capability in their upward chain —
-// only meaningful once a route is assigned (an unassigned item has no
-// visitor-level "cancel" claim; remove it via Plan Routes instead). For a
-// center with contacts, cancelling cancels its still-PENDING contacts
-// (completed ones are untouched) and the center's status is then derived —
-// so it ends COMPLETED, not CANCELLED, if any contact was already done.
+// Visitor (for their own assignment) or anyone with assign-team capability
+// in their upward chain — only ever cancels the acting assignment's own
+// progress, never touching any other assignee sharing the same stop list.
+// For a center with contacts, cancelling cancels its still-PENDING contacts
+// (for this assignment; completed ones are untouched) and the center's
+// status is then derived — so it ends COMPLETED, not CANCELLED, if any
+// contact was already done.
 export async function cancelRouteItem(
   routeItemId: string,
+  routeAssignmentId: string,
   actorId: string,
   actorRoleName: string,
 ): Promise<void> {
   const item = await findRouteItemById(routeItemId);
   if (!item) return;
-  if (item.route.userId === null) throw new RouteNotAuthorizedError();
-  await assertCanActOnRoute(item.route, actorId, actorRoleName);
+  const assignment = await findAssignmentById(routeAssignmentId);
+  if (!assignment) return;
+  await assertCanActOnAssignment(assignment, actorId, actorRoleName);
 
   if (item.contacts.length > 0) {
     await runInTransaction(async (tx) => {
-      await cancelPendingContactsOnItem(routeItemId, actorId, tx);
-      await syncCenterStatus(routeItemId, actorId, tx);
+      const pendingContactIds = await listPendingContactIdsForItem(
+        routeItemId,
+        routeAssignmentId,
+        tx,
+      );
+      for (const contactId of pendingContactIds) {
+        await upsertContactExecution(contactId, routeAssignmentId, "CANCELLED", actorId, tx);
+      }
+      await syncCenterStatus(routeItemId, routeAssignmentId, actorId, tx);
     });
     return;
   }
 
-  await updateRouteItemStatus(routeItemId, "CANCELLED", actorId);
+  await upsertItemExecution(routeItemId, routeAssignmentId, "CANCELLED", actorId);
 }
 
-// Strictly the visitor, same as completing a center.
+// Strictly the assignment's own holder, same as completing a center.
 export async function completeRouteItemContact(
   routeItemContactId: string,
+  routeAssignmentId: string,
   actorId: string,
 ): Promise<void> {
   const row = await findRouteItemContactById(routeItemContactId);
   if (!row) return;
-  if (row.routeItem.route.userId !== actorId) throw new RouteNotOwnedError();
-  if (row.status === "COMPLETED") return;
-  if (row.status !== "PENDING") throw new ContactStatusConflictError();
+  const assignment = await findAssignmentById(routeAssignmentId);
+  if (!assignment || assignment.userId !== actorId) throw new RouteNotOwnedError();
+  if (assignment.status !== "ACTIVE") throw new AssignmentNotActiveError();
+
+  const current = await findContactExecutionStatus(routeItemContactId, routeAssignmentId);
+  if (current === "COMPLETED") return;
+  if (current !== "PENDING") throw new ContactStatusConflictError();
 
   await runInTransaction(async (tx) => {
-    await updateRouteItemContactStatus(routeItemContactId, "COMPLETED", actorId, tx);
-    await syncCenterStatus(row.routeItemId, actorId, tx);
+    await upsertContactExecution(routeItemContactId, routeAssignmentId, "COMPLETED", actorId, tx);
+    await syncCenterStatus(row.routeItemId, routeAssignmentId, actorId, tx);
   });
 }
 
-// Same authorization as cancelling a center: the visitor or anyone with the
-// visitor in their downstream chain. A completed contact can't be cancelled.
+// Same authorization as cancelling a center: the assignment's holder or
+// anyone with the holder in their downstream chain.
 export async function cancelRouteItemContact(
   routeItemContactId: string,
+  routeAssignmentId: string,
   actorId: string,
   actorRoleName: string,
 ): Promise<void> {
   const row = await findRouteItemContactById(routeItemContactId);
   if (!row) return;
-  if (row.routeItem.route.userId === null) throw new RouteNotAuthorizedError();
-  await assertCanActOnRoute(row.routeItem.route, actorId, actorRoleName);
-  if (row.status === "CANCELLED") return;
-  if (row.status !== "PENDING") throw new ContactStatusConflictError();
+  const assignment = await findAssignmentById(routeAssignmentId);
+  if (!assignment) return;
+  await assertCanActOnAssignment(assignment, actorId, actorRoleName);
+
+  const current = await findContactExecutionStatus(routeItemContactId, routeAssignmentId);
+  if (current === "CANCELLED") return;
+  if (current !== "PENDING") throw new ContactStatusConflictError();
 
   await runInTransaction(async (tx) => {
-    await updateRouteItemContactStatus(routeItemContactId, "CANCELLED", actorId, tx);
-    await syncCenterStatus(row.routeItemId, actorId, tx);
+    await upsertContactExecution(routeItemContactId, routeAssignmentId, "CANCELLED", actorId, tx);
+    await syncCenterStatus(row.routeItemId, routeAssignmentId, actorId, tx);
   });
 }
 
@@ -868,11 +1090,10 @@ async function assertItemsFitTerritoryAndNoDuplicates(
   }
 }
 
-// First-time assignment — only for a route nobody holds yet (the Assign
-// Routes form never overwrites an existing assignment; see reassignRoute for
-// that explicit action). The assignee becomes responsible for the route for
-// the whole startDate..endDate range. Assignment and its history row are
-// written in one transaction.
+// Assign this route to a new user for a date range — concurrent assignment
+// is the point, so an already-assigned route is still offered; the only
+// thing blocked is assigning the same person twice while they already hold
+// an active assignment here.
 export async function assignRoute(
   routeId: string,
   targetUserId: string,
@@ -883,105 +1104,103 @@ export async function assignRoute(
 ): Promise<string> {
   const route = await findRouteById(routeId);
   if (!route) throw new RouteNotAuthorizedError();
-  await assertCanActOnRoute(route, actorId, actorRoleName);
-  if (route.userId !== null) throw new RouteAlreadyAssignedError();
-  if (!route.items.some((item) => item.status === "PENDING")) {
-    throw new RouteHasNothingToAssignError();
+  const activeAssignments = await findActiveAssignmentsForRoute(routeId);
+  await assertCanActOnRouteContent(
+    route,
+    activeAssignments.map((a) => a.userId),
+    actorId,
+    actorRoleName,
+  );
+  if (route.items.length === 0) throw new RouteHasNothingToAssignError();
+  // An ACTIVE assignment never flips to any other status just because its
+  // work is done — status only ever changes via explicit cancellation (see
+  // the schema comment on RouteAssignment). So "already assigned" has to
+  // mean "still has something pending for them here," not merely "holds a
+  // non-cancelled row" — otherwise a route a person has already finished
+  // could never be handed to them again.
+  for (const existing of activeAssignments.filter((a) => a.userId === targetUserId)) {
+    const pending = await listPendingExecutionTargetsForAssignment(routeId, existing.id);
+    if (pending.itemIds.length > 0 || pending.itemsWithContactsIds.length > 0) {
+      throw new RouteAlreadyAssignedToUserError();
+    }
   }
 
   assertAssignableRange(startDate, endDate, new Date());
   await assertTargetAssignable(targetUserId, actorId, actorRoleName);
   await assertItemsFitTerritoryAndNoDuplicates(route, targetUserId, startDate, endDate);
 
-  await runInTransaction(async (tx) => {
-    await assignRouteRow(routeId, targetUserId, startDate, endDate, actorId, tx);
-    await createRouteAssignmentRow(
-      { routeId, action: "ASSIGNED", userId: targetUserId, startDate, endDate },
-      actorId,
-      tx,
-    );
-  });
-  return routeId;
+  const created = await createAssignmentRow(
+    { routeId, userId: targetUserId, startDate, endDate },
+    actorId,
+  );
+  return created.id;
 }
 
-// Reassignment — an already-assigned route goes to a different user and/or a
-// different range. Updates the same route in place (same id, same code,
-// items and their contacts untouched) and appends a REASSIGNED history row
-// recording the new holder and range; the previous holder and dates stay on
-// the earlier history rows. Only valid while nothing has been completed —
-// no completed center and no completed contact — so completed work always
-// stays with the person who did it.
+// Reassignment — one specific assignment moves to a different user and/or a
+// different range. Cancels the current assignment row and creates a new
+// one for the new holder; the route's items and their contacts are
+// untouched (shared plan content). Only valid while nothing has been
+// completed on this assignment — no completed center and no completed
+// contact — so completed work always stays attributed to the person who
+// did it.
 export async function reassignRoute(
-  routeId: string,
+  assignmentId: string,
   targetUserId: string,
   startDate: Date,
   endDate: Date,
   actorId: string,
   actorRoleName: string,
 ): Promise<string> {
-  const route = await findRouteById(routeId);
-  if (!route) throw new RouteNotAuthorizedError();
-  await assertCanActOnRoute(route, actorId, actorRoleName);
-  if (route.userId === null) throw new RouteNotAssignedError();
+  const assignment = await findAssignmentById(assignmentId);
+  if (!assignment) throw new AssignmentNotFoundError();
+  await assertCanActOnAssignment(assignment, actorId, actorRoleName);
+  if (assignment.status !== "ACTIVE") throw new AssignmentNotActiveError();
 
-  if (
-    route.items.some(
-      (item) =>
-        item.status === "COMPLETED" || item.contacts.some((row) => row.status === "COMPLETED"),
-    )
-  ) {
-    throw new RouteHasCompletedItemsError();
-  }
+  const completedSomewhere =
+    assignment.itemExecutions.some((e) => e.status === "COMPLETED") ||
+    assignment.contactExecutions.some((e) => e.status === "COMPLETED");
+  if (completedSomewhere) throw new RouteHasCompletedItemsError();
 
   assertAssignableRange(startDate, endDate, new Date());
   await assertTargetAssignable(targetUserId, actorId, actorRoleName);
-  await assertItemsFitTerritoryAndNoDuplicates(route, targetUserId, startDate, endDate);
+  await assertItemsFitTerritoryAndNoDuplicates(assignment.route, targetUserId, startDate, endDate);
 
-  await runInTransaction(async (tx) => {
-    await assignRouteRow(routeId, targetUserId, startDate, endDate, actorId, tx);
-    await createRouteAssignmentRow(
-      { routeId, action: "REASSIGNED", userId: targetUserId, startDate, endDate },
+  const created = await runInTransaction(async (tx) => {
+    await cancelAssignmentRow(assignmentId, actorId, tx);
+    return createAssignmentRow(
+      { routeId: assignment.routeId, userId: targetUserId, startDate, endDate },
       actorId,
       tx,
     );
   });
-  return routeId;
+  return created.id;
 }
 
-// "Cancel the assignment" — bulk-cancels every still-PENDING item, same
-// authorization boundary as every other action on an assigned route. Does
-// NOT revert the route to unassigned; completed items (if any) are
-// untouched, cancelled items stay cancelled, only PENDING flips. Appends a
-// CANCELLED history row (holder and range as they were).
+// "Cancel the assignment" — flips this one assignment to CANCELLED and
+// bulk-cancels every still-PENDING item/contact *for this assignment only*;
+// any other assignee sharing the same route's stop list is untouched.
 export async function cancelRouteAssignment(
-  routeId: string,
+  assignmentId: string,
   actorId: string,
   actorRoleName: string,
 ): Promise<void> {
-  const route = await findRouteById(routeId);
-  if (!route || route.userId === null) return;
-  await assertCanActOnRoute(route, actorId, actorRoleName);
-  const holderId = route.userId;
+  const assignment = await findAssignmentById(assignmentId);
+  if (!assignment || assignment.status !== "ACTIVE") return;
+  await assertCanActOnAssignment(assignment, actorId, actorRoleName);
 
   await runInTransaction(async (tx) => {
-    await cancelPendingContactsOnRoute(routeId, actorId, tx);
-    await cancelPendingContactlessRouteItems(routeId, actorId, tx);
-    // Centers that have contacts take their status from them — re-derive
-    // each one now that its pending contacts are cancelled.
-    for (const itemId of await listPendingItemIdsWithContacts(routeId, tx)) {
-      await syncCenterStatus(itemId, actorId, tx);
+    const { itemIds, itemsWithContactsIds, contactIds } =
+      await listPendingExecutionTargetsForAssignment(assignment.routeId, assignmentId, tx);
+    for (const itemId of itemIds) {
+      await upsertItemExecution(itemId, assignmentId, "CANCELLED", actorId, tx);
     }
-    await createRouteAssignmentRow(
-      {
-        routeId,
-        action: "CANCELLED",
-        userId: holderId,
-        startDate: route.startDate,
-        endDate: route.endDate,
-      },
-      actorId,
-      tx,
-    );
+    for (const contactId of contactIds) {
+      await upsertContactExecution(contactId, assignmentId, "CANCELLED", actorId, tx);
+    }
+    for (const itemId of itemsWithContactsIds) {
+      await syncCenterStatus(itemId, assignmentId, actorId, tx);
+    }
+    await cancelAssignmentRow(assignmentId, actorId, tx);
   });
 }
 
@@ -1012,17 +1231,17 @@ export type AssignableRouteResult = {
   centerNames: string[];
 };
 
-// Unassigned routes the actor may assign (own drafts; ADMIN: anyone's) that
-// still have pending visits. The same eligibility assignRoute enforces, so
-// the dropdown never offers something the server would refuse.
+// Routes the actor may assign (own, or within their downstream chain's
+// reach; ADMIN: anyone's) that have at least one stop. Concurrent
+// assignment means an already-assigned route is still offered.
 export async function searchAssignableRoutesForActor(
   query: RouteSearchQuery,
   actorId: string,
   actorRoleName: string,
 ): Promise<AssignableRouteResult[]> {
+  const assignedUserIds = await assignedScopeUserIds(actorId, actorRoleName);
   const rows = await searchAssignableRoutes({
-    creatorId: actorId,
-    isAdmin: actorRoleName === "ADMIN",
+    scope: { creatorId: actorId, assignedUserIds },
     q: query.q,
     limit: query.limit,
   });
@@ -1058,9 +1277,9 @@ export async function searchAssigneesForActor(
 // --- Type-ahead search for the Plan Routes editor ---------------------------
 
 // The territories a search may reach: the actor's own on a brand-new route;
-// the route's visitor/creator's when editing an existing one (the same
-// owner saveRouteContent validates against), after the same authorization
-// every other action on that route requires.
+// the route's active-assignee's (or creator's, if unassigned) when editing
+// an existing one, after the same authorization every other content action
+// on that route requires.
 async function resolveSearchTerritoryIds(
   routeId: string | undefined,
   actorId: string,
@@ -1070,8 +1289,14 @@ async function resolveSearchTerritoryIds(
 
   const route = await findRouteById(routeId);
   if (!route) throw new RouteNotAuthorizedError();
-  await assertCanActOnRoute(route, actorId, actorRoleName);
-  const ownerId = route.userId ?? route.createdBy;
+  const activeAssignments = await findActiveAssignmentsForRoute(routeId);
+  await assertCanActOnRouteContent(
+    route,
+    activeAssignments.map((a) => a.userId),
+    actorId,
+    actorRoleName,
+  );
+  const ownerId = activeAssignments[0]?.userId ?? route.createdBy;
   return ownerId ? getPermittedTerritoryIds(ownerId) : new Set<string>();
 }
 

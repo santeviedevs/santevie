@@ -61,6 +61,7 @@ function item(n: number, contacts: ReturnType<typeof contact>[]) {
 function route(overrides: Partial<RouteGroupSummary> = {}): RouteGroupSummary {
   return {
     id: "r1",
+    assignmentId: "a1",
     code: "RT-00014",
     userId: "u1",
     visitorName: "Supervisor User",
