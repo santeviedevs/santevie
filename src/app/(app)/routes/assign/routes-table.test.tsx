@@ -64,6 +64,7 @@ function item(status: "PENDING" | "COMPLETED" | "CANCELLED" | "MISSED", n = 1) {
 function route(overrides: Partial<RouteGroupSummary> = {}): RouteGroupSummary {
   return {
     id: "r1",
+    assignmentId: "a1",
     code: "RT-00001",
     userId: "d1",
     visitorName: "Dele Gate",
@@ -137,7 +138,7 @@ describe("RoutesTable", () => {
       name: "RT-00001",
     });
 
-    expect(link).toHaveAttribute("href", "/routes/assign/r1");
+    expect(link).toHaveAttribute("href", "/routes/assign/a1");
   });
 
   it("opens the detail view when the row is clicked anywhere", () => {
@@ -146,7 +147,7 @@ describe("RoutesTable", () => {
     fireEvent.click(
       within(container.querySelector("table tbody tr") as HTMLElement).getByText("Dele Gate"),
     );
-    expect(push).toHaveBeenCalledWith("/routes/assign/r1");
+    expect(push).toHaveBeenCalledWith("/routes/assign/a1");
   });
 
   it("is visibly interactive: a pointer cursor and a hover highlight", () => {
@@ -199,7 +200,7 @@ describe("RoutesTable", () => {
     const { container } = render(<RoutesTable routes={[route()]} dict={dict} emptyLabel="" />);
     const card = within(container.querySelector("ul.md\\:hidden") as HTMLElement).getByRole("link");
 
-    expect(card).toHaveAttribute("href", "/routes/assign/r1");
+    expect(card).toHaveAttribute("href", "/routes/assign/a1");
     expect(card).toHaveTextContent("RT-00001");
   });
 

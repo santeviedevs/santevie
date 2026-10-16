@@ -27,10 +27,10 @@ import { cancelRouteAssignmentAction, type RouteFormState } from "../actions";
 // work or earlier history, and every authorization and rule check still
 // happens on the server.
 export function CancelAssignmentButton({
-  routeId,
+  assignmentId,
   dict,
 }: {
-  routeId: string;
+  assignmentId: string;
   dict: Dictionary["routesPage"];
 }) {
   const router = useRouter();
@@ -42,7 +42,7 @@ export function CancelAssignmentButton({
     setError(null);
     startTransition(async () => {
       const formData = new FormData();
-      formData.set("routeId", routeId);
+      formData.set("assignmentId", assignmentId);
       const result: RouteFormState = await cancelRouteAssignmentAction({ error: null }, formData);
       if (result.error) {
         setError(result.error);

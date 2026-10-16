@@ -237,20 +237,23 @@ export async function reassignFollowUp(
   return toSummary(updated);
 }
 
-// Viewable by the current owner, or a manager whose scope reaches the
-// owner — same reach as getAssignmentDetail. Includes the full
+// Viewable by the current owner, or anyone whose scope reaches the owner
+// and holds either activities:assign (who can also reassign from here) or
+// activities:view-team (read-only — same read-wider-than-write split as
+// assertCanViewAssignment in activity-service.ts). Includes the full
 // reassignment history so an ownership-change trail is visible.
 export async function getFollowUpDetail(
   id: string,
   session: ScopeSession,
   canAssign: boolean,
+  canViewTeam: boolean,
 ): Promise<{ followUp: FollowUpSummary; reassignments: FollowUpReassignmentSummary[] } | null> {
   const followUp = await findFollowUpById(id);
   if (!followUp) return null;
 
   const isOwner = followUp.ownerId === session.user.id;
   if (!isOwner) {
-    if (!canAssign) return null;
+    if (!canAssign && !canViewTeam) return null;
     const scope = await getUserScope(session);
     if (!isWithinScope(scope, followUp.ownerId)) return null;
   }

@@ -2,6 +2,7 @@ import { PaginationControls } from "@/components/pagination-controls";
 import { getServerDictionary } from "@/lib/i18n/server";
 import { DEFAULT_PAGE_SIZE, paginationParamsSchema, totalPages } from "@/lib/pagination";
 import { activityListParamsSchema } from "@/lib/schemas/activity";
+import { hasPermission } from "@/server/auth/permissions";
 import { requirePermission } from "@/server/auth/require-permission";
 import { listStandardEventActivityTypes } from "@/server/repositories/activity-repository";
 import { getMyAssignmentsPage } from "@/server/services/activity-service";
@@ -33,6 +34,7 @@ export default async function MyActivitiesPage({ searchParams }: MyActivitiesPag
   const session = await requirePermission("activities:respond-own");
   const dict = await getServerDictionary();
   const t = dict.activitiesPage;
+  const canViewTeam = hasPermission(session.user.permissions, "activities:view-team");
 
   const params = await searchParams;
   const pagination = paginationParamsSchema.parse({
@@ -60,7 +62,7 @@ export default async function MyActivitiesPage({ searchParams }: MyActivitiesPag
   return (
     <div className="flex flex-col gap-6 p-6">
       <h1 className="text-xl font-semibold">{t.myActivitiesTitle}</h1>
-      <MyActivitiesTabs active="activities" dict={t} />
+      <MyActivitiesTabs active="activities" canViewTeam={canViewTeam} dict={t} />
 
       <ActivityFilters filters={filters} typeOptions={typeOptions} dict={t} />
 

@@ -558,16 +558,36 @@ export async function updateAssignmentStatus(
 
 export type AssignmentExecutionSummary = AssignmentExecutionRow;
 
+// Read-only reach is wider than the write reach (assertCanActOnAssignment):
+// activities:view-team also gets to see a team member's recorded results,
+// not only activities:assign — a Supervisor can read but never submit or
+// reassign on someone else's behalf.
+function assertCanViewAssignment(
+  assignment: ActivityAssignmentRow,
+  actorId: string,
+  scope: Scope,
+  canAssign: boolean,
+  canViewTeam: boolean,
+): void {
+  if (assignment.user.id === actorId) return;
+  if ((canAssign || canViewTeam) && isWithinScope(scope, assignment.user.id)) return;
+  throw new ActivityNotAuthorizedError();
+}
+
 // Full execution detail for one assignment — this delegate's own results
 // (see the schema comments on ActivityAssignment / AssignmentParticipantResult
-// / AssignmentProductResult). Same own-assignment-or-canAssign reach as
-// every other per-assignment read.
+// / AssignmentProductResult), or, read-only, a team member's results for
+// anyone holding activities:assign or activities:view-team within scope.
 export async function getAssignmentExecutionDetail(
   assignmentId: string,
   session: ScopeSession,
   canAssign: boolean,
+  canViewTeam: boolean,
 ): Promise<AssignmentExecutionSummary | null> {
-  const assignment = await getAssignmentForAction(assignmentId, session, canAssign);
+  const assignment = await findAssignmentById(assignmentId);
+  if (!assignment) throw new AssignmentNotFoundError();
+  const scope = await getUserScope(session);
+  assertCanViewAssignment(assignment, session.user.id, scope, canAssign, canViewTeam);
   const row = await findAssignmentExecutionById(assignment.id);
   return row;
 }

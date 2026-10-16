@@ -24,8 +24,10 @@ export type Assignee = { id: string; name: string; employeeCode: string; roleNam
 // and `+ Add`. Both dropdowns are server-side searches (bounded, scoped to
 // what this user may assign) and the write is the assignRoute Server Action,
 // which re-checks everything — eligibility, permission, dates, territory and
-// duplicates — so nothing here is trusted. Only unassigned routes are ever
-// offered; changing an existing assignment is the explicit Reassign action.
+// duplicates — so nothing here is trusted. Any route within reach is
+// offered, even an already-assigned one — this always creates a new,
+// concurrent assignment; changing an existing one is the separate Reassign
+// action on that assignment's own Manage page.
 export function AssignForm({
   minDate,
   dict,

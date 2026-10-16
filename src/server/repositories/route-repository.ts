@@ -3,7 +3,11 @@ import { prisma } from "@/server/db";
 import type { Prisma } from "../../../generated/prisma/client";
 import { territoryPathSelect } from "./territory-path-select";
 
-const routeInclude = {
+// Shared plan content only — a route's stop list, never who's assigned to
+// it (that's RouteAssignment). Used by the content-editing side of the
+// feature (Plan Routes, reorder, complete/cancel item authorization lookup)
+// where the assignee is irrelevant.
+const routeContentInclude = {
   items: {
     include: {
       center: {
@@ -21,9 +25,15 @@ const routeInclude = {
           contact: {
             select: { id: true, name: true, code: true, status: true },
           },
+          // Across every assignment, not one — content editing needs to
+          // know "has anyone, ever, acted on this," not any one assignee's
+          // view. Presence of a row (any status) means finalized.
+          executions: { select: { status: true } },
         },
         orderBy: { contact: { name: "asc" } },
       },
+      // Same "has anyone acted on this" signal for a contactless item.
+      executions: { select: { status: true } },
     },
     orderBy: { sequence: "asc" },
   },
@@ -41,7 +51,7 @@ export function runInTransaction<T>(fn: (tx: Db) => Promise<T>): Promise<T> {
   return prisma.$transaction(fn);
 }
 
-export type RouteWithItems = Prisma.RouteGetPayload<{ include: typeof routeInclude }>;
+export type RouteWithItems = Prisma.RouteGetPayload<{ include: typeof routeContentInclude }>;
 export type RouteItemRow = Prisma.RouteItemGetPayload<object>;
 export type RouteItemContactRow = Prisma.RouteItemContactGetPayload<object>;
 
@@ -66,113 +76,122 @@ export async function createRouteRow(
 }
 
 export function findRouteById(id: string): Promise<RouteWithItems | null> {
-  return prisma.route.findUnique({ where: { id }, include: routeInclude });
+  return prisma.route.findUnique({ where: { id }, include: routeContentInclude });
 }
 
-// The reach of the Plan Routes / Assign Routes screens: the actor's own
-// still-unassigned drafts, plus any route already assigned to someone in
-// their downstream chain. `assignedUserIds` undefined means ADMIN — matches
-// assertCanActOnRoute's own ADMIN bypass exactly: no restriction at all,
-// every route, including other actors' unassigned drafts (not just the
-// ADMIN's own).
+// --- Assignments: who holds a route, and their own progress through it ----
+
+const assignmentWithRouteInclude = {
+  route: { include: routeContentInclude },
+  user: { select: { id: true, name: true } },
+  // Scoped to this assignment by its own FK — never needs a separate filter.
+  itemExecutions: { select: { routeItemId: true, status: true } },
+  contactExecutions: { select: { routeItemContactId: true, status: true } },
+} satisfies Prisma.RouteAssignmentInclude;
+
+export type RouteAssignmentWithRoute = Prisma.RouteAssignmentGetPayload<{
+  include: typeof assignmentWithRouteInclude;
+}>;
+
+export function findAssignmentById(id: string): Promise<RouteAssignmentWithRoute | null> {
+  return prisma.routeAssignment.findUnique({ where: { id }, include: assignmentWithRouteInclude });
+}
+
+// Every ACTIVE assignment currently on a route — used to check "is this
+// user already actively assigned here" and to validate a new assignment's
+// items against every other active assignee's own active centers.
+export function findActiveAssignmentsForRoute(
+  routeId: string,
+  db: Db = prisma,
+): Promise<Prisma.RouteAssignmentGetPayload<object>[]> {
+  return db.routeAssignment.findMany({ where: { routeId, status: "ACTIVE" } });
+}
+
+// Creates a brand-new ACTIVE assignment — used for both first-time
+// assignment and reassignment (which cancels the old row first, see
+// cancelAssignmentRow, then calls this for the new holder). Never mutates
+// an existing assignment's holder in place; a route can carry several
+// concurrent ones.
+export function createAssignmentRow(
+  data: { routeId: string; userId: string; startDate: Date; endDate: Date },
+  actorId: string,
+  db: Db = prisma,
+): Promise<Prisma.RouteAssignmentGetPayload<object>> {
+  return db.routeAssignment.create({
+    data: {
+      route: { connect: { id: data.routeId } },
+      user: { connect: { id: data.userId } },
+      status: "ACTIVE",
+      startDate: data.startDate,
+      endDate: data.endDate,
+      createdBy: actorId,
+      updatedBy: actorId,
+    },
+  });
+}
+
+export function cancelAssignmentRow(
+  assignmentId: string,
+  actorId: string,
+  db: Db = prisma,
+): Promise<Prisma.RouteAssignmentGetPayload<object>> {
+  return db.routeAssignment.update({
+    where: { id: assignmentId },
+    data: { status: "CANCELLED", updatedBy: actorId },
+  });
+}
+
+// The visitor's own active assignments, full content included — My Visits.
+export function findActiveAssignmentsForVisitor(
+  visitorId: string,
+): Promise<RouteAssignmentWithRoute[]> {
+  return prisma.routeAssignment.findMany({
+    where: { userId: visitorId, status: "ACTIVE" },
+    include: assignmentWithRouteInclude,
+    orderBy: { startDate: "desc" },
+  });
+}
+
+// The visitor's active assignments whose range touches [from, to] — the
+// Home screen's This Week / Upcoming Week source. One assignment is one row
+// no matter how many weeks it spans; the caller places it in each week it
+// overlaps.
+export function findActiveAssignmentsForVisitorOverlapping(
+  visitorId: string,
+  from: Date,
+  to: Date,
+): Promise<RouteAssignmentWithRoute[]> {
+  return prisma.routeAssignment.findMany({
+    where: { userId: visitorId, status: "ACTIVE", startDate: { lte: to }, endDate: { gte: from } },
+    include: assignmentWithRouteInclude,
+    orderBy: [{ startDate: "asc" }, { createdAt: "asc" }],
+  });
+}
+
+// --- Add Routes / Plan Routes list (content only, no assignee shown) ------
+
+// The reach of the Plan Routes screen: the actor's own routes (anything
+// they created, or hold/held an assignment on), plus any route assigned to
+// someone in their downstream chain. `assignedUserIds` undefined means
+// ADMIN — matches assertCanActOnRoute's own ADMIN bypass exactly: no
+// restriction at all.
 type RouteScope = { creatorId: string; assignedUserIds: string[] | undefined };
 
 function routeScopeWhere(scope: RouteScope): Prisma.RouteWhereInput {
   return scope.assignedUserIds
     ? {
         OR: [
-          { userId: null, createdBy: scope.creatorId },
-          { userId: { in: scope.assignedUserIds } },
+          { createdBy: scope.creatorId },
+          { assignments: { some: { userId: { in: scope.assignedUserIds } } } },
         ],
       }
     : {};
 }
 
-// The Add Routes list, one page at a time — newest first, same scope as
-// everywhere else. The total comes from the same where clause, so the page
-// count always matches what the list can show.
-export async function findEditableRoutesPage(params: {
-  scope: RouteScope;
-  filters: Pick<RouteTableFilters, "q" | "assigneeId" | "from" | "to">;
-  skip: number;
-  take: number;
-}): Promise<{ routes: RouteWithItems[]; total: number }> {
-  // Filters only ever narrow the actor's scope, never widen it.
-  const where: Prisma.RouteWhereInput = {
-    AND: [routeScopeWhere(params.scope), ...filterClauses(params.filters)],
-  };
-  const [routes, total] = await Promise.all([
-    prisma.route.findMany({
-      where,
-      include: routeInclude,
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      skip: params.skip,
-      take: params.take,
-    }),
-    prisma.route.count({ where }),
-  ]);
-  return { routes, total };
-}
+export type RouteContentFilters = { q?: string; assigneeId?: string; from?: Date; to?: Date };
 
-// --- Assign Routes table (server-side filtered and paginated) ---
-
-export type RouteTableFilters = {
-  q?: string;
-  assigneeId?: string;
-  status?: "ASSIGNED" | "IN_PROGRESS" | "MISSED" | "COMPLETED" | "CANCELLED";
-  from?: Date;
-  to?: Date;
-};
-
-// The derived-status filter, expressed over the stored data (the status
-// itself is never stored — see deriveRouteStatus in route-service.ts, which
-// these clauses must stay in step with). `today` is the Kinshasa calendar
-// date: an assigned route with a PENDING item past its endDate is MISSED.
-function statusWhere(
-  status: NonNullable<RouteTableFilters["status"]>,
-  today: Date,
-): Prisma.RouteWhereInput {
-  const assigned: Prisma.RouteWhereInput = { userId: { not: null } };
-  const hasPending: Prisma.RouteWhereInput = { items: { some: { status: "PENDING" } } };
-  const noPending: Prisma.RouteWhereInput = { items: { none: { status: "PENDING" } } };
-  const hasCompleted: Prisma.RouteWhereInput = { items: { some: { status: "COMPLETED" } } };
-  const noCompleted: Prisma.RouteWhereInput = { items: { none: { status: "COMPLETED" } } };
-  const pastEnd: Prisma.RouteWhereInput = { endDate: { lt: today } };
-  const notPastEnd: Prisma.RouteWhereInput = {
-    OR: [{ endDate: null }, { endDate: { gte: today } }],
-  };
-
-  switch (status) {
-    case "MISSED":
-      return { AND: [assigned, hasPending, pastEnd] };
-    case "IN_PROGRESS":
-      return { AND: [assigned, hasPending, hasCompleted, notPastEnd] };
-    case "ASSIGNED":
-      return {
-        AND: [
-          assigned,
-          notPastEnd,
-          { OR: [{ items: { none: {} } }, { AND: [hasPending, noCompleted] }] },
-        ],
-      };
-    case "COMPLETED":
-      return { AND: [assigned, noPending, hasCompleted] };
-    case "CANCELLED":
-      return {
-        AND: [assigned, noPending, noCompleted, { items: { some: { status: "CANCELLED" } } }],
-      };
-  }
-}
-
-// The filters both route lists share: search (route code, or the name/code of
-// any of its centers or contacts), assignee, and date range (overlap with [from, to],
-// either bound optional). An unassigned route has no assignee and no dates,
-// so the assignee and date filters naturally leave it out.
-function filterClauses(
-  filters: Pick<RouteTableFilters, "q" | "assigneeId" | "from" | "to">,
-): Prisma.RouteWhereInput[] {
+function contentFilterClauses(filters: RouteContentFilters): Prisma.RouteWhereInput[] {
   const and: Prisma.RouteWhereInput[] = [];
-
   if (filters.q) {
     const contains = { contains: filters.q, mode: "insensitive" as const };
     and.push({
@@ -189,44 +208,41 @@ function filterClauses(
       ],
     });
   }
-  if (filters.assigneeId) and.push({ userId: filters.assigneeId });
-  if (filters.from) and.push({ endDate: { gte: filters.from } });
-  if (filters.to) and.push({ startDate: { lte: filters.to } });
-
+  // A route reached through a specific assignee only when that assignee
+  // actually holds an (ACTIVE) assignment overlapping the given range.
+  if (filters.assigneeId || filters.from || filters.to) {
+    and.push({
+      assignments: {
+        some: {
+          status: "ACTIVE",
+          ...(filters.assigneeId ? { userId: filters.assigneeId } : {}),
+          ...(filters.from ? { endDate: { gte: filters.from } } : {}),
+          ...(filters.to ? { startDate: { lte: filters.to } } : {}),
+        },
+      },
+    });
+  }
   return and;
 }
 
-function tableWhere(
-  scope: RouteScope,
-  filters: RouteTableFilters,
-  today: Date,
-): Prisma.RouteWhereInput {
-  // The table lists existing assignments only — unassigned routes are picked
-  // in the assign form instead — and the actor's scope still applies on top.
-  const and: Prisma.RouteWhereInput[] = [
-    routeScopeWhere(scope),
-    { userId: { not: null } },
-    ...filterClauses(filters),
-  ];
-  if (filters.status) and.push(statusWhere(filters.status, today));
-
-  return { AND: and };
-}
-
-export async function findRoutesPage(params: {
+// The Add Routes list, one page at a time — newest first, same scope as
+// everywhere else. The total comes from the same where clause, so the page
+// count always matches what the list can show.
+export async function findEditableRoutesPage(params: {
   scope: RouteScope;
-  filters: RouteTableFilters;
-  today: Date;
+  filters: RouteContentFilters;
   skip: number;
   take: number;
 }): Promise<{ routes: RouteWithItems[]; total: number }> {
-  const where = tableWhere(params.scope, params.filters, params.today);
+  // Filters only ever narrow the actor's scope, never widen it.
+  const where: Prisma.RouteWhereInput = {
+    AND: [routeScopeWhere(params.scope), ...contentFilterClauses(params.filters)],
+  };
   const [routes, total] = await Promise.all([
     prisma.route.findMany({
       where,
-      include: routeInclude,
-      // Unassigned work first (it's what needs action), then newest ranges.
-      orderBy: [{ startDate: { sort: "desc", nulls: "first" } }, { createdAt: "desc" }],
+      include: routeContentInclude,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       skip: params.skip,
       take: params.take,
     }),
@@ -235,7 +251,127 @@ export async function findRoutesPage(params: {
   return { routes, total };
 }
 
-// --- Assign form: eligible-route search ---
+// --- Assign Routes table (server-side filtered and paginated) -------------
+// One row per assignment, not per route — a route with two concurrent
+// assignees produces two rows here, same shape as the Activity Assignment
+// table.
+
+export type RouteAssignmentTableFilters = {
+  q?: string;
+  assigneeId?: string;
+  status?: "ASSIGNED" | "IN_PROGRESS" | "MISSED" | "COMPLETED" | "CANCELLED";
+  from?: Date;
+  to?: Date;
+};
+
+// The derived-status filter, expressed over the stored data (the status
+// itself is never stored — see deriveRouteStatus in route-service.ts, which
+// these clauses must stay in step with). `today` is the Kinshasa calendar
+// date: an assignment with a PENDING item (for it) past its endDate is
+// MISSED. CANCELLED here means the assignment itself was cancelled — same
+// signal the old model derived from item statuses, now read directly off
+// RouteAssignment.status instead, since cancelling an assignment no longer
+// forces every item to a terminal state on rows shared with other
+// assignees.
+function assignmentStatusWhere(
+  status: NonNullable<RouteAssignmentTableFilters["status"]>,
+  today: Date,
+): Prisma.RouteAssignmentWhereInput {
+  const active: Prisma.RouteAssignmentWhereInput = { status: "ACTIVE" };
+  const hasPending: Prisma.RouteAssignmentWhereInput = {
+    itemExecutions: { some: { status: "PENDING" } },
+  };
+  const hasPendingOrNone: Prisma.RouteAssignmentWhereInput = {
+    route: { items: { some: {} } },
+  };
+  const hasCompleted: Prisma.RouteAssignmentWhereInput = {
+    itemExecutions: { some: { status: "COMPLETED" } },
+  };
+  const pastEnd: Prisma.RouteAssignmentWhereInput = { endDate: { lt: today } };
+  const notPastEnd: Prisma.RouteAssignmentWhereInput = {
+    OR: [{ endDate: null }, { endDate: { gte: today } }],
+  };
+
+  switch (status) {
+    case "CANCELLED":
+      return { status: "CANCELLED" };
+    case "MISSED":
+      return { AND: [active, hasPending, pastEnd] };
+    case "IN_PROGRESS":
+      return { AND: [active, hasPending, hasCompleted, notPastEnd] };
+    case "ASSIGNED":
+      return { AND: [active, notPastEnd, hasPendingOrNone] };
+    case "COMPLETED":
+      return { AND: [active, hasCompleted] };
+  }
+}
+
+function assignmentFilterClauses(
+  filters: Pick<RouteAssignmentTableFilters, "q" | "assigneeId" | "from" | "to">,
+): Prisma.RouteAssignmentWhereInput[] {
+  const and: Prisma.RouteAssignmentWhereInput[] = [];
+  if (filters.q) {
+    const contains = { contains: filters.q, mode: "insensitive" as const };
+    and.push({
+      route: {
+        OR: [
+          { code: contains },
+          { items: { some: { center: { OR: [{ name: contains }, { code: contains }] } } } },
+          {
+            items: {
+              some: {
+                contacts: { some: { contact: { OR: [{ name: contains }, { code: contains }] } } },
+              },
+            },
+          },
+        ],
+      },
+    });
+  }
+  if (filters.assigneeId) and.push({ userId: filters.assigneeId });
+  if (filters.from) and.push({ endDate: { gte: filters.from } });
+  if (filters.to) and.push({ startDate: { lte: filters.to } });
+  return and;
+}
+
+function assignmentTableWhere(
+  scope: RouteScope,
+  filters: RouteAssignmentTableFilters,
+  today: Date,
+): Prisma.RouteAssignmentWhereInput {
+  const scopeClause: Prisma.RouteAssignmentWhereInput = scope.assignedUserIds
+    ? { userId: { in: scope.assignedUserIds } }
+    : {};
+  const and: Prisma.RouteAssignmentWhereInput[] = [
+    scopeClause,
+    ...assignmentFilterClauses(filters),
+  ];
+  if (filters.status) and.push(assignmentStatusWhere(filters.status, today));
+  return { AND: and };
+}
+
+export async function findAssignmentsPage(params: {
+  scope: RouteScope;
+  filters: RouteAssignmentTableFilters;
+  today: Date;
+  skip: number;
+  take: number;
+}): Promise<{ assignments: RouteAssignmentWithRoute[]; total: number }> {
+  const where = assignmentTableWhere(params.scope, params.filters, params.today);
+  const [assignments, total] = await Promise.all([
+    prisma.routeAssignment.findMany({
+      where,
+      include: assignmentWithRouteInclude,
+      orderBy: [{ startDate: "desc" }, { createdAt: "desc" }],
+      skip: params.skip,
+      take: params.take,
+    }),
+    prisma.routeAssignment.count({ where }),
+  ]);
+  return { assignments, total };
+}
+
+// --- Assign form: eligible-route search ------------------------------------
 
 export type AssignableRouteRow = Prisma.RouteGetPayload<{
   select: {
@@ -243,7 +379,6 @@ export type AssignableRouteRow = Prisma.RouteGetPayload<{
     code: true;
     items: {
       select: {
-        status: true;
         center: { select: { name: true } };
         contacts: { select: { id: true } };
       };
@@ -251,36 +386,37 @@ export type AssignableRouteRow = Prisma.RouteGetPayload<{
   };
 }>;
 
-// Unassigned routes the actor may assign (their own drafts; ADMIN: anyone's)
-// that still have something to visit. Bounded by `limit`; matches the route
-// code or any of its centers' name/code.
+// Routes the actor may assign (their own, or within their downstream
+// chain's reach via routeScopeWhere; ADMIN: anyone's) that still have
+// something to visit. Concurrent assignment means an already-assigned
+// route is still offered here — assigning it to a second person is the
+// point, not something to filter out.
 export function searchAssignableRoutes(params: {
-  creatorId: string;
-  isAdmin: boolean;
+  scope: RouteScope;
   q: string;
   limit: number;
 }): Promise<AssignableRouteRow[]> {
   const contains = { contains: params.q, mode: "insensitive" as const };
   return prisma.route.findMany({
     where: {
-      userId: null,
-      ...(params.isAdmin ? {} : { createdBy: params.creatorId }),
-      items: { some: { status: "PENDING" } },
-      ...(params.q
-        ? {
-            OR: [
-              { code: contains },
-              { items: { some: { center: { OR: [{ name: contains }, { code: contains }] } } } },
-            ],
-          }
-        : {}),
+      AND: [
+        routeScopeWhere(params.scope),
+        { items: { some: {} } },
+        params.q
+          ? {
+              OR: [
+                { code: contains },
+                { items: { some: { center: { OR: [{ name: contains }, { code: contains }] } } } },
+              ],
+            }
+          : {},
+      ],
     },
     select: {
       id: true,
       code: true,
       items: {
         select: {
-          status: true,
           center: { select: { name: true } },
           contacts: { select: { id: true } },
         },
@@ -288,30 +424,6 @@ export function searchAssignableRoutes(params: {
     },
     orderBy: { createdAt: "desc" },
     take: params.limit,
-  });
-}
-
-export function findRoutesForVisitor(visitorId: string): Promise<RouteWithItems[]> {
-  return prisma.route.findMany({
-    where: { userId: visitorId },
-    include: routeInclude,
-    orderBy: { startDate: "desc" },
-  });
-}
-
-// The visitor's routes whose assignment range touches [from, to] — the
-// Home screen's This Week / Upcoming Week source. One route is one row no
-// matter how many weeks it spans; the caller places it in each week it
-// overlaps.
-export function findRoutesForVisitorOverlapping(
-  visitorId: string,
-  from: Date,
-  to: Date,
-): Promise<RouteWithItems[]> {
-  return prisma.route.findMany({
-    where: { userId: visitorId, startDate: { lte: to }, endDate: { gte: from } },
-    include: routeInclude,
-    orderBy: [{ startDate: "asc" }, { createdAt: "asc" }],
   });
 }
 
@@ -347,31 +459,7 @@ export function updateRouteItemSequence(
   return db.routeItem.update({ where: { id }, data: { sequence, updatedBy: actorId } });
 }
 
-export function updateRouteItemStatus(
-  id: string,
-  status: Prisma.RouteItemUpdateInput["status"],
-  actorId: string,
-  db: Db = prisma,
-): Promise<RouteItemRow> {
-  return db.routeItem.update({ where: { id }, data: { status, updatedBy: actorId } });
-}
-
-// Bulk-cancels every still-PENDING item under a route that has no Contacts
-// — "cancel the assignment" (Assignment screen), not a per-item action. An
-// item that does have Contacts is never cancelled directly: its status is
-// derived from its Contacts (see cancelPendingContactsOnRoute below).
-export function cancelPendingContactlessRouteItems(
-  routeId: string,
-  actorId: string,
-  db: Db = prisma,
-): Promise<Prisma.BatchPayload> {
-  return db.routeItem.updateMany({
-    where: { routeId, status: "PENDING", contacts: { none: {} } },
-    data: { status: "CANCELLED", updatedBy: actorId },
-  });
-}
-
-// --- RouteItemContact ---
+// --- RouteItemContact (shared plan content) --------------------------------
 
 export function findRouteItemContactById(
   id: string,
@@ -402,145 +490,215 @@ export function createRouteItemContacts(
   });
 }
 
-// Only ever called with ids of PENDING rows — the service never passes a
-// COMPLETED or CANCELLED one, but the status filter makes that a database
-// guarantee, not just a convention.
-export function deletePendingRouteItemContacts(
+// Deletes Contact rows outright — only ever called for ones nobody has
+// completed on any assignment (the service checks execution rows first).
+export function deleteRouteItemContacts(
   routeItemId: string,
   contactIds: string[],
   db: Db = prisma,
 ): Promise<Prisma.BatchPayload> {
-  return db.routeItemContact.deleteMany({
-    where: { routeItemId, contactId: { in: contactIds }, status: "PENDING" },
-  });
+  return db.routeItemContact.deleteMany({ where: { routeItemId, contactId: { in: contactIds } } });
 }
 
-// Removing a Center from a route also removes its non-COMPLETED Contact
-// rows (the service refuses the removal outright if any are COMPLETED, so
-// completed history is never deleted).
-export function deleteNonCompletedRouteItemContacts(
+export function deleteAllRouteItemContacts(
   routeItemId: string,
   db: Db = prisma,
 ): Promise<Prisma.BatchPayload> {
-  return db.routeItemContact.deleteMany({
-    where: { routeItemId, status: { not: "COMPLETED" } },
-  });
+  return db.routeItemContact.deleteMany({ where: { routeItemId } });
 }
 
-export function updateRouteItemContactStatus(
-  id: string,
-  status: Prisma.RouteItemContactUpdateInput["status"],
-  actorId: string,
-  db: Db = prisma,
-): Promise<RouteItemContactRow> {
-  return db.routeItemContact.update({ where: { id }, data: { status, updatedBy: actorId } });
-}
+// --- Per-assignment execution (RouteItemExecution / RouteItemContactExecution) ---
 
-export function cancelPendingContactsOnItem(
+export type RouteItemStatusValue = "PENDING" | "COMPLETED" | "CANCELLED";
+
+// One assignee's completion state for one stop — created on first write,
+// updated after. Absent means PENDING (the default every item starts at
+// for every assignment, never written up front).
+export function upsertItemExecution(
   routeItemId: string,
+  routeAssignmentId: string,
+  status: RouteItemStatusValue,
   actorId: string,
   db: Db = prisma,
-): Promise<Prisma.BatchPayload> {
-  return db.routeItemContact.updateMany({
-    where: { routeItemId, status: "PENDING" },
-    data: { status: "CANCELLED", updatedBy: actorId },
+): Promise<Prisma.RouteItemExecutionGetPayload<object>> {
+  return db.routeItemExecution.upsert({
+    where: { routeItemId_routeAssignmentId: { routeItemId, routeAssignmentId } },
+    create: { routeItemId, routeAssignmentId, status, createdBy: actorId, updatedBy: actorId },
+    update: { status, updatedBy: actorId },
   });
 }
 
-export function cancelPendingContactsOnRoute(
-  routeId: string,
+export function upsertContactExecution(
+  routeItemContactId: string,
+  routeAssignmentId: string,
+  status: RouteItemStatusValue,
   actorId: string,
   db: Db = prisma,
-): Promise<Prisma.BatchPayload> {
-  return db.routeItemContact.updateMany({
-    where: { routeItem: { routeId }, status: "PENDING" },
-    data: { status: "CANCELLED", updatedBy: actorId },
+): Promise<Prisma.RouteItemContactExecutionGetPayload<object>> {
+  return db.routeItemContactExecution.upsert({
+    where: { routeItemContactId_routeAssignmentId: { routeItemContactId, routeAssignmentId } },
+    create: {
+      routeItemContactId,
+      routeAssignmentId,
+      status,
+      createdBy: actorId,
+      updatedBy: actorId,
+    },
+    update: { status, updatedBy: actorId },
   });
 }
 
+// This one assignment's status for every Contact under one item — absent
+// rows default to PENDING, same convention as the item-level execution.
 export async function listContactStatusesForItem(
   routeItemId: string,
+  routeAssignmentId: string,
   db: Db = prisma,
-): Promise<Array<"PENDING" | "COMPLETED" | "CANCELLED">> {
-  const rows = await db.routeItemContact.findMany({
+): Promise<RouteItemStatusValue[]> {
+  const contacts = await db.routeItemContact.findMany({
     where: { routeItemId },
-    select: { status: true },
+    select: {
+      executions: { where: { routeAssignmentId }, select: { status: true } },
+    },
   });
-  return rows.map((row) => row.status);
+  return contacts.map((row) => row.executions[0]?.status ?? "PENDING");
 }
 
-// The still-PENDING items under a route that have at least one Contact —
-// the ones whose status needs re-deriving after their Contacts change in
-// bulk.
-export async function listPendingItemIdsWithContacts(
-  routeId: string,
+// The ids of this item's Contacts that are still PENDING for this one
+// assignment — used by cancelRouteItem so cancelling a center only cancels
+// what's left for this assignee, never a contact that assignee (or anyone
+// else) already completed.
+export async function listPendingContactIdsForItem(
+  routeItemId: string,
+  routeAssignmentId: string,
   db: Db = prisma,
 ): Promise<string[]> {
-  const rows = await db.routeItem.findMany({
-    where: { routeId, status: "PENDING", contacts: { some: {} } },
-    select: { id: true },
+  const contacts = await db.routeItemContact.findMany({
+    where: { routeItemId },
+    select: {
+      id: true,
+      executions: { where: { routeAssignmentId }, select: { status: true } },
+    },
   });
-  return rows.map((row) => row.id);
+  return contacts
+    .filter((row) => (row.executions[0]?.status ?? "PENDING") === "PENDING")
+    .map((row) => row.id);
 }
 
-// Sets who holds the route and for which range — used for both first-time
-// assignment and reassignment, which update this same row in place (same id,
-// same code); the history is appended separately (createRouteAssignmentRow).
-export function assignRouteRow(
+// This one assignment's current status for one specific Contact — absent
+// means PENDING, same convention as every other execution lookup. Used by
+// completeRouteItemContact/cancelRouteItemContact to refuse acting on a
+// contact that already has a final status for this assignment.
+export async function findContactExecutionStatus(
+  routeItemContactId: string,
+  routeAssignmentId: string,
+  db: Db = prisma,
+): Promise<RouteItemStatusValue> {
+  const row = await db.routeItemContactExecution.findUnique({
+    where: {
+      routeItemContactId_routeAssignmentId: { routeItemContactId, routeAssignmentId },
+    },
+    select: { status: true },
+  });
+  return row?.status ?? "PENDING";
+}
+
+// Every (item, contact) execution for one assignment that's still PENDING
+// (or has no execution row at all, which defaults to PENDING) — the set
+// cancelling an assignment needs to flip, without touching any other
+// assignee's own progress on the same shared items.
+export async function listPendingExecutionTargetsForAssignment(
   routeId: string,
-  userId: string,
-  startDate: Date,
-  endDate: Date,
-  actorId: string,
+  routeAssignmentId: string,
   db: Db = prisma,
-): Promise<Prisma.RouteGetPayload<object>> {
-  return db.route.update({
-    where: { id: routeId },
-    data: { user: { connect: { id: userId } }, startDate, endDate, updatedBy: actorId },
+): Promise<{
+  itemIds: string[];
+  itemsWithContactsIds: string[];
+  contactIds: string[];
+}> {
+  const items = await db.routeItem.findMany({
+    where: { routeId },
+    select: {
+      id: true,
+      executions: { where: { routeAssignmentId }, select: { status: true } },
+      contacts: {
+        select: {
+          id: true,
+          executions: { where: { routeAssignmentId }, select: { status: true } },
+        },
+      },
+    },
   });
-}
 
-// Append-only history of assign / reassign / cancel. Records the assignee
-// and range as of the event.
-export function createRouteAssignmentRow(
-  data: {
-    routeId: string;
-    action: "ASSIGNED" | "REASSIGNED" | "CANCELLED";
-    userId: string;
-    startDate: Date | null;
-    endDate: Date | null;
-  },
-  actorId: string,
-  db: Db = prisma,
-) {
-  return db.routeAssignment.create({
-    data: { ...data, createdBy: actorId, updatedBy: actorId },
-  });
+  const itemIds: string[] = [];
+  const itemsWithContactsIds: string[] = [];
+  const contactIds: string[] = [];
+  for (const item of items) {
+    if (item.contacts.length > 0) {
+      itemsWithContactsIds.push(item.id);
+      for (const contact of item.contacts) {
+        const status = contact.executions[0]?.status ?? "PENDING";
+        if (status === "PENDING") contactIds.push(contact.id);
+      }
+    } else {
+      const status = item.executions[0]?.status ?? "PENDING";
+      if (status === "PENDING") itemIds.push(item.id);
+    }
+  }
+  return { itemIds, itemsWithContactsIds, contactIds };
 }
 
 // The duplicate-prevention check (per-visitor, across all of that visitor's
-// routes) — every center already actively planned (PENDING or COMPLETED;
-// CANCELLED doesn't count as "still planned") for this visitor in a range
-// that overlaps [startDate, endDate], across every route, optionally
-// excluding one route's own items (so checking a route against itself
-// during assignment doesn't self-conflict).
+// active assignments) — every center already actively planned (PENDING or
+// COMPLETED for that assignment; CANCELLED doesn't count as "still
+// planned") for this visitor in a range that overlaps [startDate, endDate],
+// optionally excluding one route's own items (so checking a route against
+// itself during assignment doesn't self-conflict).
 export async function findActiveCenterIdsForVisitorInRange(
   visitorId: string,
   startDate: Date,
   endDate: Date,
   excludeRouteId?: string,
 ): Promise<Set<string>> {
-  const items = await prisma.routeItem.findMany({
+  const assignments = await prisma.routeAssignment.findMany({
     where: {
-      status: { in: ["PENDING", "COMPLETED"] },
+      userId: visitorId,
+      status: "ACTIVE",
+      startDate: { lte: endDate },
+      endDate: { gte: startDate },
+      ...(excludeRouteId ? { routeId: { not: excludeRouteId } } : {}),
+    },
+    select: {
+      id: true,
       route: {
-        userId: visitorId,
-        startDate: { lte: endDate },
-        endDate: { gte: startDate },
-        ...(excludeRouteId ? { id: { not: excludeRouteId } } : {}),
+        select: {
+          items: {
+            select: {
+              id: true,
+              centerId: true,
+              contacts: { select: { id: true } },
+              executions: { select: { routeAssignmentId: true, status: true } },
+            },
+          },
+        },
       },
     },
-    select: { centerId: true },
   });
-  return new Set(items.map((item) => item.centerId));
+
+  const centerIds = new Set<string>();
+  for (const assignment of assignments) {
+    for (const item of assignment.route.items) {
+      if (item.contacts.length > 0) {
+        // A center with contacts has no item-level execution of its own —
+        // "active" means at least one contact isn't CANCELLED for this
+        // assignment, same derived-status rule used everywhere else.
+        centerIds.add(item.centerId);
+        continue;
+      }
+      const status =
+        item.executions.find((e) => e.routeAssignmentId === assignment.id)?.status ?? "PENDING";
+      if (status !== "CANCELLED") centerIds.add(item.centerId);
+    }
+  }
+  return centerIds;
 }

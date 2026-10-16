@@ -28,6 +28,7 @@ type RouteItem = {
 };
 type RouteGroup = {
   id: string;
+  assignmentId: string;
   code: string;
   startDate: string | null;
   endDate: string | null;
@@ -72,11 +73,12 @@ export function MyVisitsList({
     });
   }
 
-  function complete(routeItemId: string) {
+  function complete(routeItemId: string, routeAssignmentId: string) {
     setError(null);
     startTransition(async () => {
       const formData = new FormData();
       formData.set("routeItemId", routeItemId);
+      formData.set("routeAssignmentId", routeAssignmentId);
       const result: RouteFormState = await completeRouteItemAction({ error: null }, formData);
       if (result.error) {
         setError(result.error);
@@ -86,11 +88,12 @@ export function MyVisitsList({
     });
   }
 
-  function completeContact(routeItemContactId: string) {
+  function completeContact(routeItemContactId: string, routeAssignmentId: string) {
     setError(null);
     startTransition(async () => {
       const formData = new FormData();
       formData.set("routeItemContactId", routeItemContactId);
+      formData.set("routeAssignmentId", routeAssignmentId);
       const result: RouteFormState = await completeRouteItemContactAction(
         { error: null },
         formData,
@@ -103,11 +106,12 @@ export function MyVisitsList({
     });
   }
 
-  function cancelContact(routeItemContactId: string) {
+  function cancelContact(routeItemContactId: string, routeAssignmentId: string) {
     setError(null);
     startTransition(async () => {
       const formData = new FormData();
       formData.set("routeItemContactId", routeItemContactId);
+      formData.set("routeAssignmentId", routeAssignmentId);
       const result: RouteFormState = await cancelRouteItemContactAction({ error: null }, formData);
       if (result.error) {
         setError(result.error);
@@ -117,11 +121,12 @@ export function MyVisitsList({
     });
   }
 
-  function cancel(routeItemId: string) {
+  function cancel(routeItemId: string, routeAssignmentId: string) {
     setError(null);
     startTransition(async () => {
       const formData = new FormData();
       formData.set("routeItemId", routeItemId);
+      formData.set("routeAssignmentId", routeAssignmentId);
       const result: RouteFormState = await cancelRouteItemAction({ error: null }, formData);
       if (result.error) {
         setError(result.error);
@@ -220,7 +225,7 @@ export function MyVisitsList({
                               className="max-sm:w-8 max-sm:px-0"
                               title={dict.markComplete}
                               disabled={isPending}
-                              onClick={() => complete(item.id)}
+                              onClick={() => complete(item.id, route.assignmentId)}
                             >
                               <Check className="sm:hidden" aria-hidden />
                               <span className="max-sm:sr-only">{dict.markComplete}</span>
@@ -233,7 +238,7 @@ export function MyVisitsList({
                             className="max-sm:w-8 max-sm:px-0"
                             title={cancelLabel}
                             disabled={isPending}
-                            onClick={() => cancel(item.id)}
+                            onClick={() => cancel(item.id, route.assignmentId)}
                           >
                             <X className="sm:hidden" aria-hidden />
                             <span className="max-sm:sr-only">{cancelLabel}</span>
@@ -245,8 +250,8 @@ export function MyVisitsList({
                       <div className="col-span-3 row-start-3">
                         <RouteContactList
                           contacts={item.contacts}
-                          onComplete={completeContact}
-                          onCancel={cancelContact}
+                          onComplete={(contactId) => completeContact(contactId, route.assignmentId)}
+                          onCancel={(contactId) => cancelContact(contactId, route.assignmentId)}
                           disabled={isPending}
                           dict={dict}
                         />

@@ -1,4 +1,5 @@
 import { getLanguage, getServerDictionary } from "@/lib/i18n/server";
+import { hasPermission } from "@/server/auth/permissions";
 import { requirePermission } from "@/server/auth/require-permission";
 import { getAssignmentsForMonth } from "@/server/services/activity-service";
 
@@ -18,6 +19,7 @@ export default async function MyActivityCalendarPage({ searchParams }: MyCalenda
   const session = await requirePermission("activities:respond-own");
   const [dict, language] = await Promise.all([getServerDictionary(), getLanguage()]);
   const t = dict.activitiesPage;
+  const canViewTeam = hasPermission(session.user.permissions, "activities:view-team");
 
   const params = await searchParams;
   const yearParam = Array.isArray(params.year) ? params.year[0] : params.year;
@@ -32,7 +34,7 @@ export default async function MyActivityCalendarPage({ searchParams }: MyCalenda
   return (
     <div className="flex flex-col gap-6 p-6">
       <h1 className="text-xl font-semibold">{t.myActivitiesTitle}</h1>
-      <MyActivitiesTabs active="calendar" dict={t} />
+      <MyActivitiesTabs active="calendar" canViewTeam={canViewTeam} dict={t} />
 
       <ActivityCalendarBody
         year={year}

@@ -40,6 +40,7 @@ const UPCOMING = {
 function route(overrides: Partial<RouteGroupSummary> = {}): RouteGroupSummary {
   return {
     id: "r1",
+    assignmentId: "a1",
     code: "RT-00001",
     userId: "delegate-1",
     visitorName: "Dele Gate",

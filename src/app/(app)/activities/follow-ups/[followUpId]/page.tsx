@@ -11,6 +11,7 @@ import { requirePermission } from "@/server/auth/require-permission";
 import { getFollowUpDetail } from "@/server/services/follow-up-service";
 
 import { CompleteFollowUpForm } from "./complete-follow-up-form";
+import { FollowUpResultsView } from "./follow-up-results-view";
 import { ReassignFollowUpForm } from "./reassign-follow-up-form";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +40,8 @@ export default async function FollowUpDetailPage({
   const { from } = await searchParams;
 
   const canAssign = hasPermission(session.user.permissions, "activities:assign");
-  const detail = await getFollowUpDetail(followUpId, session, canAssign);
+  const canViewTeam = hasPermission(session.user.permissions, "activities:view-team");
+  const detail = await getFollowUpDetail(followUpId, session, canAssign, canViewTeam);
   if (!detail) notFound();
 
   const { followUp, reassignments } = detail;
@@ -47,6 +49,7 @@ export default async function FollowUpDetailPage({
   const isPending = followUp.status === "PENDING";
   const showComplete = isPending && isOwner;
   const showReassign = isPending && canAssign;
+  const showResults = followUp.status === "DONE";
 
   const backHref = from === "team" ? "/activities/follow-ups/team" : "/activities/follow-ups";
   const backLabel = from === "team" ? t.backToTeamFollowUps : t.backToFollowUps;
@@ -87,13 +90,25 @@ export default async function FollowUpDetailPage({
 
       <hr className="border-border" />
 
+      {showResults ? (
+        <FollowUpResultsView
+          result={{
+            outcome: followUp.outcome,
+            prescriptionsGenerated: followUp.prescriptionsGenerated,
+            businessValueGenerated: followUp.businessValueGenerated,
+            productAvailable: followUp.productAvailable,
+          }}
+          dict={t}
+        />
+      ) : null}
+
       {showComplete ? <CompleteFollowUpForm followUpId={followUp.id} dict={t} /> : null}
 
       {showComplete && showReassign ? <hr className="border-border" /> : null}
 
       {showReassign ? <ReassignFollowUpForm followUpId={followUp.id} dict={t} /> : null}
 
-      {!showComplete && !showReassign ? (
+      {!showResults && !showComplete && !showReassign ? (
         <p className="text-sm text-muted-foreground">{t.noActionsHint}</p>
       ) : null}
 

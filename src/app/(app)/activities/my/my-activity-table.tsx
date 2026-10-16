@@ -34,7 +34,20 @@ function detailHref(row: MyActivityRow): string {
 }
 
 function Actions({ row, dict }: { row: MyActivityRow; dict: Dict }) {
-  if (row.status !== "PLANNED") return null;
+  if (row.status !== "PLANNED") {
+    if (!row.executionRecorded) return null;
+    return (
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button
+          render={<Link href={`/activities/my/execute/${row.assignmentId}`} />}
+          variant="outline"
+          size="sm"
+        >
+          {dict.viewResultsAction}
+        </Button>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
       <Button
