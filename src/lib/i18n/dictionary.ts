@@ -37,6 +37,7 @@ export type Dictionary = {
     visits: string;
     activitiesGroup: string;
     activities: string;
+    teamActivities: string;
     myActivities: string;
     followUps: string;
     emballageGroup: string;
@@ -664,6 +665,9 @@ export type Dictionary = {
     outcomeLabel: string;
     productAvailableLabel: string;
     completeFollowUpAction: string;
+    recordedResultsHeading: string;
+    yesLabel: string;
+    noLabel: string;
     reassignFollowUpHeading: string;
     newOwnerLabel: string;
     followUpReassigned: string;
@@ -690,10 +694,12 @@ export type Dictionary = {
     tabActivityList: string;
     tabAssignment: string;
     tabCalendar: string;
+    tabTeamActivities: string;
     tabMyActivities: string;
     tabMyFollowUps: string;
     tabTeamFollowUps: string;
     activityListTitle: string;
+    teamActivitiesTitle: string;
     myActivitiesTitle: string;
     newActivityPageTitle: string;
     newActivityButton: string;
@@ -760,7 +766,10 @@ export type Dictionary = {
     assignmentReassigned: string;
     noActionsHint: string;
     recordResultsAction: string;
+    viewResultsAction: string;
     recordResultsTitle: string;
+    viewResultsTitle: string;
+    executionDetailsHeading: string;
     outcomeNotesLabel: string;
     hcpFeedbackLabel: string;
     beneficiaryFeedbackLabel: string;
@@ -778,6 +787,7 @@ export type Dictionary = {
     recipientNone: string;
     participantResultsHeading: string;
     presentLabel: string;
+    absentLabel: string;
     perPersonFeedbackLabel: string;
     prescriptionsGeneratedLabel: string;
     productResultsHeading: string;
@@ -788,6 +798,9 @@ export type Dictionary = {
     savingResults: string;
     resultsSaved: string;
     executionLockedHint: string;
+    notRecordedLabel: string;
+    plannedLabel: string;
+    actualLabel: string;
   };
   // The Calendar screen: a month-grid view of the viewer's own holidays,
   // weekly-offs and leave status, plus a Holidays tab (the same
@@ -1100,6 +1113,7 @@ const en: Dictionary = {
     visits: "Visits",
     activitiesGroup: "Marketing",
     activities: "Activities",
+    teamActivities: "Team Activities",
     myActivities: "My Activities",
     followUps: "Follow-Ups",
     emballageGroup: "Emballage",
@@ -1661,6 +1675,9 @@ const en: Dictionary = {
     outcomeLabel: "Outcome",
     productAvailableLabel: "Product available",
     completeFollowUpAction: "Mark done",
+    recordedResultsHeading: "Recorded results",
+    yesLabel: "Yes",
+    noLabel: "No",
     reassignFollowUpHeading: "Reassign",
     newOwnerLabel: "New owner",
     followUpReassigned: "Follow-up reassigned",
@@ -1687,10 +1704,12 @@ const en: Dictionary = {
     tabActivityList: "Activity list",
     tabAssignment: "Assignment",
     tabCalendar: "Calendar",
+    tabTeamActivities: "Team Activities",
     tabMyActivities: "My activities",
     tabMyFollowUps: "My follow-ups",
     tabTeamFollowUps: "Team follow-ups",
     activityListTitle: "Marketing Activities",
+    teamActivitiesTitle: "Team Activities",
     myActivitiesTitle: "My Activities",
     newActivityPageTitle: "New activity",
     newActivityButton: "New activity",
@@ -1754,7 +1773,10 @@ const en: Dictionary = {
     assignmentReassigned: "Assignment reassigned",
     noActionsHint: "This assignment is no longer planned, so it can't be changed.",
     recordResultsAction: "Record results",
+    viewResultsAction: "View results",
     recordResultsTitle: "Record your results",
+    viewResultsTitle: "Recorded results",
+    executionDetailsHeading: "Visit details",
     outcomeNotesLabel: "General feedback",
     hcpFeedbackLabel: "Feedback from HCPs",
     beneficiaryFeedbackLabel: "Feedback from beneficiaries",
@@ -1772,6 +1794,7 @@ const en: Dictionary = {
     recipientNone: "None",
     participantResultsHeading: "Participants",
     presentLabel: "Present",
+    absentLabel: "Absent",
     perPersonFeedbackLabel: "Feedback",
     prescriptionsGeneratedLabel: "Prescriptions generated",
     productResultsHeading: "Products",
@@ -1782,6 +1805,9 @@ const en: Dictionary = {
     savingResults: "Saving…",
     resultsSaved: "Results saved",
     executionLockedHint: "This assignment is no longer planned, so results can't be changed.",
+    notRecordedLabel: "Not recorded",
+    plannedLabel: "Planned",
+    actualLabel: "Actual",
   },
   calendarPage: {
     tabCalendar: "Calendar",
@@ -2069,6 +2095,7 @@ const fr: Dictionary = {
     visits: "Visites",
     activitiesGroup: "Marketing",
     activities: "Activités",
+    teamActivities: "Activités de l'équipe",
     myActivities: "Mes activités",
     followUps: "Suivis",
     emballageGroup: "Emballage",
@@ -2634,6 +2661,9 @@ const fr: Dictionary = {
     outcomeLabel: "Résultat",
     productAvailableLabel: "Produit disponible",
     completeFollowUpAction: "Marquer comme fait",
+    recordedResultsHeading: "Résultats enregistrés",
+    yesLabel: "Oui",
+    noLabel: "Non",
     reassignFollowUpHeading: "Réaffecter",
     newOwnerLabel: "Nouveau responsable",
     followUpReassigned: "Suivi réaffecté",
@@ -2660,10 +2690,12 @@ const fr: Dictionary = {
     tabActivityList: "Liste des activités",
     tabAssignment: "Affectation",
     tabCalendar: "Calendrier",
+    tabTeamActivities: "Activités de l'équipe",
     tabMyActivities: "Mes activités",
     tabMyFollowUps: "Mes suivis",
     tabTeamFollowUps: "Suivis de l'équipe",
     activityListTitle: "Activités marketing",
+    teamActivitiesTitle: "Activités de l'équipe",
     myActivitiesTitle: "Mes activités",
     newActivityPageTitle: "Nouvelle activité",
     newActivityButton: "Nouvelle activité",
@@ -2728,7 +2760,10 @@ const fr: Dictionary = {
     assignmentReassigned: "Affectation réaffectée",
     noActionsHint: "Cette affectation n'est plus planifiée, elle ne peut plus être modifiée.",
     recordResultsAction: "Enregistrer les résultats",
+    viewResultsAction: "Voir les résultats",
     recordResultsTitle: "Enregistrer vos résultats",
+    viewResultsTitle: "Résultats enregistrés",
+    executionDetailsHeading: "Détails de la visite",
     outcomeNotesLabel: "Retour général",
     hcpFeedbackLabel: "Retour des professionnels de santé",
     beneficiaryFeedbackLabel: "Retour des bénéficiaires",
@@ -2746,6 +2781,7 @@ const fr: Dictionary = {
     recipientNone: "Aucun",
     participantResultsHeading: "Participants",
     presentLabel: "Présent",
+    absentLabel: "Absent",
     perPersonFeedbackLabel: "Retour",
     prescriptionsGeneratedLabel: "Prescriptions générées",
     productResultsHeading: "Produits",
@@ -2757,6 +2793,9 @@ const fr: Dictionary = {
     resultsSaved: "Résultats enregistrés",
     executionLockedHint:
       "Cette affectation n'est plus planifiée, les résultats ne peuvent plus être modifiés.",
+    notRecordedLabel: "Non enregistré",
+    plannedLabel: "Prévu",
+    actualLabel: "Réel",
   },
   calendarPage: {
     tabCalendar: "Calendrier",
