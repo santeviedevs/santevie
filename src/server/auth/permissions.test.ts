@@ -44,6 +44,9 @@ const EXPECTED: Record<(typeof ROLES)[number], Permission[]> = {
     "emballage:view-team",
     "emballage:correct-locked",
     "emballage:finalize-report",
+    "prescriptions:manage-targets",
+    "prescriptions:update-progress",
+    "prescriptions:view-team",
   ],
   SUPERVISOR: [
     "orders:view-team",
@@ -63,6 +66,9 @@ const EXPECTED: Record<(typeof ROLES)[number], Permission[]> = {
     "activities:view-team",
     "emballage:record-own",
     "emballage:view-team",
+    "prescriptions:manage-targets",
+    "prescriptions:update-progress",
+    "prescriptions:view-team",
   ],
   DELEGATE: [
     "orders:view-own",
@@ -75,6 +81,7 @@ const EXPECTED: Record<(typeof ROLES)[number], Permission[]> = {
     "visits:respond-own",
     "activities:respond-own",
     "emballage:record-own",
+    "prescriptions:update-progress",
   ],
 };
 

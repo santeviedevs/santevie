@@ -43,6 +43,9 @@ export type Dictionary = {
     emballageGroup: string;
     emballage: string;
     emballageReport: string;
+    prescriptionsGroup: string;
+    prescriptions: string;
+    prescriptionsTeam: string;
   };
   header: {
     signOut: string;
@@ -618,6 +621,69 @@ export type Dictionary = {
     reportFinalized: string;
     cancel: string;
   };
+  // Story D: Prescription Activity — a monthly per-prescriber/product
+  // target that accumulates cumulative updates (never an Activity/
+  // ActivityAssignment row), with Target/Achieved/Remaining derived live
+  // and a visit-wise update history. A follow-up date set on an update
+  // surfaces on Home alongside activity follow-ups (see activitiesPage's
+  // prescriptionLabel) rather than through a separate screen.
+  prescriptionsPage: {
+    title: string;
+    myTargets: string;
+    teamTargets: string;
+    setTarget: string;
+    editTarget: string;
+    contactLabel: string;
+    productLabel: string;
+    delegateLabel: string;
+    monthlyTargetLabel: string;
+    periodMonthLabel: string;
+    periodYearLabel: string;
+    editReasonLabel: string;
+    save: string;
+    saving: string;
+    targetSaved: string;
+    targetUpdated: string;
+    colContact: string;
+    colProduct: string;
+    colDelegate: string;
+    colPeriod: string;
+    colTarget: string;
+    colAchieved: string;
+    colRemaining: string;
+    noTargets: string;
+    searchContactsPlaceholder: string;
+    noMatchingContacts: string;
+    searchDelegatesPlaceholder: string;
+    noMatchingDelegates: string;
+    searching: string;
+    searchFailed: string;
+    backToTargets: string;
+    progressHeading: string;
+    recordUpdateHeading: string;
+    cumulativeAchievedLabel: string;
+    feedbackLabel: string;
+    challengesLabel: string;
+    followUpDateLabel: string;
+    recordUpdate: string;
+    recording: string;
+    updateRecorded: string;
+    decreaseConfirmTitle: string;
+    // A template, not a function — a function value can't cross the
+    // server/client boundary when this dict object is passed as a prop
+    // into a Client Component. Interpolated client-side via
+    // formatDecreaseConfirmBody in record-update-form.tsx, replacing the
+    // literal "{current}"/"{next}" placeholders.
+    decreaseConfirmBody: string;
+    correctionReasonLabel: string;
+    confirmAndSave: string;
+    historyHeading: string;
+    historyEmpty: string;
+    revisionsHeading: string;
+    revisionsEmpty: string;
+    acknowledgedDecreaseBadge: string;
+    cancel: string;
+  };
   // S3-07's marketing activity planning and follow-ups — one screen
   // combining the pending/overdue widget, the create form, and the month
   // calendar; plus a flat my-follow-ups list and a supervisor team view.
@@ -628,6 +694,11 @@ export type Dictionary = {
     homeFollowUpsHeading: string;
     homeFollowUpsHelp: string;
     dueToday: string;
+    // Home's follow-up list merges activity follow-ups with prescription
+    // follow-ups (Story D) — this badge is how a prescription-derived row
+    // identifies itself, since it has no activity/type name of its own.
+    prescriptionLabel: string;
+    recordProgress: string;
     newActivity: string;
     nameLabel: string;
     typeLabel: string;
@@ -1119,6 +1190,9 @@ const en: Dictionary = {
     emballageGroup: "Emballage",
     emballage: "My Collections",
     emballageReport: "EOM Report",
+    prescriptionsGroup: "Prescriptions",
+    prescriptions: "My Targets",
+    prescriptionsTeam: "Team Targets",
   },
   header: {
     signOut: "Sign out",
@@ -1631,6 +1705,59 @@ const en: Dictionary = {
     reportFinalized: "Report finalized — this month's records are now locked.",
     cancel: "Cancel",
   },
+  prescriptionsPage: {
+    title: "Prescription Targets",
+    myTargets: "My Targets",
+    teamTargets: "Team Targets",
+    setTarget: "Set a target",
+    editTarget: "Edit target",
+    contactLabel: "Prescriber",
+    productLabel: "Product",
+    delegateLabel: "Delegate",
+    monthlyTargetLabel: "Monthly target",
+    periodMonthLabel: "Month",
+    periodYearLabel: "Year",
+    editReasonLabel: "Reason (optional)",
+    save: "Save",
+    saving: "Saving…",
+    targetSaved: "Target saved.",
+    targetUpdated: "Target updated.",
+    colContact: "Prescriber",
+    colProduct: "Product",
+    colDelegate: "Delegate",
+    colPeriod: "Month",
+    colTarget: "Target",
+    colAchieved: "Achieved",
+    colRemaining: "Remaining",
+    noTargets: "No targets set yet.",
+    searchContactsPlaceholder: "Search prescribers…",
+    noMatchingContacts: "No matching prescribers.",
+    searchDelegatesPlaceholder: "Search delegates…",
+    noMatchingDelegates: "No matching delegates.",
+    searching: "Searching…",
+    searchFailed: "Search failed.",
+    backToTargets: "Back to targets",
+    progressHeading: "Progress",
+    recordUpdateHeading: "Record progress",
+    cumulativeAchievedLabel: "Prescriptions generated so far",
+    feedbackLabel: "Feedback",
+    challengesLabel: "Challenges",
+    followUpDateLabel: "Follow-up date",
+    recordUpdate: "Record update",
+    recording: "Saving…",
+    updateRecorded: "Progress recorded.",
+    decreaseConfirmTitle: "Lower than the current value",
+    decreaseConfirmBody:
+      "The current recorded value is {current}. You entered {next}, which is lower. Do you want to continue?",
+    correctionReasonLabel: "Reason for the correction",
+    confirmAndSave: "Confirm & save",
+    historyHeading: "History",
+    historyEmpty: "No progress recorded yet.",
+    revisionsHeading: "Target changes",
+    revisionsEmpty: "No changes recorded.",
+    acknowledgedDecreaseBadge: "Correction",
+    cancel: "Cancel",
+  },
   activitiesPage: {
     title: "Marketing Activities",
     myFollowUps: "My Follow-Ups",
@@ -1638,6 +1765,8 @@ const en: Dictionary = {
     homeFollowUpsHeading: "Follow-ups",
     homeFollowUpsHelp: "Follow-ups that need your attention.",
     dueToday: "Due today",
+    prescriptionLabel: "Prescription",
+    recordProgress: "Record progress",
     newActivity: "New activity",
     nameLabel: "Name",
     typeLabel: "Type",
@@ -2101,6 +2230,9 @@ const fr: Dictionary = {
     emballageGroup: "Emballage",
     emballage: "Mes collectes",
     emballageReport: "Rapport de fin de mois",
+    prescriptionsGroup: "Prescriptions",
+    prescriptions: "Mes objectifs",
+    prescriptionsTeam: "Objectifs de l'équipe",
   },
   header: {
     signOut: "Se déconnecter",
@@ -2617,6 +2749,59 @@ const fr: Dictionary = {
       "Rapport finalisé — les enregistrements de ce mois sont désormais verrouillés.",
     cancel: "Annuler",
   },
+  prescriptionsPage: {
+    title: "Objectifs de prescription",
+    myTargets: "Mes objectifs",
+    teamTargets: "Objectifs de l'équipe",
+    setTarget: "Définir un objectif",
+    editTarget: "Modifier l'objectif",
+    contactLabel: "Prescripteur",
+    productLabel: "Produit",
+    delegateLabel: "Délégué",
+    monthlyTargetLabel: "Objectif mensuel",
+    periodMonthLabel: "Mois",
+    periodYearLabel: "Année",
+    editReasonLabel: "Motif (facultatif)",
+    save: "Enregistrer",
+    saving: "Enregistrement…",
+    targetSaved: "Objectif enregistré.",
+    targetUpdated: "Objectif mis à jour.",
+    colContact: "Prescripteur",
+    colProduct: "Produit",
+    colDelegate: "Délégué",
+    colPeriod: "Mois",
+    colTarget: "Objectif",
+    colAchieved: "Réalisé",
+    colRemaining: "Restant",
+    noTargets: "Aucun objectif défini pour le moment.",
+    searchContactsPlaceholder: "Rechercher un prescripteur…",
+    noMatchingContacts: "Aucun prescripteur correspondant.",
+    searchDelegatesPlaceholder: "Rechercher un délégué…",
+    noMatchingDelegates: "Aucun délégué correspondant.",
+    searching: "Recherche…",
+    searchFailed: "La recherche a échoué.",
+    backToTargets: "Retour aux objectifs",
+    progressHeading: "Progression",
+    recordUpdateHeading: "Enregistrer la progression",
+    cumulativeAchievedLabel: "Prescriptions générées à ce jour",
+    feedbackLabel: "Retour",
+    challengesLabel: "Difficultés",
+    followUpDateLabel: "Date de suivi",
+    recordUpdate: "Enregistrer la mise à jour",
+    recording: "Enregistrement…",
+    updateRecorded: "Progression enregistrée.",
+    decreaseConfirmTitle: "Valeur inférieure à la valeur actuelle",
+    decreaseConfirmBody:
+      "La valeur actuellement enregistrée est {current}. Vous avez saisi {next}, ce qui est inférieur. Voulez-vous continuer ?",
+    correctionReasonLabel: "Motif de la correction",
+    confirmAndSave: "Confirmer et enregistrer",
+    historyHeading: "Historique",
+    historyEmpty: "Aucune progression enregistrée pour le moment.",
+    revisionsHeading: "Modifications de l'objectif",
+    revisionsEmpty: "Aucune modification enregistrée.",
+    acknowledgedDecreaseBadge: "Correction",
+    cancel: "Annuler",
+  },
   activitiesPage: {
     title: "Activités marketing",
     myFollowUps: "Mes suivis",
@@ -2624,6 +2809,8 @@ const fr: Dictionary = {
     homeFollowUpsHeading: "Suivis",
     homeFollowUpsHelp: "Suivis nécessitant votre attention.",
     dueToday: "À faire aujourd'hui",
+    prescriptionLabel: "Prescription",
+    recordProgress: "Enregistrer la progression",
     newActivity: "Nouvelle activité",
     nameLabel: "Nom",
     typeLabel: "Type",

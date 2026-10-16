@@ -10,6 +10,7 @@ import {
   MapPin,
   Package,
   PackageOpen,
+  Pill,
   Route,
   Users,
 } from "lucide-react";
@@ -44,6 +45,9 @@ type NavKey =
   | "emballageGroup"
   | "emballage"
   | "emballageReport"
+  | "prescriptionsGroup"
+  | "prescriptions"
+  | "prescriptionsTeam"
   | "installGuide";
 
 export type NavChildDef = {
@@ -177,6 +181,18 @@ export const NAV_ITEM_DEFS: NavItemDef[] = [
     children: [
       { href: "/emballage", key: "emballage", permission: "emballage:record-own" },
       { href: "/emballage/report", key: "emballageReport", permission: "emballage:view-team" },
+    ],
+  },
+  {
+    key: "prescriptionsGroup",
+    icon: Pill,
+    children: [
+      { href: "/prescriptions", key: "prescriptions", permission: "prescriptions:update-progress" },
+      {
+        href: "/prescriptions/team",
+        key: "prescriptionsTeam",
+        permission: "prescriptions:view-team",
+      },
     ],
   },
 ];
