@@ -186,23 +186,26 @@ model User {
   contractDurationUnit  ContractDurationUnit?
   contractExpiryDate    DateTime?             @db.Date
 
-  visits                    Visit[]
-  orders                    Order[]
-  attendances               Attendance[]
-  targets                   Target[]
-  territoryAssignments      UserTerritoryAssignment[]
-  leaves                    Leave[]
-  ownedAttendanceRules      AttendanceRule[]          @relation("AttendanceRuleOwner")
-  targetedAttendanceRules   AttendanceRule[]          @relation("AttendanceRuleTarget")
-  routeAssignments          RouteAssignment[]
-  activityAssignments       ActivityAssignment[]
-  ownedFollowUps            FollowUp[]                @relation("FollowUpOwner")
-  followUpReassignedFrom    FollowUpReassignment[]    @relation("FollowUpReassignPrevOwner")
-  followUpReassignedTo      FollowUpReassignment[]    @relation("FollowUpReassignNewOwner")
-  followUpReassignmentsMade FollowUpReassignment[]    @relation("FollowUpReassignActor")
-  emballageCollections      EmballageCollection[]
-  emballageCorrectionsMade  EmballageCorrection[]
-  emballageReportsFinalized EmballageReportRun[]
+  visits                          Visit[]
+  orders                          Order[]
+  attendances                     Attendance[]
+  targets                         Target[]
+  territoryAssignments            UserTerritoryAssignment[]
+  leaves                          Leave[]
+  ownedAttendanceRules            AttendanceRule[]             @relation("AttendanceRuleOwner")
+  targetedAttendanceRules         AttendanceRule[]             @relation("AttendanceRuleTarget")
+  routeAssignments                RouteAssignment[]
+  activityAssignments             ActivityAssignment[]
+  ownedFollowUps                  FollowUp[]                   @relation("FollowUpOwner")
+  followUpReassignedFrom          FollowUpReassignment[]       @relation("FollowUpReassignPrevOwner")
+  followUpReassignedTo            FollowUpReassignment[]       @relation("FollowUpReassignNewOwner")
+  followUpReassignmentsMade       FollowUpReassignment[]       @relation("FollowUpReassignActor")
+  emballageCollections            EmballageCollection[]
+  emballageCorrectionsMade        EmballageCorrection[]
+  emballageReportsFinalized       EmballageReportRun[]
+  prescriptionTargets             PrescriptionTarget[]
+  prescriptionUpdatesMade         PrescriptionUpdate[]
+  prescriptionTargetRevisionsMade PrescriptionTargetRevision[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -524,6 +527,7 @@ model Product {
   activityProducts         ActivityProduct[]
   assignmentProductResults AssignmentProductResult[]
   emballageCollections     EmballageCollection[]
+  prescriptionTargets      PrescriptionTarget[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -1617,6 +1621,7 @@ model Contact {
   activityParticipations        ActivityParticipant[]         @relation("ActivityParticipantContact")
   necessityRecipientAssignments ActivityAssignment[]          @relation("ActivityAssignmentRecipient")
   assignmentParticipantResults  AssignmentParticipantResult[] @relation("AssignmentParticipantResultContact")
+  prescriptionTargets           PrescriptionTarget[]
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -1740,4 +1745,96 @@ model EmballageReportRun {
 
   @@unique([periodMonth, periodYear])
   @@map("emballage_report_runs")
+}
+
+// --- Prescription Activity (Story D): a target that accumulates cumulative
+// updates over a month — not an event, no Activity/ActivityAssignment row.
+// Delegate-specific by design: a prescriber is normally managed by one
+// delegate within a territory, so "this delegate's target for this
+// doctor/product this month" is the right grain (see @@unique below).
+model PrescriptionTarget {
+  id String @id @default(cuid())
+
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+
+  monthlyTarget Int
+  periodMonth   Int
+  periodYear    Int
+
+  // Atomic counter: incremented via `UPDATE ... SET "updateSequence" =
+  // "updateSequence" + 1 ... RETURNING "updateSequence"` inside the same
+  // transaction that inserts the new PrescriptionUpdate row. The row-level
+  // lock Postgres takes on that UPDATE is what serializes concurrent
+  // submissions — "latest" is always the update with the max sequenceNo,
+  // never recordedAt (wall-clock timestamps can collide or skew).
+  updateSequence Int @default(0)
+
+  updates   PrescriptionUpdate[]
+  revisions PrescriptionTargetRevision[]
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([contactId, productId, userId, periodMonth, periodYear])
+  @@index([userId, periodYear, periodMonth])
+  @@map("prescription_targets")
+}
+
+// Append-only — never updates a past row. One row per submission, giving
+// the "visit-wise history" the client asked for. cumulativeAchieved is the
+// running total ("prescriptions generated so far"), not a delta.
+model PrescriptionUpdate {
+  id       String             @id @default(cuid())
+  targetId String
+  target   PrescriptionTarget @relation(fields: [targetId], references: [id])
+
+  // Assigned from PrescriptionTarget.updateSequence at insert time, not
+  // derived from recordedAt.
+  sequenceNo         Int
+  cumulativeAchieved Int
+  feedback           String?
+  challenges         String?
+  followUpDate       DateTime?
+
+  // Set true only when the submission was a confirmed decrease (server-
+  // verified against the then-latest value, inside the same locked
+  // transaction — never trusted from the client alone). correctionReason
+  // is required by the service whenever acknowledgedDecrease is true.
+  acknowledgedDecrease Boolean @default(false)
+  correctionReason     String?
+
+  recordedAt     DateTime @default(now())
+  recordedBy     String
+  recordedByUser User     @relation(fields: [recordedBy], references: [id])
+
+  @@unique([targetId, sequenceNo])
+  @@index([targetId, sequenceNo])
+  @@map("prescription_updates")
+}
+
+// Audit trail for PrescriptionTarget.monthlyTarget edits — same pattern as
+// EmballageCorrection. Written only when an *existing* target's
+// monthlyTarget changes, never on first creation (nothing to revise from).
+model PrescriptionTargetRevision {
+  id       String             @id @default(cuid())
+  targetId String
+  target   PrescriptionTarget @relation(fields: [targetId], references: [id])
+
+  previousTarget Int
+  newTarget      Int
+  reason         String?
+
+  changedBy     String
+  changedByUser User     @relation(fields: [changedBy], references: [id])
+  changedAt     DateTime @default(now())
+
+  @@index([targetId])
+  @@map("prescription_target_revisions")
 }

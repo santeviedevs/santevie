@@ -7,9 +7,10 @@ import { todayInKinshasa } from "@/lib/week";
 import { auth } from "@/server/auth";
 import { hasPermission } from "@/server/auth/permissions";
 import { getMyFollowUps } from "@/server/services/follow-up-service";
+import { getMyPrescriptionFollowUps } from "@/server/services/prescription-service";
 import { getMyRoutesForHome } from "@/server/services/route-service";
 
-import { HomeFollowUpsList } from "./home-follow-ups";
+import { type HomeFollowUpItem, HomeFollowUpsList } from "./home-follow-ups";
 import { PlannedVisitsSection } from "./planned-visits-section";
 
 // User-scoped — it shows the signed-in user's own routes and follow-ups.
@@ -26,6 +27,10 @@ export default async function Home() {
 
   const dict = await getServerDictionary();
   const canRespond = hasPermission(session.user.permissions, "activities:respond-own");
+  const canRecordPrescriptions = hasPermission(
+    session.user.permissions,
+    "prescriptions:update-progress",
+  );
   const canSeeRoutes = hasPermission(session.user.permissions, "visits:respond-own");
 
   return (
@@ -33,7 +38,13 @@ export default async function Home() {
       <h1 className="text-xl font-semibold">{dict.nav.home}</h1>
 
       {canSeeRoutes ? <HomeRoutes userId={session.user.id} /> : null}
-      {canRespond ? <HomeFollowUps userId={session.user.id} /> : null}
+      {canRespond || canRecordPrescriptions ? (
+        <HomeFollowUps
+          userId={session.user.id}
+          canRespond={canRespond}
+          canRecordPrescriptions={canRecordPrescriptions}
+        />
+      ) : null}
     </div>
   );
 }
@@ -45,10 +56,32 @@ async function HomeRoutes({ userId }: { userId: string }) {
   return <PlannedVisitsSection routes={routes} dict={dict.routesPage} />;
 }
 
-async function HomeFollowUps({ userId }: { userId: string }) {
+// Merges activity follow-ups (FollowUp rows) and prescription follow-ups
+// (derived live from PrescriptionUpdate.followUpDate — never stored as a
+// FollowUp, see home-follow-ups.tsx) into one list, sorted by due date.
+// Each source is only fetched when the viewer holds its permission, so a
+// role with just one of the two still gets a correct, non-empty section.
+async function HomeFollowUps({
+  userId,
+  canRespond,
+  canRecordPrescriptions,
+}: {
+  userId: string;
+  canRespond: boolean;
+  canRecordPrescriptions: boolean;
+}) {
   const dict = await getServerDictionary();
   const t = dict.activitiesPage;
-  const { pending } = await getMyFollowUps(userId);
+
+  const [activityFollowUps, prescriptionFollowUps] = await Promise.all([
+    canRespond ? getMyFollowUps(userId).then((r) => r.pending) : Promise.resolve([]),
+    canRecordPrescriptions ? getMyPrescriptionFollowUps(userId) : Promise.resolve([]),
+  ]);
+
+  const items: HomeFollowUpItem[] = [
+    ...activityFollowUps.map((f) => ({ kind: "activity" as const, ...f })),
+    ...prescriptionFollowUps.map((f) => ({ kind: "prescription" as const, ...f })),
+  ].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
 
   return (
     <div className="flex flex-col gap-2">
@@ -57,11 +90,13 @@ async function HomeFollowUps({ userId }: { userId: string }) {
           <h2 className="text-xl font-medium">{t.homeFollowUpsHeading}</h2>
           <p className="text-xs text-muted-foreground">{t.homeFollowUpsHelp}</p>
         </div>
-        <Button render={<Link href="/activities/follow-ups" />} variant="outline" size="sm">
-          {t.myFollowUps}
-        </Button>
+        {canRespond ? (
+          <Button render={<Link href="/activities/follow-ups" />} variant="outline" size="sm">
+            {t.myFollowUps}
+          </Button>
+        ) : null}
       </div>
-      <HomeFollowUpsList pending={pending} today={todayInKinshasa()} dict={t} />
+      <HomeFollowUpsList pending={items} today={todayInKinshasa()} dict={t} />
     </div>
   );
 }
